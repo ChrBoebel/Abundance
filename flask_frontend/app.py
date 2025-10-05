@@ -3,11 +3,11 @@
 Flask-Frontend für Open Deep Research
 Minimaler Server mit SSE-Streaming im Stil des Referenzmaterials
 """
-# Gevent monkey patching MUST be done before any other imports
-from gevent import monkey
-monkey.patch_all()
-
 import asyncio
+import nest_asyncio
+
+# Allow nested event loops (needed for sync Flask + async LangGraph)
+nest_asyncio.apply()
 import json
 import os
 import sys
