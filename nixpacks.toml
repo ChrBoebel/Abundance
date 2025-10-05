@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = ["pip install -e .", "pip install -r flask_frontend/requirements.txt"]
+
+[start]
+cmd = "cd flask_frontend && gunicorn -k gevent -w 1 --timeout 0 -b 0.0.0.0:$PORT app:app"
