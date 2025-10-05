@@ -108,7 +108,6 @@ async def stream_research(message: str, thread_id: str):
         active_tools = {}
         active_steps = {}
         step_counter = 0
-        seen_steps = set()  # Deduplicate steps
         step_hierarchy = {}  # Track parent-child relationships
         current_parent = None  # Current parent step for nesting
         final_report_sent = False  # Prevent duplicate final reports
@@ -186,28 +185,31 @@ async def stream_research(message: str, thread_id: str):
             elif event_type == "on_chain_start":
                 step_name = event_name
                 if step_name and step_name in step_names:
-                    # Deduplicate: only show each unique step once
-                    if step_name in seen_steps:
-                        continue
-
-                    seen_steps.add(step_name)
                     step_counter += 1
                     step_id = f"step-{step_counter}-{step_name}"
                     german_name = step_names[step_name]
 
-                    # Determine hierarchy level
-                    level = 0  # Default to top-level
-                    parent_id = None
-
-                    if step_name in ["researcher", "researcher_tools", "compress_research"]:
-                        level = 1  # Sub-researchers
-                        parent_id = current_parent if current_parent else None
-                    elif step_name in ["supervisor", "supervisor_tools"]:
+                    # Determine hierarchy level and parent
+                    if step_name in ["clarify_with_user", "write_research_brief", "final_report_generation"]:
                         level = 0
-                        current_parent = step_id  # This becomes parent for sub-steps
+                        parent_id = None
                     elif step_name == "research_supervisor":
                         level = 0
+                        parent_id = None
                         current_parent = step_id
+                    elif step_name == "supervisor":
+                        level = 1
+                        parent_id = current_parent
+                    elif step_name == "supervisor_tools":
+                        level = 1
+                        parent_id = current_parent
+                        current_parent = step_id
+                    elif step_name in ["researcher", "researcher_tools", "compress_research"]:
+                        level = 2
+                        parent_id = current_parent
+                    else:
+                        level = 0
+                        parent_id = None
 
                     active_steps[step_id] = {
                         "name": step_name,
