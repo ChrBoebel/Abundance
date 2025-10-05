@@ -211,6 +211,7 @@ The report should be structured like this:
 
 <Citation Rules>
 - Assign each unique URL a single citation number in your text
+- For multiple citations, use [1][2][3] format, NOT [1, 2, 3]
 - End with ### Sources that lists each source with corresponding numbers
 - IMPORTANT: Number sources sequentially without gaps (1,2,3,4...) in the final list regardless of which sources you choose
 - Example format:
@@ -297,6 +298,7 @@ Format the report in clear markdown with proper structure and include source ref
 
 <Citation Rules>
 - Assign each unique URL a single citation number in your text
+- For multiple citations, use [1][2][3] format, NOT [1, 2, 3]
 - End with ### Sources that lists each source with corresponding numbers
 - IMPORTANT: Number sources sequentially without gaps (1,2,3,4...) in the final list regardless of which sources you choose
 - Each source should be a separate line item in a list, so that in markdown it is rendered as a list.
