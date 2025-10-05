@@ -246,12 +246,16 @@ Here are the findings from the research that you conducted:
 {findings}
 </Findings>
 
-Please create a detailed answer to the overall research brief that:
+Please create a detailed answer to the overall research brief that follows principles of critical rationalism:
 1. Is well-organized with proper headings (# for title, ## for sections, ### for subsections)
 2. Includes specific facts and insights from the research
 3. References relevant sources using [Title](URL) format
 4. Provides a balanced, thorough analysis. Be as comprehensive as possible, and include all information that is relevant to the overall research question. People are using you for deep research and will expect detailed, comprehensive answers.
-5. Includes a "Sources" section at the end with all referenced links
+5. **Identifies competing perspectives**: When sources present different viewpoints or contradictory information, explicitly present these alternative perspectives rather than hiding disagreements
+6. **Critically evaluates evidence**: Assess which sources are most robust and reliable. When sources contradict each other, analyze why and which evidence is stronger
+7. **Transparent about uncertainty**: Be clear about limitations in the available evidence. Present conclusions as the best current approximation based on available sources, not as absolute certainty
+8. **Highlights what remains unknown**: Include what questions remain unanswered or would require further investigation
+9. Includes a "Sources" section at the end with all referenced links
 
 You can structure your report in a number of different ways. Here are some examples:
 
