@@ -1,0 +1,7 @@
+# Root requirements for Railway deployment
+
+# Install the main package
+-e .
+
+# Flask frontend requirements
+-r flask_frontend/requirements.txt

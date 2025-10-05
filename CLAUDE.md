@@ -8,149 +8,145 @@ Open Deep Research is an automated deep research engine powered by Google's Gemi
 
 ## Core Architecture
 
-### Multi-Agent Research Pipeline
+### Multi-Agent Workflow (LangGraph)
 
-The system follows a hierarchical agent architecture implemented in `src/open_deep_research/deep_researcher.py`:
+The system implements a hierarchical agent architecture in `src/open_deep_research/deep_researcher.py`:
 
-1. **Clarification Phase** (`clarify_with_user`): Analyzes user queries to determine if clarification is needed before starting research
-2. **Research Planning** (`write_research_brief`): Transforms user messages into structured research briefs
-3. **Research Execution** (`supervisor_subgraph`): Main supervisor coordinates parallel research units
-   - **Supervisor** (`supervisor`): Plans research strategy and delegates to researchers using `ConductResearch` tool
-   - **Supervisor Tools** (`supervisor_tools`): Executes delegated research and handles `think_tool` for strategic reflection
-4. **Individual Research** (`researcher_subgraph`): Individual researchers conduct focused research
-   - **Researcher** (`researcher`): Uses search tools, MCP tools, and `think_tool` for information gathering
-   - **Researcher Tools** (`researcher_tools`): Executes search and MCP tools
-   - **Compress Research** (`compress_research`): Synthesizes findings into concise summaries
-5. **Report Generation** (`final_report_generation`): Produces final comprehensive report from all research findings
+**Main Graph Flow:**
+1. `clarify_with_user` → Determines if user query needs clarification
+2. `write_research_brief` → Converts user messages to structured research brief
+3. `supervisor_subgraph` → Coordinates parallel research execution
+4. `final_report_generation` → Synthesizes findings into comprehensive report
 
-### State Management
+**Supervisor Subgraph** (manages research delegation):
+- `supervisor` node: Plans strategy, delegates via `ConductResearch` tool
+- `supervisor_tools` node: Executes delegated research in parallel using `asyncio.gather()`
+- Uses `think_tool` for strategic reflection between actions
 
-States are defined in `src/open_deep_research/state.py`:
-- `AgentState`: Main workflow state with messages, research brief, notes
-- `SupervisorState`: Supervisor-specific state with iteration tracking
-- `ResearcherState`: Individual researcher state with tool call iterations
-- Structured outputs: `ClarifyWithUser`, `ResearchQuestion`, `ConductResearch`, `ResearchComplete`
+**Researcher Subgraph** (executes individual research):
+- `researcher` node: Conducts focused research with search/MCP tools
+- `researcher_tools` node: Executes tool calls in parallel
+- `compress_research` node: Synthesizes findings into concise summaries
+
+### State Architecture
+
+Three key states in `src/open_deep_research/state.py`:
+- `AgentState`: Main workflow state with `messages`, `research_brief`, `notes`, `final_report`
+- `SupervisorState`: Adds `research_iterations` counter
+- `ResearcherState`: Adds `tool_call_iterations` counter
+
+Critical pattern: `override_reducer` allows state reset via `{"type": "override", "value": new_value}`
 
 ### Configuration System
 
-All configuration is managed in `src/open_deep_research/configuration.py`:
-- Model selection for research, summarization, compression, and final report
-- Search API configuration (Tavily, OpenAI, Anthropic, or None)
-- Concurrency limits (`max_concurrent_research_units`)
-- Iteration limits (`max_researcher_iterations`, `max_react_tool_calls`)
-- MCP server configuration for external tool integration
+Single `Configuration` class in `src/open_deep_research/configuration.py`:
+- **Models**: All 4 roles use separate configurable models (research, summarization, compression, final_report)
+- **Search API**: Enum-based selection (Tavily, OpenAI, Anthropic, None)
+- **Limits**: `max_concurrent_research_units`, `max_researcher_iterations`, `max_react_tool_calls`
+- **MCP**: Optional external tool integration via `MCPConfig`
 
 ## Development Commands
 
-### Running Research
-
-**Interactive CLI (Recommended)**:
-```bash
-python3.11 deepresearch_cli.py
-```
-
-**One-shot research**:
-```bash
-python3.11 run_research.py "Your research question"
-```
-
-**LangGraph Studio (Web UI)**:
-```bash
-uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev
-```
-
-**Flask Web Frontend**:
-```bash
-cd flask_frontend
-python app.py
-# Opens on http://localhost:4290
-```
-
 ### Installation
-
 ```bash
 python3.11 -m pip install -e .
 ```
 
+### Running Research
+
+**Interactive CLI** (Rich terminal UI with session management):
+```bash
+python3.11 deepresearch_cli.py
+```
+
+**One-shot script**:
+```bash
+python3.11 run_research.py "Your research question"
+```
+
+**Flask Web Frontend** (password-protected, SSE streaming):
+```bash
+cd flask_frontend
+python app.py  # Opens on http://localhost:4290
+```
+
+**LangGraph Studio** (visual workflow debugging):
+```bash
+uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev
+```
+
 ### Testing
-
-The project uses pytest for testing. Tests should validate:
-- API connectivity (Gemini, Tavily)
-- Model inference
-- Search integration
-- Full research pipeline
-
-## Model Configuration
-
-All models use Gemini 2.5 Flash by default. The model naming format is critical:
-- **Correct**: `google_genai:models/gemini-2.5-flash`
-- **Incorrect**: `google_genai:gemini-2.5-flash` (missing `models/` prefix)
-
-Models are configurable via `Configuration` class:
-- `research_model`: Main research agent model
-- `summarization_model`: For summarizing Tavily search results
-- `compression_model`: For compressing researcher findings
-- `final_report_model`: For generating final reports
+```bash
+pytest  # Tests API connectivity, model inference, search integration
+```
 
 ## Key Implementation Patterns
 
+### Model Configuration & Naming
+**Critical**: Gemini models require `models/` prefix:
+- ✅ Correct: `google_genai:models/gemini-2.5-flash`
+- ❌ Incorrect: `google_genai:gemini-2.5-flash`
+
+Four separate model configurations in `Configuration`:
+- `research_model` - Main research agent
+- `summarization_model` - Tavily search result summarization
+- `compression_model` - Researcher findings compression
+- `final_report_model` - Final report generation
+
+### Parallel Execution Strategy
+- **Supervisor level**: Multiple researchers run via `asyncio.gather()` in `supervisor_tools` (line 305)
+- **Researcher level**: Tool calls execute in parallel via `asyncio.gather()` (line 479)
+- Concurrency limit: `max_concurrent_research_units` prevents resource exhaustion
+
 ### Token Limit Handling
+Progressive retry logic with automatic truncation:
+- `compress_research`: Removes messages up to last AI message on overflow
+- `final_report_generation`: Reduces findings by 10% per retry (max 3 attempts)
+- Detection: `is_token_limit_exceeded()` in `utils.py`
 
-The system implements progressive token limit retry logic in:
-- `compress_research`: Removes older messages up to last AI message on token limit
-- `final_report_generation`: Progressively truncates findings by 10% per retry (max 3 attempts)
-
-### Parallel Execution
-
-- Researchers execute in parallel using `asyncio.gather()` in `supervisor_tools`
-- Maximum concurrency controlled by `max_concurrent_research_units`
-- Tool executions within researchers also run in parallel
-
-### Tool Calling
-
-Two types of tools are used:
-1. **Research Tools**: Search APIs (Tavily, OpenAI web search, Anthropic web search) and MCP tools
-2. **Strategic Tools**: `think_tool` for reflection between actions in both supervisor and researchers
+### Tool Architecture
+1. **Strategic Tool**: `think_tool` - Used by both supervisor and researchers for reflection
+2. **Research Tools**: Search APIs (Tavily/OpenAI/Anthropic) + MCP tools
+3. **Completion Signals**: `ResearchComplete` (supervisor), early exit on `no_tool_calls`
 
 ### Error Handling
+- Structured output retries: `with_retry(stop_after_attempt=max_structured_output_retries)`
+- Safe execution: `execute_tool_safely()` wrapper (line 427-432)
+- Graceful degradation: Overflow research calls return error ToolMessage (line 316-321)
 
-- Structured output retries: `max_structured_output_retries` (default: 3)
-- Token limit detection via `is_token_limit_exceeded()` in `utils.py`
-- Safe tool execution with `execute_tool_safely()` wrapper
-- Graceful degradation when research units exceed limits
+## Environment Configuration
 
-## Environment Setup
+Required `.env` variables:
+```bash
+GEMINI_API_KEY=your-key
+GOOGLE_API_KEY=your-key  # Can be same as GEMINI_API_KEY
+TAVILY_API_KEY=your-key
 
-Required environment variables in `.env`:
+# Flask frontend only:
+SECRET_KEY=your-secret-key
+APP_PASSWORD=your-password
 ```
-GEMINI_API_KEY=your-gemini-key
-GOOGLE_API_KEY=your-google-key  # Can be same as GEMINI_API_KEY
-TAVILY_API_KEY=your-tavily-key
-```
 
-## Frontend Options
+## Frontend Architecture
 
-### CLI (`deepresearch_cli.py`)
+**CLI** (`deepresearch_cli.py`):
 - Rich terminal UI with markdown rendering
-- Session management and history
-- Slash commands: `/help`, `/save`, `/load`, `/history`, `/settings`
-- Keyboard shortcuts for history search
+- Session management via `SessionManager` class
+- Slash commands: `/help`, `/save`, `/load`, `/history`
+- Persistent history in `~/.deepresearch/`
 
-### Flask Web (`flask_frontend/app.py`)
-- Single-port solution (default: 4290)
-- Server-Sent Events (SSE) for real-time streaming
-- Dark/light mode with Tailwind CSS
-- Vanilla JavaScript, no build tools required
+**Flask Web** (`flask_frontend/app.py`):
+- Password authentication with rate limiting
+- SSE streaming via `astream_events(version="v2")`
+- Real-time step/tool tracking with hierarchical display
+- Session storage in memory (threads dict)
 
-### LangGraph Studio
+**LangGraph Studio**:
 - Visual workflow debugging
-- Interactive graph execution
-- Requires LangGraph CLI
+- Requires `langgraph-cli[inmem]`
 
-## Code Style
-
-The project uses Ruff for linting with the following conventions:
+## Code Style (Ruff)
 - Pydocstyle: Google convention
-- Docstrings required for all modules and functions
-- First line should be imperative mood
-- Imports sorted with isort
+- Docstrings: Required for all modules/functions
+- First line: Imperative mood
+- Imports: Sorted with isort

@@ -3,6 +3,10 @@
 Flask-Frontend für Open Deep Research
 Minimaler Server mit SSE-Streaming im Stil des Referenzmaterials
 """
+# Gevent monkey patching MUST be done before any other imports
+from gevent import monkey
+monkey.patch_all()
+
 import asyncio
 import json
 import os
@@ -12,18 +16,32 @@ from pathlib import Path
 from queue import Queue
 from typing import Dict, Any
 
-from flask import Flask, render_template, request, Response, jsonify, send_from_directory
+from flask import Flask, render_template, request, Response, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
 # Add parent directory to path to import deep_researcher
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from src.open_deep_research.deep_researcher import deep_researcher
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
+
+# Security Configuration
+app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-change-in-production')
+APP_PASSWORD = os.getenv('APP_PASSWORD', 'changeme')
+
+# Rate Limiter (gegen Brute-Force) - Disabled for Railway deployment
+# Using in-memory storage with gunicorn+gevent can cause deadlocks
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=[],  # Disabled
+    enabled=False
+)
 
 # In-memory thread storage
 threads: Dict[str, Dict[str, Any]] = {}
@@ -44,6 +62,9 @@ def sse_event(event_type: str, data: Any) -> str:
 
 async def stream_research(message: str, thread_id: str):
     """Stream research results via SSE with detailed tool call updates."""
+    # Import here to avoid blocking app startup
+    from src.open_deep_research.deep_researcher import deep_researcher
+
     thread = get_thread(thread_id)
 
     # Add user message to thread
@@ -250,14 +271,58 @@ async def stream_research(message: str, thread_id: str):
     except Exception as e:
         yield sse_event("error", {"error": str(e)})
 
+# Authentication Middleware
+@app.before_request
+def check_authentication():
+    """Check if user is authenticated before allowing access."""
+    # Public routes (no auth needed)
+    public_routes = ['login', 'static', 'health']
+
+    # Allow public routes and already authenticated users
+    if request.endpoint in public_routes or session.get('authenticated'):
+        return None
+
+    # Redirect to login
+    return redirect(url_for('login'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page with password-only authentication."""
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+
+        if password == APP_PASSWORD:
+            session['authenticated'] = True
+            session.permanent = True  # Session bleibt bis Browser geschlossen
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error='Falsches Passwort')
+
+    # If already authenticated, redirect to main page
+    if session.get('authenticated'):
+        return redirect(url_for('index'))
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout and clear session."""
+    session.pop('authenticated', None)
+    return redirect(url_for('login'))
+
 @app.route('/')
 def index():
     """Serve the main frontend."""
+    if not session.get('authenticated'):
+        return redirect(url_for('login'))
     return send_from_directory('static', 'index.html')
 
 @app.route('/api/chat/stream')
 def chat_stream():
     """SSE endpoint for streaming chat."""
+    if not session.get('authenticated'):
+        return jsonify({"error": "Unauthorized"}), 401
+
     message = request.args.get('message', '')
     thread_id = request.args.get('thread_id', 'default')
 
@@ -279,11 +344,22 @@ def chat_stream():
         finally:
             loop.close()
 
-    return Response(generate(), mimetype='text/event-stream')
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive'
+        }
+    )
 
 @app.route('/api/thread/clear/<thread_id>', methods=['POST'])
 def clear_thread(thread_id: str):
     """Clear a thread's messages."""
+    if not session.get('authenticated'):
+        return jsonify({"error": "Unauthorized"}), 401
+
     if thread_id in threads:
         threads[thread_id]["messages"] = []
     return jsonify({"status": "cleared"})
