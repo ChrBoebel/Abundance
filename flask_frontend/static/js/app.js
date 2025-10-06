@@ -36,11 +36,6 @@ function preserveThemeIcons() {
 lucide.createIcons();
 preserveThemeIcons();
 
-// Continuously preserve theme icons during dynamic content updates
-setInterval(() => {
-    preserveThemeIcons();
-}, 100);
-
 // Theme Toggle
 themeToggle.addEventListener('click', () => {
     const html = document.documentElement;
@@ -49,14 +44,13 @@ themeToggle.addEventListener('click', () => {
     if (isDark) {
         html.classList.remove('dark');
         html.classList.add('light');
-        sunIcon.classList.add('hidden');
-        moonIcon.classList.remove('hidden');
     } else {
         html.classList.remove('light');
         html.classList.add('dark');
-        sunIcon.classList.remove('hidden');
-        moonIcon.classList.add('hidden');
     }
+
+    // Update icons immediately after theme change
+    preserveThemeIcons();
 });
 
 // Clear Chat
