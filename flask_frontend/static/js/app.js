@@ -1,6 +1,3 @@
-// Initialize Lucide icons
-lucide.createIcons();
-
 // State
 let isStreaming = false;
 let sessionId = `s-${Date.now().toString(36)}`;
@@ -32,6 +29,10 @@ function preserveThemeIcons() {
         moonIcon.classList.remove('hidden');
     }
 }
+
+// Initialize Lucide icons and set correct theme icons
+lucide.createIcons();
+preserveThemeIcons();
 
 // Theme Toggle
 themeToggle.addEventListener('click', () => {
