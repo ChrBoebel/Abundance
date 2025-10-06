@@ -36,6 +36,11 @@ function preserveThemeIcons() {
 lucide.createIcons();
 preserveThemeIcons();
 
+// Continuously preserve theme icons during dynamic content updates
+setInterval(() => {
+    preserveThemeIcons();
+}, 100);
+
 // Theme Toggle
 themeToggle.addEventListener('click', () => {
     const html = document.documentElement;
