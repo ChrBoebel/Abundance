@@ -17,10 +17,12 @@ const themeToggle = document.getElementById('theme-toggle');
 const sunIcon = document.getElementById('sun-icon');
 const moonIcon = document.getElementById('moon-icon');
 
-// Preserve Theme Icons after lucide.createIcons() calls
-function preserveThemeIcons() {
+// Theme icon management
+function updateThemeIcons() {
     if (!sunIcon || !moonIcon) return;
+
     const isDark = document.documentElement.classList.contains('dark');
+
     if (isDark) {
         // Dark Mode: Show sun icon (to switch to light)
         sunIcon.classList.remove('hidden');
@@ -32,9 +34,11 @@ function preserveThemeIcons() {
     }
 }
 
-// Initialize Lucide icons and set correct theme icons
+// Set initial theme icon state
+updateThemeIcons();
+
+// Initialize Lucide icons (theme icons are inline SVGs, so they won't be affected)
 lucide.createIcons();
-preserveThemeIcons();
 
 // Theme Toggle
 themeToggle.addEventListener('click', () => {
@@ -50,7 +54,7 @@ themeToggle.addEventListener('click', () => {
     }
 
     // Update icons immediately after theme change
-    preserveThemeIcons();
+    updateThemeIcons();
 });
 
 // Clear Chat
@@ -123,7 +127,7 @@ function createResearchProgressContainer() {
     welcomeEl.style.display = 'none';
     messagesEl.appendChild(container);
     lucide.createIcons();
-    preserveThemeIcons();
+    updateThemeIcons();
     researchProgressContainer = container;
     return container;
 }
@@ -145,7 +149,7 @@ function updateResearchTree() {
 
     treeEl.innerHTML = html;
     lucide.createIcons();
-    preserveThemeIcons();
+    updateThemeIcons();
 }
 
 // Render Tree Item (recursive for children)
@@ -230,7 +234,7 @@ function completeResearchProgress() {
             iconEl.setAttribute('data-lucide', 'check-circle');
             iconEl.classList.remove('animate-spin');
             lucide.createIcons();
-            preserveThemeIcons();
+            updateThemeIcons();
         }
     }
 }
@@ -411,7 +415,7 @@ function addThinkingIndicator() {
     `;
     messagesEl.appendChild(thinkingDiv);
     lucide.createIcons();
-    preserveThemeIcons();
+    updateThemeIcons();
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return thinkingDiv;
 }
@@ -445,7 +449,7 @@ function formatToolResult(result, toolName) {
             }
             setTimeout(() => {
                 lucide.createIcons();
-                preserveThemeIcons();
+                updateThemeIcons();
             }, 0);
             return html;
         }
@@ -479,7 +483,7 @@ chatForm.addEventListener('submit', async (e) => {
     sendBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Läuft...</span>';
     sendBtn.disabled = true;
     lucide.createIcons();
-    preserveThemeIcons();
+    updateThemeIcons();
 
     let agentBubble = null;
     let fullContent = '';
@@ -547,7 +551,7 @@ chatForm.addEventListener('submit', async (e) => {
                     sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Senden</span>';
                     sendBtn.disabled = false;
                     lucide.createIcons();
-                    preserveThemeIcons();
+                    updateThemeIcons();
                 } else if (data.type === 'error') {
                     // Error occurred
                     if (thinkingEl && thinkingEl.parentNode) {
@@ -562,7 +566,7 @@ chatForm.addEventListener('submit', async (e) => {
                     sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Senden</span>';
                     sendBtn.disabled = false;
                     lucide.createIcons();
-                    preserveThemeIcons();
+                    updateThemeIcons();
                 }
             } catch (err) {
                 console.error('Parse error:', err);
@@ -581,7 +585,7 @@ chatForm.addEventListener('submit', async (e) => {
             sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Senden</span>';
             sendBtn.disabled = false;
             lucide.createIcons();
-            preserveThemeIcons();
+            updateThemeIcons();
         };
 
     } catch (err) {
@@ -594,7 +598,7 @@ chatForm.addEventListener('submit', async (e) => {
         sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Senden</span>';
         sendBtn.disabled = false;
         lucide.createIcons();
-        preserveThemeIcons();
+        updateThemeIcons();
     }
 });
 
