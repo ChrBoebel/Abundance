@@ -22,9 +22,11 @@ function preserveThemeIcons() {
     if (!sunIcon || !moonIcon) return;
     const isDark = document.documentElement.classList.contains('dark');
     if (isDark) {
+        // Dark Mode: Show sun icon (to switch to light)
         sunIcon.classList.remove('hidden');
         moonIcon.classList.add('hidden');
     } else {
+        // Light Mode: Show moon icon (to switch to dark)
         sunIcon.classList.add('hidden');
         moonIcon.classList.remove('hidden');
     }
