@@ -311,3 +311,10 @@ body {
         font-size: 0.75em;
     }
 }
+
+/* Abundance Header Styling - Space Grotesk */
+.abundance-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}

@@ -395,37 +395,6 @@ function addMessage(role, content, isComplete = true) {
     return bubbleDiv;
 }
 
-// Add Thinking Indicator
-function addThinkingIndicator() {
-    const thinkingDiv = document.createElement('div');
-    thinkingDiv.id = 'thinking-indicator';
-    thinkingDiv.className = 'flex justify-start mb-4';
-    thinkingDiv.innerHTML = `
-        <div class="flex items-center space-x-3">
-            <div class="relative w-8 h-8 rounded-full flex items-center justify-center" style="background: linear-gradient(to bottom right, hsl(var(--agent-avatar-from)), hsl(var(--agent-avatar-to)));">
-                <span class="absolute inset-0 rounded-full animate-ping" style="background: hsl(var(--primary) / 0.5); animation-duration: 2s;"></span>
-                <i data-lucide="bot" class="w-4 h-4 relative z-10" style="color: hsl(var(--foreground));"></i>
-            </div>
-            <div class="px-4 py-3 rounded-2xl" style="background: hsl(var(--card)); border: 2px solid hsl(var(--border));">
-                <div class="flex items-center gap-2 text-sm font-medium">
-                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
-                    Agent arbeitet...
-                </div>
-                <div class="thinking-dots flex gap-1.5 mt-2">
-                    <span class="w-2 h-2 rounded-full" style="background: hsl(var(--primary));"></span>
-                    <span class="w-2 h-2 rounded-full" style="background: hsl(var(--primary));"></span>
-                    <span class="w-2 h-2 rounded-full" style="background: hsl(var(--primary));"></span>
-                </div>
-            </div>
-        </div>
-    `;
-    messagesEl.appendChild(thinkingDiv);
-    lucide.createIcons();
-    updateThemeIcons();
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return thinkingDiv;
-}
-
 // Send Message
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -451,7 +420,6 @@ chatForm.addEventListener('submit', async (e) => {
     researchStatusContainer = null;
     currentActivity = '';
 
-    const thinkingEl = addThinkingIndicator();
     isStreaming = true;
     sendBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Läuft...</span>';
     sendBtn.disabled = true;
@@ -467,9 +435,6 @@ chatForm.addEventListener('submit', async (e) => {
                 const data = JSON.parse(event.data);
 
                 if (data.type === 'thinking') {
-                    if (thinkingEl && thinkingEl.parentNode) {
-                        thinkingEl.remove();
-                    }
                     createResearchStatus();
                 } else if (data.type === 'step_start') {
                     createResearchStatus();
@@ -624,9 +589,6 @@ chatForm.addEventListener('submit', async (e) => {
                     lucide.createIcons();
                     updateThemeIcons();
                 } else if (data.type === 'error') {
-                    if (thinkingEl && thinkingEl.parentNode) {
-                        thinkingEl.remove();
-                    }
                     addMessage('agent', `❌ Fehler: ${data.error}`);
                     if (currentEventSource) {
                         currentEventSource.close();
@@ -644,9 +606,6 @@ chatForm.addEventListener('submit', async (e) => {
         };
 
         currentEventSource.onerror = () => {
-            if (thinkingEl && thinkingEl.parentNode) {
-                thinkingEl.remove();
-            }
             if (currentEventSource) {
                 currentEventSource.close();
                 currentEventSource = null;
@@ -660,9 +619,6 @@ chatForm.addEventListener('submit', async (e) => {
 
     } catch (err) {
         console.error('Request error:', err);
-        if (thinkingEl && thinkingEl.parentNode) {
-            thinkingEl.remove();
-        }
         addMessage('agent', `❌ Fehler: ${err.message}`);
         isStreaming = false;
         sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span class="hidden sm:inline">Senden</span>';
