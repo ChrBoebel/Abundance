@@ -90,14 +90,43 @@ async def stream_research(message: str, thread_id: str):
     step_names = {
         "clarify_with_user": "Frage analysieren",
         "write_research_brief": "Recherche-Plan erstellen",
-        "research_supervisor": "Recherche koordinieren",
-        "supervisor": "Recherche-Strategie entwickeln",
-        "supervisor_tools": "Recherche delegieren",
-        "researcher": "Informationen sammeln",
-        "researcher_tools": "Quellen durchsuchen",
-        "compress_research": "Ergebnisse zusammenfassen",
-        "final_report_generation": "Abschlussbericht erstellen"
+        "research_supervisor": "Recherche-Koordination",
+        "supervisor": "Recherche-Strategie planen",
+        "supervisor_tools": "Sub-Recherchen starten",
+        "researcher": "Recherche durchführen",
+        "researcher_tools": "Quellen analysieren",
+        "compress_research": "Erkenntnisse extrahieren",
+        "final_report_generation": "Bericht erstellen"
     }
+
+    def get_contextual_tool_name(tool_name: str, tool_input: dict) -> str:
+        """Generate contextual display name for tools based on their input."""
+        if tool_name in ["tavily_search", "web_search", "tavily_search_results_json"]:
+            # Tavily uses "queries" (list) or "query" (string)
+            query = tool_input.get("query", "")
+            queries = tool_input.get("queries", [])
+
+            # Get first query from list or use single query string
+            if queries and isinstance(queries, list):
+                query = queries[0]
+
+            # Limit length
+            if query and len(query) > 60:
+                query = query[:60] + "..."
+
+            return f"Suche: {query}" if query else "Websuche"
+        elif tool_name == "ConductResearch":
+            topic = tool_input.get("research_topic", "")
+            if topic and len(topic) > 60:
+                topic = topic[:60] + "..."
+            return f"Recherche: {topic}" if topic else "Teilrecherche starten"
+        elif tool_name == "think_tool":
+            thought = tool_input.get("thought", "")
+            preview = thought[:50] + "..." if len(thought) > 50 else thought
+            return f"Analysiere: {preview}" if thought else "Nachdenken"
+        elif tool_name == "ResearchComplete":
+            return "Recherche abschließen"
+        return tool_name
 
     try:
         # Yield thinking indicator
@@ -131,8 +160,12 @@ async def stream_research(message: str, thread_id: str):
                 if tool_input and not isinstance(tool_input, (str, int, float, bool, type(None), dict, list)):
                     tool_input = str(tool_input)
 
+                # Generate contextual display name
+                display_name = get_contextual_tool_name(tool_name, tool_input if isinstance(tool_input, dict) else {})
+
                 active_tools[tool_id] = {
                     "name": tool_name,
+                    "display_name": display_name,
                     "input": tool_input,
                     "status": "running"
                 }
@@ -140,6 +173,7 @@ async def stream_research(message: str, thread_id: str):
                 yield sse_event("tool_call_start", {
                     "id": tool_id,
                     "name": tool_name,
+                    "display_name": display_name,
                     "args": tool_input,
                     "status": "running",
                     "parent_id": current_parent,
@@ -222,6 +256,7 @@ async def stream_research(message: str, thread_id: str):
                     yield sse_event("step_start", {
                         "id": step_id,
                         "name": german_name,
+                        "step_name": step_name,  # Send English name for mapping
                         "status": "running",
                         "parent_id": parent_id,
                         "level": level
@@ -251,6 +286,7 @@ async def stream_research(message: str, thread_id: str):
                         yield sse_event("step_complete", {
                             "id": latest_step_id,
                             "name": step_names[step_name],
+                            "step_name": step_name,  # Send English name for mapping
                             "status": "completed"
                         })
 

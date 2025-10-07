@@ -251,3 +251,63 @@ body {
     0% { transform: scale(1); opacity: 1; }
     100% { transform: scale(1.5); opacity: 0; }
 }
+
+/* Compact Research Status */
+.compact-status {
+    transition: all 0.3s ease;
+}
+
+#details-toggle {
+    transition: all 0.2s ease;
+}
+
+#details-toggle:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+}
+
+#details-toggle:active {
+    transform: translateY(0);
+}
+
+#research-details {
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+    max-height: 0;
+    opacity: 0;
+}
+
+#research-details:not(.hidden) {
+    max-height: 500px;
+    opacity: 1;
+}
+
+#source-counter {
+    animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .compact-status {
+        font-size: 0.9em;
+    }
+
+    #source-counter {
+        font-size: 0.85em;
+    }
+
+    #details-toggle {
+        font-size: 0.75em;
+    }
+}

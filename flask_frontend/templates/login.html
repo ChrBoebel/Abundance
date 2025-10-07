@@ -29,9 +29,9 @@
 <body class="h-screen flex items-center justify-center">
     <div class="w-full max-w-md p-8 rounded-2xl shadow-2xl" style="background: hsl(var(--card)); border: 1px solid hsl(var(--border));">
         <div class="text-center mb-8">
-            <div class="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg"
-                 style="background: hsl(var(--primary));">
-                <img src="/logo.svg" alt="Abundance Logo" class="w-full h-full" style="filter: brightness(0) invert(1);">
+            <div class="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center p-0 overflow-visible"
+                 style="background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%); box-shadow: 0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2);">
+                <img src="/bergbild2.svg" alt="Abundance Logo" class="w-[180%] h-[180%]" style="filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">
             </div>
             <h1 class="text-3xl font-bold mb-2">Abundance</h1>
             <p class="text-sm opacity-70">Passwort eingeben um fortzufahren</p>
@@ -54,7 +54,6 @@
                         name="password"
                         placeholder="Passwort eingeben..."
                         required
-                        autofocus
                         class="w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 transition"
                         style="background: hsl(var(--background)); border-color: hsl(var(--border)); color: hsl(var(--foreground));"
                     />
@@ -109,9 +108,6 @@
 
             lucide.createIcons();
         }
-
-        // Auto-focus on password field
-        document.getElementById('password').focus();
     </script>
 </body>
 </html>

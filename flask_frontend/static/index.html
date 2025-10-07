@@ -34,8 +34,8 @@
     <header class="border-b" style="border-color: hsl(var(--border)); background: hsl(var(--card));">
         <div class="flex items-center justify-between p-4 max-w-6xl mx-auto">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style="background: hsl(var(--primary));">
-                    <img src="/logo.svg" alt="Abundance Logo" class="w-full h-full" style="filter: brightness(0) invert(1);">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center p-0 overflow-visible" style="background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%); box-shadow: 0 4px 20px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.2);">
+                    <img src="/bergbild2.svg" alt="Abundance Logo" class="w-[180%] h-[180%]" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
                 </div>
                 <h1 class="text-2xl font-bold">Abundance</h1>
             </div>
@@ -67,8 +67,8 @@
             <!-- Welcome Message -->
             <div id="welcome" class="flex items-center justify-center h-full">
                 <div class="text-center space-y-4 max-w-md">
-                    <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center shadow-lg" style="background: hsl(var(--primary));">
-                        <img src="/logo.svg" alt="Abundance Logo" class="w-full h-full" style="filter: brightness(0) invert(1);">
+                    <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center p-0 overflow-visible" style="background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%); box-shadow: 0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2);">
+                        <img src="/bergbild2.svg" alt="Abundance Logo" class="w-[180%] h-[180%]" style="filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">
                     </div>
                     <h2 class="text-xl font-semibold">Abundance</h2>
                     <p class="text-sm" style="color: hsl(var(--foreground) / 0.7);">
@@ -96,7 +96,7 @@
                 style="background: hsl(var(--primary)); color: white;"
             >
                 <i data-lucide="send" class="w-4 h-4"></i>
-                Senden
+                <span class="hidden sm:inline">Senden</span>
             </button>
         </form>
     </div>

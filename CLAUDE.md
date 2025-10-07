@@ -80,6 +80,12 @@ uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 lang
 pytest  # Tests API connectivity, model inference, search integration
 ```
 
+### Linting and Code Quality
+```bash
+ruff check .     # Check for linting issues
+ruff format .    # Format code
+```
+
 ## Key Implementation Patterns
 
 ### Model Configuration & Naming
@@ -94,9 +100,10 @@ Four separate model configurations in `Configuration`:
 - `final_report_model` - Final report generation
 
 ### Parallel Execution Strategy
-- **Supervisor level**: Multiple researchers run via `asyncio.gather()` in `supervisor_tools` (line 305)
-- **Researcher level**: Tool calls execute in parallel via `asyncio.gather()` (line 479)
-- Concurrency limit: `max_concurrent_research_units` prevents resource exhaustion
+- **Supervisor level**: Multiple researchers run via `asyncio.gather()` in `supervisor_tools` at `deep_researcher.py:305`
+- **Researcher level**: Tool calls execute in parallel via `asyncio.gather()` at `deep_researcher.py:479`
+- Concurrency limit: `max_concurrent_research_units` prevents resource exhaustion (default: 10)
+- Research tasks are distributed across sub-agents to maximize throughput while staying within rate limits
 
 ### Token Limit Handling
 Progressive retry logic with automatic truncation:
@@ -111,8 +118,9 @@ Progressive retry logic with automatic truncation:
 
 ### Error Handling
 - Structured output retries: `with_retry(stop_after_attempt=max_structured_output_retries)`
-- Safe execution: `execute_tool_safely()` wrapper (line 427-432)
-- Graceful degradation: Overflow research calls return error ToolMessage (line 316-321)
+- Safe execution: `execute_tool_safely()` wrapper in `deep_researcher.py:427-432`
+- Graceful degradation: Overflow research calls return error ToolMessage in `deep_researcher.py:316-321`
+- Token overflow detection: Catches token limit errors and automatically retries with truncated context
 
 ## Environment Configuration
 
@@ -150,3 +158,23 @@ APP_PASSWORD=your-password
 - Docstrings: Required for all modules/functions
 - First line: Imperative mood
 - Imports: Sorted with isort
+- Config: See `pyproject.toml` for full linting rules
+
+## Important Notes
+
+### Model Provider Specifics
+- **Gemini models**: Always use `models/` prefix (e.g., `google_genai:models/gemini-2.5-flash`)
+- **Native web search**: OpenAI and Anthropic models support native web search without Tavily
+- **MCP tools**: Optional external tool integration for custom research capabilities
+
+### Configuration Best Practices
+- Use `allow_clarification=False` for automated research workflows
+- Adjust `max_concurrent_research_units` based on API rate limits (default: 10)
+- Set `max_search_results` higher (15-20) for comprehensive research, lower (5-10) for faster results
+- Token limits: Compression model needs sufficient tokens to summarize findings (default: 8192)
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

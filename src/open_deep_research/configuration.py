@@ -117,6 +117,19 @@ class Configuration(BaseModel):
             }
         }
     )
+    max_search_results: int = Field(
+        default=10,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "slider",
+                "default": 10,
+                "min": 3,
+                "max": 20,
+                "step": 1,
+                "description": "Maximum number of search results to return per query from Tavily. Higher values provide more sources but increase token costs and processing time."
+            }
+        }
+    )
     # Model Configuration
     summarization_model: str = Field(
         default="google_genai:models/gemini-2.5-flash",

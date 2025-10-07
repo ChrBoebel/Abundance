@@ -34,7 +34,7 @@ from open_deep_research.prompts import summarize_webpage_prompt
 from open_deep_research.state import ResearchComplete, Summary
 
 ##########################
-# Tavily Search Tool Utils
+# Search Tool Utils
 ##########################
 TAVILY_SEARCH_DESCRIPTION = (
     "A search engine optimized for comprehensive, accurate, and trusted results. "
@@ -43,7 +43,7 @@ TAVILY_SEARCH_DESCRIPTION = (
 @tool(description=TAVILY_SEARCH_DESCRIPTION)
 async def tavily_search(
     queries: List[str],
-    max_results: Annotated[int, InjectedToolArg] = 5,
+    max_search_results: Annotated[int, InjectedToolArg] = 10,
     topic: Annotated[Literal["general", "news", "finance"], InjectedToolArg] = "general",
     config: RunnableConfig = None
 ) -> str:
@@ -51,7 +51,7 @@ async def tavily_search(
 
     Args:
         queries: List of search queries to execute
-        max_results: Maximum number of results to return per query
+        max_search_results: Maximum number of results to return per query
         topic: Topic filter for search results (general, news, or finance)
         config: Runtime configuration for API keys and model settings
 
@@ -61,7 +61,7 @@ async def tavily_search(
     # Step 1: Execute search queries asynchronously
     search_results = await tavily_search_async(
         queries,
-        max_results=max_results,
+        max_results=max_search_results,
         topic=topic,
         include_raw_content=True,
         config=config
@@ -133,6 +133,101 @@ async def tavily_search(
         formatted_output += f"SUMMARY:\n{result['content']}\n\n"
         formatted_output += "\n\n" + "-" * 80 + "\n"
     
+    return formatted_output
+
+ARXIV_SEARCH_DESCRIPTION = (
+    "Search scientific papers on arXiv.org covering physics, mathematics, computer science, "
+    "quantitative biology, quantitative finance, statistics, electrical engineering, and economics. "
+    "Returns peer-reviewed papers with abstracts and full-text access."
+)
+@tool(description=ARXIV_SEARCH_DESCRIPTION)
+async def arxiv_search(queries: List[str], config: RunnableConfig = None) -> str:
+    """Search and retrieve scientific papers from arXiv.
+
+    Args:
+        queries: List of search queries to execute
+        config: Runtime configuration
+
+    Returns:
+        Formatted string containing arXiv search results
+    """
+    from langchain_community.retrievers import ArxivRetriever
+
+    retriever = ArxivRetriever(load_max_docs=10, get_full_documents=True)
+
+    # Execute search for all queries
+    all_results = []
+    for query in queries:
+        try:
+            results = retriever.invoke(query)
+            all_results.extend(results)
+        except Exception as e:
+            logging.warning(f"arXiv search failed for query '{query}': {e}")
+
+    if not all_results:
+        return "No arXiv papers found. Try different search terms."
+
+    # Format results like tavily_search
+    formatted_output = "arXiv search results:\n\n"
+    for i, doc in enumerate(all_results[:10]):
+        title = doc.metadata.get('Title', 'Unknown Title')
+        url = doc.metadata.get('entry_id', '#')
+        authors = doc.metadata.get('Authors', 'Unknown Authors')
+        summary = doc.page_content[:800] if doc.page_content else doc.metadata.get('Summary', '')[:800]
+
+        formatted_output += f"\n\n--- SOURCE {i+1}: {title} ---\n"
+        formatted_output += f"URL: {url}\n"
+        formatted_output += f"Authors: {authors}\n\n"
+        formatted_output += f"SUMMARY:\n{summary}...\n\n"
+        formatted_output += "\n" + "-" * 80 + "\n"
+
+    return formatted_output
+
+PUBMED_SEARCH_DESCRIPTION = (
+    "Search biomedical literature on PubMed comprising more than 35 million citations from "
+    "MEDLINE, life science journals, and online books. Useful for medical, health, and "
+    "biomedical research questions."
+)
+@tool(description=PUBMED_SEARCH_DESCRIPTION)
+async def pubmed_search(queries: List[str], config: RunnableConfig = None) -> str:
+    """Search and retrieve biomedical papers from PubMed.
+
+    Args:
+        queries: List of search queries to execute
+        config: Runtime configuration
+
+    Returns:
+        Formatted string containing PubMed search results
+    """
+    from langchain_community.retrievers import PubMedRetriever
+
+    retriever = PubMedRetriever(top_k_results=10)
+
+    # Execute search for all queries
+    all_results = []
+    for query in queries:
+        try:
+            results = retriever.invoke(query)
+            all_results.extend(results)
+        except Exception as e:
+            logging.warning(f"PubMed search failed for query '{query}': {e}")
+
+    if not all_results:
+        return "No PubMed articles found. Try different search terms."
+
+    # Format results like tavily_search
+    formatted_output = "PubMed search results:\n\n"
+    for i, doc in enumerate(all_results[:10]):
+        title = doc.metadata.get('Title', 'Unknown Title')
+        uid = doc.metadata.get('uid', '')
+        url = f"https://pubmed.ncbi.nlm.nih.gov/{uid}/" if uid else '#'
+        summary = doc.page_content[:800] if doc.page_content else ''
+
+        formatted_output += f"\n\n--- SOURCE {i+1}: {title} ---\n"
+        formatted_output += f"URL: {url}\n\n"
+        formatted_output += f"SUMMARY:\n{summary}...\n\n"
+        formatted_output += "\n" + "-" * 80 + "\n"
+
     return formatted_output
 
 async def tavily_search_async(
@@ -550,14 +645,11 @@ async def get_search_tool(search_api: SearchAPI):
         return [{"type": "web_search_preview"}]
         
     elif search_api == SearchAPI.TAVILY:
-        # Configure Tavily search tool with metadata
-        search_tool = tavily_search
-        search_tool.metadata = {
-            **(search_tool.metadata or {}), 
-            "type": "search", 
-            "name": "web_search"
-        }
-        return [search_tool]
+        # Configure all custom search tools with metadata
+        tavily_search.metadata = {**(tavily_search.metadata or {}), "type": "search", "name": "web_search"}
+        arxiv_search.metadata = {**(arxiv_search.metadata or {}), "type": "search", "name": "arxiv_search"}
+        pubmed_search.metadata = {**(pubmed_search.metadata or {}), "type": "search", "name": "pubmed_search"}
+        return [tavily_search, arxiv_search, pubmed_search]
         
     elif search_api == SearchAPI.NONE:
         # No search functionality configured
