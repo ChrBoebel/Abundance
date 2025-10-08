@@ -74,6 +74,7 @@ async def stream_research(message: str, thread_id: str):
     })
 
     # Prepare config for deep researcher
+    # Optimized for Railway's ~60s timeout
     config = {
         "configurable": {
             "research_model": "google_genai:models/gemini-2.5-flash",
@@ -82,7 +83,9 @@ async def stream_research(message: str, thread_id: str):
             "final_report_model": "google_genai:models/gemini-2.5-flash",
             "search_api": "tavily",
             "allow_clarification": False,
-            "max_concurrent_research_units": 3,
+            "max_concurrent_research_units": 2,  # Reduced for faster execution
+            "max_researcher_iterations": 2,  # Limit research depth
+            "max_search_results": 5,  # Fewer sources = faster
         }
     }
 
