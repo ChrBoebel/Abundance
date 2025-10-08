@@ -479,17 +479,17 @@ def chat_stream():
     if not job:
         return jsonify({"error": "Job not found"}), 404
 
+    # Get Last-Event-ID from request headers BEFORE generate() (Flask request context)
+    last_event_id_header = request.headers.get('Last-Event-ID', '0')
+    try:
+        last_event_id = int(last_event_id_header)
+    except:
+        last_event_id = 0
+
     def generate():
         """Generate SSE stream from job queue with heartbeat."""
         last_yield_time = time.time()
         heartbeat_interval = 10  # seconds
-
-        # Get Last-Event-ID from request headers for resume support
-        last_event_id = request.headers.get('Last-Event-ID', '0')
-        try:
-            last_event_id = int(last_event_id)
-        except:
-            last_event_id = 0
 
         # Send job_id to client so it can reconnect
         yield f"data: {json.dumps({'type': 'job_started', 'job_id': job_id})}\n\n"
