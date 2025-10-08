@@ -27,17 +27,17 @@
     </script>
 </head>
 <body class="h-screen flex items-center justify-center">
-    <div class="w-full max-w-md p-8 rounded-2xl shadow-2xl" style="background: hsl(var(--card)); border: 1px solid hsl(var(--border));">
-        <div class="text-center mb-8">
-            <div class="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center p-0 overflow-visible"
+    <div class="w-full max-w-md mx-4 p-4 sm:p-8 rounded-2xl shadow-2xl" style="background: hsl(var(--card)); border: 1px solid hsl(var(--border));">
+        <div class="text-center mb-6 sm:mb-8">
+            <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl mx-auto mb-4 sm:mb-6 flex items-center justify-center p-0 overflow-visible"
                  style="background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%); box-shadow: 0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2);">
                 <img src="/bergbild2.svg" alt="Abundance Logo" class="w-[180%] h-[180%]" style="filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">
             </div>
-            <h1 class="text-3xl font-bold mb-2">Abundance</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold mb-2">Abundance</h1>
             <p class="text-sm opacity-70">Passwort eingeben um fortzufahren</p>
         </div>
 
-        <form method="POST" action="/login" class="space-y-6">
+        <form method="POST" action="/login" class="space-y-4 sm:space-y-6">
             {% if error %}
             <div class="p-4 rounded-lg flex items-center gap-3" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3);">
                 <i data-lucide="alert-circle" class="w-5 h-5 text-red-400"></i>
