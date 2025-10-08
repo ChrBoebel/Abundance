@@ -11,10 +11,13 @@ nest_asyncio.apply()
 import json
 import os
 import sys
+import time
+import threading
 from datetime import datetime
 from pathlib import Path
 from queue import Queue
 from typing import Dict, Any
+from enum import Enum
 
 from flask import Flask, render_template, request, Response, jsonify, send_from_directory, session, redirect, url_for
 from flask_cors import CORS
@@ -55,6 +58,59 @@ def get_thread(thread_id: str) -> Dict[str, Any]:
             "created_at": datetime.now().isoformat()
         }
     return threads[thread_id]
+
+# Background Job System for long-running research
+class JobStatus(Enum):
+    """Job status enum."""
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+# Job storage: job_id -> {status, event_queue, result, error, created_at, updated_at}
+jobs: Dict[str, Dict[str, Any]] = {}
+jobs_lock = threading.Lock()
+
+def create_job(job_id: str) -> Dict[str, Any]:
+    """Create a new job."""
+    with jobs_lock:
+        if job_id not in jobs:
+            jobs[job_id] = {
+                "id": job_id,
+                "status": JobStatus.PENDING.value,
+                "event_queue": Queue(),
+                "result": None,
+                "error": None,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat(),
+                "last_event_id": 0
+            }
+        return jobs[job_id]
+
+def get_job(job_id: str) -> Dict[str, Any]:
+    """Get job by ID."""
+    with jobs_lock:
+        return jobs.get(job_id)
+
+def update_job_status(job_id: str, status: str, error: str = None):
+    """Update job status."""
+    with jobs_lock:
+        if job_id in jobs:
+            jobs[job_id]["status"] = status
+            jobs[job_id]["updated_at"] = datetime.now().isoformat()
+            if error:
+                jobs[job_id]["error"] = error
+
+def push_job_event(job_id: str, event: str):
+    """Push event to job queue."""
+    job = get_job(job_id)
+    if job:
+        with jobs_lock:
+            job["last_event_id"] += 1
+            event_id = job["last_event_id"]
+        # Add event ID to the event
+        event_with_id = f"id: {event_id}\n{event}"
+        job["event_queue"].put(event_with_id)
 
 def sse_event(event_type: str, data: Any) -> str:
     """Format SSE event."""
@@ -309,6 +365,49 @@ async def stream_research(message: str, thread_id: str):
     except Exception as e:
         yield sse_event("error", {"error": str(e)})
 
+def run_research_job(job_id: str, message: str, thread_id: str):
+    """Run research in background thread and push events to job queue."""
+    try:
+        update_job_status(job_id, JobStatus.RUNNING.value)
+
+        # Run async research in new event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        try:
+            # Collect all events from stream_research
+            async def collect_events():
+                async for event in stream_research(message, thread_id):
+                    # Push event to job queue
+                    push_job_event(job_id, event)
+
+            loop.run_until_complete(collect_events())
+
+            # Mark job as completed
+            update_job_status(job_id, JobStatus.COMPLETED.value)
+            push_job_event(job_id, sse_event("done", {}))
+
+        finally:
+            # Clean up pending tasks
+            pending = asyncio.all_tasks(loop)
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            loop.close()
+
+    except Exception as e:
+        update_job_status(job_id, JobStatus.FAILED.value, error=str(e))
+        push_job_event(job_id, sse_event("error", {"error": str(e)}))
+
+def start_research_background(job_id: str, message: str, thread_id: str):
+    """Start research in background thread."""
+    thread = threading.Thread(
+        target=run_research_job,
+        args=(job_id, message, thread_id),
+        daemon=True
+    )
+    thread.start()
+    return thread
+
 # Authentication Middleware
 @app.before_request
 def check_authentication():
@@ -357,49 +456,69 @@ def index():
 
 @app.route('/api/chat/stream')
 def chat_stream():
-    """SSE endpoint for streaming chat."""
+    """SSE endpoint for streaming chat from job queue."""
     if not session.get('authenticated'):
         return jsonify({"error": "Unauthorized"}), 401
 
     message = request.args.get('message', '')
     thread_id = request.args.get('thread_id', 'default')
+    job_id = request.args.get('job_id', '')
 
-    if not message:
-        return jsonify({"error": "No message provided"}), 400
+    # If no job_id provided, create new job and start research
+    if not job_id:
+        if not message:
+            return jsonify({"error": "No message provided"}), 400
+
+        # Generate job ID from thread_id and timestamp
+        job_id = f"{thread_id}-{int(time.time() * 1000)}"
+        create_job(job_id)
+        start_research_background(job_id, message, thread_id)
+
+    # Get job
+    job = get_job(job_id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
 
     def generate():
-        """Generate SSE stream with keep-alive messages."""
-        import time
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        """Generate SSE stream from job queue with heartbeat."""
         last_yield_time = time.time()
-        keep_alive_interval = 15  # seconds
+        heartbeat_interval = 10  # seconds
 
+        # Get Last-Event-ID from request headers for resume support
+        last_event_id = request.headers.get('Last-Event-ID', '0')
         try:
-            async_gen = stream_research(message, thread_id)
-            while True:
-                try:
-                    # Wait for next event with timeout for keep-alive
-                    async def get_next_with_timeout():
-                        return await asyncio.wait_for(async_gen.__anext__(), timeout=keep_alive_interval)
+            last_event_id = int(last_event_id)
+        except:
+            last_event_id = 0
 
-                    try:
-                        item = loop.run_until_complete(get_next_with_timeout())
-                        last_yield_time = time.time()
-                        yield item
-                    except asyncio.TimeoutError:
-                        # Send keep-alive comment if no events for 15s
-                        yield ": keep-alive\n\n"
-                        last_yield_time = time.time()
+        # Send job_id to client so it can reconnect
+        yield f"data: {json.dumps({'type': 'job_started', 'job_id': job_id})}\n\n"
 
-                except StopAsyncIteration:
+        while True:
+            try:
+                # Try to get event from queue with timeout
+                event = job["event_queue"].get(timeout=heartbeat_interval)
+                last_yield_time = time.time()
+                yield event
+
+                # Check if job is done
+                if job["status"] in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
                     break
-        finally:
-            # Wait for all pending tasks before closing loop
-            pending = asyncio.all_tasks(loop)
-            if pending:
-                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            loop.close()
+
+            except:
+                # Timeout - send heartbeat
+                current_time = time.time()
+                if current_time - last_yield_time >= heartbeat_interval:
+                    yield ": heartbeat\n\n"
+                    last_yield_time = current_time
+
+                # Check if job still exists
+                if not get_job(job_id):
+                    break
+
+                # Check if job is done
+                if job["status"] in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
+                    break
 
     return Response(
         generate(),

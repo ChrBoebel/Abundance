@@ -2,6 +2,13 @@
 let isStreaming = false;
 let sessionId = `s-${Date.now().toString(36)}`;
 let currentEventSource = null;
+let currentJobId = null;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let messageHandler = null; // Store message handler for reconnections
+let errorHandler = null; // Store error handler for reconnections
+const MAX_RECONNECT_INTERVAL = 120000; // 2 minutes (before Railway 5min timeout)
+const RECONNECT_INTERVAL = 120000; // Reconnect every 2 minutes
 
 // Research state
 let currentPhase = 1;
@@ -71,6 +78,57 @@ if (clearBtn) {
             } catch (e) {}
         }
     });
+}
+
+// Connection Management
+function closeConnection() {
+    if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+    }
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+}
+
+function reconnectToJob() {
+    if (!currentJobId) return;
+
+    console.log('🔄 Reconnecting to job:', currentJobId);
+
+    // Close existing connection
+    if (currentEventSource) {
+        currentEventSource.close();
+    }
+
+    // Reconnect with job_id
+    const url = `/api/chat/stream?thread_id=${sessionId}&job_id=${currentJobId}`;
+    currentEventSource = new EventSource(url);
+
+    // Reuse stored handlers
+    if (messageHandler) {
+        currentEventSource.onmessage = messageHandler;
+    }
+    if (errorHandler) {
+        currentEventSource.onerror = errorHandler;
+    }
+
+    // Schedule next reconnect
+    scheduleReconnect();
+}
+
+function scheduleReconnect() {
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+    }
+
+    // Reconnect every 2 minutes (before Railway 5min timeout)
+    reconnectTimer = setTimeout(() => {
+        if (isStreaming && currentJobId) {
+            reconnectToJob();
+        }
+    }, RECONNECT_INTERVAL);
 }
 
 // Map backend steps to phases
@@ -430,11 +488,18 @@ chatForm.addEventListener('submit', async (e) => {
         const url = `/api/chat/stream?thread_id=${sessionId}&message=${encodeURIComponent(message)}`;
         currentEventSource = new EventSource(url);
 
-        currentEventSource.onmessage = (event) => {
+        // Store message handler for reconnections
+        messageHandler = (event) => {
             try {
                 const data = JSON.parse(event.data);
 
-                if (data.type === 'thinking') {
+                if (data.type === 'job_started') {
+                    // Save job_id for reconnection
+                    currentJobId = data.job_id;
+                    console.log('📋 Job started:', currentJobId);
+                    // Schedule first reconnect
+                    scheduleReconnect();
+                } else if (data.type === 'thinking') {
                     createResearchStatus();
                 } else if (data.type === 'step_start') {
                     createResearchStatus();
@@ -579,10 +644,8 @@ chatForm.addEventListener('submit', async (e) => {
                     messagesEl.scrollTop = messagesEl.scrollHeight;
                 } else if (data.type === 'done') {
                     completeResearch();
-                    if (currentEventSource) {
-                        currentEventSource.close();
-                        currentEventSource = null;
-                    }
+                    closeConnection();
+                    currentJobId = null;
                     isStreaming = false;
                     sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span class="hidden sm:inline">Senden</span>';
                     sendBtn.disabled = false;
@@ -590,10 +653,8 @@ chatForm.addEventListener('submit', async (e) => {
                     updateThemeIcons();
                 } else if (data.type === 'error') {
                     addMessage('agent', `❌ Fehler: ${data.error}`);
-                    if (currentEventSource) {
-                        currentEventSource.close();
-                        currentEventSource = null;
-                    }
+                    closeConnection();
+                    currentJobId = null;
                     isStreaming = false;
                     sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span class="hidden sm:inline">Senden</span>';
                     sendBtn.disabled = false;
@@ -605,17 +666,37 @@ chatForm.addEventListener('submit', async (e) => {
             }
         };
 
-        currentEventSource.onerror = () => {
+        // Assign message handler
+        currentEventSource.onmessage = messageHandler;
+
+        // Store and assign error handler
+        errorHandler = (error) => {
+            console.log('❌ Connection error, attempting reconnect...');
+
+            // Close current connection
             if (currentEventSource) {
                 currentEventSource.close();
                 currentEventSource = null;
             }
-            isStreaming = false;
-            sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span class="hidden sm:inline">Senden</span>';
-            sendBtn.disabled = false;
-            lucide.createIcons();
-            updateThemeIcons();
+
+            // If job is running, try to reconnect
+            if (isStreaming && currentJobId) {
+                setTimeout(() => {
+                    console.log('🔄 Auto-reconnecting after error...');
+                    reconnectToJob();
+                }, 2000); // Wait 2s before reconnecting
+            } else {
+                // No job running, stop streaming
+                isStreaming = false;
+                sendBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span class="hidden sm:inline">Senden</span>';
+                sendBtn.disabled = false;
+                lucide.createIcons();
+                updateThemeIcons();
+            }
         };
+
+        // Assign error handler
+        currentEventSource.onerror = errorHandler;
 
     } catch (err) {
         console.error('Request error:', err);
