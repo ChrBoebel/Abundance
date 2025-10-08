@@ -74,7 +74,6 @@ async def stream_research(message: str, thread_id: str):
     })
 
     # Prepare config for deep researcher
-    # Optimized for Railway's ~60s timeout
     config = {
         "configurable": {
             "research_model": "google_genai:models/gemini-2.5-flash",
@@ -83,9 +82,7 @@ async def stream_research(message: str, thread_id: str):
             "final_report_model": "google_genai:models/gemini-2.5-flash",
             "search_api": "tavily",
             "allow_clarification": False,
-            "max_concurrent_research_units": 2,  # Reduced for faster execution
-            "max_researcher_iterations": 2,  # Limit research depth
-            "max_search_results": 5,  # Fewer sources = faster
+            "max_concurrent_research_units": 3,
         }
     }
 
@@ -371,15 +368,30 @@ def chat_stream():
         return jsonify({"error": "No message provided"}), 400
 
     def generate():
-        """Generate SSE stream."""
+        """Generate SSE stream with keep-alive messages."""
+        import time
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        last_yield_time = time.time()
+        keep_alive_interval = 15  # seconds
+
         try:
             async_gen = stream_research(message, thread_id)
             while True:
                 try:
-                    item = loop.run_until_complete(async_gen.__anext__())
-                    yield item
+                    # Wait for next event with timeout for keep-alive
+                    async def get_next_with_timeout():
+                        return await asyncio.wait_for(async_gen.__anext__(), timeout=keep_alive_interval)
+
+                    try:
+                        item = loop.run_until_complete(get_next_with_timeout())
+                        last_yield_time = time.time()
+                        yield item
+                    except asyncio.TimeoutError:
+                        # Send keep-alive comment if no events for 15s
+                        yield ": keep-alive\n\n"
+                        last_yield_time = time.time()
+
                 except StopAsyncIteration:
                     break
         finally:
