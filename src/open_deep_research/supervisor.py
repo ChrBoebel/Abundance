@@ -190,8 +190,8 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
 
         except Exception as e:
             # Handle research execution errors
-            if is_token_limit_exceeded(e, configurable.research_model) or True:
-                # Token limit exceeded or other error - end research phase
+            if is_token_limit_exceeded(e, configurable.research_model):
+                # Token limit exceeded - end research phase
                 return Command(
                     goto=END,
                     update={
@@ -199,6 +199,8 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                         "research_brief": state.get("research_brief", "")
                     }
                 )
+            # Re-raise other exceptions to allow retry logic to handle them
+            raise
 
     # Step 3: Return command with all tool results
     update_payload["supervisor_messages"] = all_tool_messages
