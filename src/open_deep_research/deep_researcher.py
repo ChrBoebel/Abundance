@@ -4,6 +4,9 @@ This module orchestrates the complete deep research workflow, integrating
 clarification, research supervision, and final report generation phases.
 """
 
+import asyncio
+import re
+
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import AIMessage, HumanMessage, get_buffer_string
 from langchain_core.runnables import RunnableConfig
@@ -15,9 +18,11 @@ from open_deep_research.prompts import final_report_generation_prompt
 from open_deep_research.state import AgentInputState, AgentState
 from open_deep_research.supervisor import supervisor_subgraph
 from open_deep_research.utils import (
+    calculate_backoff_delay,
     get_api_key_for_model,
     get_model_token_limit,
     get_today_str,
+    is_retryable_api_error,
     is_token_limit_exceeded,
 )
 
@@ -54,63 +59,101 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
         "tags": ["langsmith:nostream"]
     }
 
-    # Step 3: Attempt report generation with token limit retry logic
+    # Step 3: Attempt report generation with API retry and token limit retry logic
     max_retries = 3
     current_retry = 0
     findings_token_limit = None
 
-    while current_retry <= max_retries:
+    # Outer retry loop for API errors (rate limiting, server errors, timeouts)
+    for api_retry_attempt in range(configurable.api_retry_attempts):
         try:
-            # Create comprehensive prompt with all research context
-            final_report_prompt = final_report_generation_prompt.format(
-                research_brief=state.get("research_brief", ""),
-                messages=get_buffer_string(state.get("messages", [])),
-                findings=findings,
-                date=get_today_str()
-            )
+            # Inner retry loop for token limit errors
+            while current_retry <= max_retries:
+                try:
+                    # Create comprehensive prompt with all research context
+                    final_report_prompt = final_report_generation_prompt.format(
+                        research_brief=state.get("research_brief", ""),
+                        messages=get_buffer_string(state.get("messages", [])),
+                        findings=findings,
+                        date=get_today_str()
+                    )
 
-            # Generate the final report
-            final_report = await configurable_model.with_config(writer_model_config).ainvoke([
-                HumanMessage(content=final_report_prompt)
-            ])
+                    # Generate the final report
+                    final_report = await configurable_model.with_config(writer_model_config).ainvoke([
+                        HumanMessage(content=final_report_prompt)
+                    ])
 
-            # Return successful report generation
-            return {
-                "final_report": final_report.content,
-                "messages": [final_report],
-                **cleared_state
-            }
+                    # Return successful report generation
+                    return {
+                        "final_report": final_report.content,
+                        "messages": [final_report],
+                        **cleared_state
+                    }
+
+                except Exception as e:
+                    # Handle token limit exceeded errors with progressive truncation
+                    if is_token_limit_exceeded(e, configurable.final_report_model):
+                        current_retry += 1
+
+                        if current_retry == 1:
+                            # First retry: determine initial truncation limit
+                            model_token_limit = get_model_token_limit(configurable.final_report_model)
+                            if not model_token_limit:
+                                return {
+                                    "final_report": f"Error generating final report: Token limit exceeded, however, we could not determine the model's maximum context length. Please update the model map in deep_researcher/utils.py with this information. {e}",
+                                    "messages": [AIMessage(content="Report generation failed due to token limits")],
+                                    **cleared_state
+                                }
+                            # Use 4x token limit as character approximation for truncation
+                            findings_token_limit = model_token_limit * 4
+                        else:
+                            # Subsequent retries: reduce by 10% each time
+                            findings_token_limit = int(findings_token_limit * 0.9)
+
+                        # Smart truncation: preserve sources section
+                        sources_match = re.search(r'### Sources\n(.+)', findings, re.DOTALL)
+                        if sources_match:
+                            # Extract sources section and main content
+                            sources_section = sources_match.group(0)
+                            main_content = findings[:sources_match.start()]
+
+                            # Truncate main content only, preserve sources
+                            max_main_content_length = findings_token_limit - len(sources_section) - 10
+                            if max_main_content_length > 0:
+                                truncated_main = main_content[:max_main_content_length]
+                                findings = truncated_main + "\n\n" + sources_section
+                            else:
+                                # If sources are too large, keep them anyway
+                                findings = sources_section
+                        else:
+                            # No sources section found, use blind truncation
+                            findings = findings[:findings_token_limit]
+                        continue
+                    else:
+                        # Not a token limit error, re-raise for outer retry logic
+                        raise
+
+            # If we exhausted token limit retries, break to try API retry
+            break
 
         except Exception as e:
-            # Handle token limit exceeded errors with progressive truncation
-            if is_token_limit_exceeded(e, configurable.final_report_model):
-                current_retry += 1
+            # Check if this is a retryable API error
+            if is_retryable_api_error(e):
+                # If not the last retry attempt, wait with exponential backoff
+                if api_retry_attempt < configurable.api_retry_attempts - 1:
+                    delay = calculate_backoff_delay(api_retry_attempt, configurable)
+                    await asyncio.sleep(delay)
+                    # Reset token retry counter for next API retry
+                    current_retry = 0
+                    continue
+                # Last attempt, fall through to return error
 
-                if current_retry == 1:
-                    # First retry: determine initial truncation limit
-                    model_token_limit = get_model_token_limit(configurable.final_report_model)
-                    if not model_token_limit:
-                        return {
-                            "final_report": f"Error generating final report: Token limit exceeded, however, we could not determine the model's maximum context length. Please update the model map in deep_researcher/utils.py with this information. {e}",
-                            "messages": [AIMessage(content="Report generation failed due to token limits")],
-                            **cleared_state
-                        }
-                    # Use 4x token limit as character approximation for truncation
-                    findings_token_limit = model_token_limit * 4
-                else:
-                    # Subsequent retries: reduce by 10% each time
-                    findings_token_limit = int(findings_token_limit * 0.9)
-
-                # Truncate findings and retry
-                findings = findings[:findings_token_limit]
-                continue
-            else:
-                # Non-token-limit error: return error immediately
-                return {
-                    "final_report": f"Error generating final report: {e}",
-                    "messages": [AIMessage(content="Report generation failed due to an error")],
-                    **cleared_state
-                }
+            # Non-retryable error or exhausted retries: return error
+            return {
+                "final_report": f"Error generating final report: {e}",
+                "messages": [AIMessage(content="Report generation failed due to an error")],
+                **cleared_state
+            }
 
     # Step 4: Return failure result if all retries exhausted
     return {

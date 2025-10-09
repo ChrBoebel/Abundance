@@ -876,6 +876,75 @@ def _check_gemini_token_limit(exception: Exception, error_str: str) -> bool:
     
     return False
 
+##########################
+# API Retry Utils
+##########################
+
+def is_retryable_api_error(exception: Exception) -> bool:
+    """Determine if an exception is retryable (rate limit, server error, timeout).
+
+    Args:
+        exception: The exception to analyze
+
+    Returns:
+        True if the exception is retryable, False otherwise
+    """
+    error_str = str(exception).lower()
+    class_name = exception.__class__.__name__
+    exception_type = str(type(exception)).lower()
+
+    # Check for rate limit errors (429)
+    rate_limit_indicators = [
+        'rate limit',
+        'ratelimit',
+        'too many requests',
+        '429',
+        'quota exceeded',
+        'resource_exhausted'
+    ]
+    if any(indicator in error_str for indicator in rate_limit_indicators):
+        return True
+
+    # Check for server errors (500, 503)
+    server_error_indicators = [
+        '500',
+        '503',
+        'internal server error',
+        'service unavailable',
+        'server error',
+        'backend error'
+    ]
+    if any(indicator in error_str for indicator in server_error_indicators):
+        return True
+
+    # Check for timeout errors
+    timeout_indicators = [
+        'timeout',
+        'timed out',
+        'deadline exceeded'
+    ]
+    if any(indicator in error_str for indicator in timeout_indicators):
+        return True
+
+    # Check for specific exception types
+    if class_name in ['RateLimitError', 'TimeoutError', 'ServiceUnavailableError']:
+        return True
+
+    return False
+
+def calculate_backoff_delay(attempt: int, config) -> float:
+    """Calculate exponential backoff delay for retry attempts.
+
+    Args:
+        attempt: The current attempt number (0-indexed)
+        config: Configuration object with retry settings
+
+    Returns:
+        Delay in seconds, capped at max_delay
+    """
+    delay = config.api_retry_initial_delay * (config.api_retry_exponential_base ** attempt)
+    return min(delay, config.api_retry_max_delay)
+
 # NOTE: This may be out of date or not applicable to your models. Please update this as needed.
 MODEL_TOKEN_LIMITS = {
     "openai:gpt-4.1-mini": 1047576,

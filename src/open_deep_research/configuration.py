@@ -51,6 +51,54 @@ class Configuration(BaseModel):
             }
         }
     )
+    api_retry_attempts: int = Field(
+        default=3,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 3,
+                "min": 1,
+                "max": 10,
+                "description": "Maximum number of retry attempts for API rate limiting and server errors"
+            }
+        }
+    )
+    api_retry_initial_delay: float = Field(
+        default=1.0,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 1.0,
+                "min": 0.1,
+                "max": 10.0,
+                "description": "Initial delay in seconds before first retry (exponential backoff base)"
+            }
+        }
+    )
+    api_retry_max_delay: float = Field(
+        default=60.0,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 60.0,
+                "min": 1.0,
+                "max": 300.0,
+                "description": "Maximum delay in seconds between retries (exponential backoff cap)"
+            }
+        }
+    )
+    api_retry_exponential_base: float = Field(
+        default=2.0,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 2.0,
+                "min": 1.5,
+                "max": 3.0,
+                "description": "Exponential base for backoff calculation (delay = initial * base^attempt)"
+            }
+        }
+    )
     allow_clarification: bool = Field(
         default=True,
         metadata={

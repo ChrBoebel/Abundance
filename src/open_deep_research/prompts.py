@@ -246,6 +246,8 @@ Here are the findings from the research that you conducted:
 {findings}
 </Findings>
 
+CRITICAL: The findings above contain source URLs that MUST be preserved. Extract ALL sources with their URLs from the findings and include them in your final Sources section. Do not lose any source URLs during synthesis.
+
 Please create a detailed answer to the overall research brief following Karl Popper's critical rationalism:
 1. **Problem-oriented**: Begin sections by clearly identifying the problem or question being addressed
 2. **Falsifiable claims**: Present main conclusions as testable propositions that could potentially be refuted, avoiding absolute truth claims
@@ -254,8 +256,8 @@ Please create a detailed answer to the overall research brief following Karl Pop
 5. **Transparent uncertainty**: Be clear about limitations and gaps in available evidence. Present conclusions as current best approximations, not final truths
 6. **Open questions**: Explicitly identify what remains unknown and what further investigation would be needed
 7. Well-organized with proper headings (# for title, ## for sections, ### for subsections)
-8. Includes specific facts and insights from the research, referenced using [Title](URL) format
-9. Includes a "Sources" section at the end with all referenced links
+8. Includes specific facts and insights from the research with inline citations [1][2][3]
+9. Includes a "Sources" section at the end with all referenced links using the format shown in Citation Rules below
 
 You can structure your report in a number of different ways. Here are some examples:
 
