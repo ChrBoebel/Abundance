@@ -114,8 +114,8 @@ export function startResearch(
 
   // Spawn Python process
   const scriptPath = path.join(process.cwd(), 'scripts', 'research_bridge.py')
-  // Try different Python commands in order of preference
-  const pythonCmd = process.env.PYTHON_CMD || 'python3'
+  // Use Python from virtual environment if available, otherwise default to python3
+  const pythonCmd = process.env.PYTHON_CMD || '/opt/venv/bin/python'
   const pythonProcess = spawn(pythonCmd, [scriptPath])
 
   // Store process reference
