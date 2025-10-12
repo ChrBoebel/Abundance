@@ -114,9 +114,13 @@ export function startResearch(
 
   // Spawn Python process
   const scriptPath = path.join(process.cwd(), 'scripts', 'research_bridge.py')
-  // Use Python from virtual environment if available, otherwise default to python3
-  const pythonCmd = process.env.PYTHON_CMD || '/opt/venv/bin/python'
-  const pythonProcess = spawn(pythonCmd, [scriptPath])
+  // Use Python from environment variable or try venv, fallback to python3
+  const pythonCmd = process.env.PYTHON_CMD || 'python3'
+
+  console.log(`Starting Python process: ${pythonCmd} ${scriptPath}`)
+  const pythonProcess = spawn(pythonCmd, [scriptPath], {
+    env: { ...process.env }  // Pass all environment variables to Python
+  })
 
   // Store process reference
   job.process = pythonProcess
@@ -229,16 +233,20 @@ export function startResearch(
     }
   })
 
-  // Handle stderr
+  // Collect stderr for better error reporting
+  let stderrBuffer = ''
   pythonProcess.stderr.on('data', (data: Buffer) => {
-    console.error('Python stderr:', data.toString())
+    const errorText = data.toString()
+    stderrBuffer += errorText
+    console.error('Python stderr:', errorText)
   })
 
   // Handle process exit
   pythonProcess.on('close', (code: number | null) => {
     if (code !== 0 && job.status === JobStatus.RUNNING) {
-      updateJobStatus(jobId, JobStatus.FAILED, `Process exited with code ${code}`)
-      pushJobEvent(jobId, `data: ${JSON.stringify({ type: 'error', error: 'Research process failed' })}\n\n`)
+      const errorMsg = stderrBuffer || `Process exited with code ${code}`
+      updateJobStatus(jobId, JobStatus.FAILED, errorMsg)
+      pushJobEvent(jobId, `data: ${JSON.stringify({ type: 'error', error: errorMsg })}\n\n`)
     }
     // Signal done
     pushJobEvent(jobId, `data: ${JSON.stringify({ type: 'done' })}\n\n`)
