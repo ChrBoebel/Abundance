@@ -140,11 +140,11 @@ class Configuration(BaseModel):
         }
     )
     max_researcher_iterations: int = Field(
-        default=6,
+        default=4,
         metadata={
             "x_oap_ui_config": {
                 "type": "slider",
-                "default": 6,
+                "default": 4,
                 "min": 1,
                 "max": 10,
                 "step": 1,
@@ -153,11 +153,11 @@ class Configuration(BaseModel):
         }
     )
     max_react_tool_calls: int = Field(
-        default=10,
+        default=8,
         metadata={
             "x_oap_ui_config": {
                 "type": "slider",
-                "default": 10,
+                "default": 8,
                 "min": 1,
                 "max": 30,
                 "step": 1,
@@ -166,11 +166,11 @@ class Configuration(BaseModel):
         }
     )
     max_search_results: int = Field(
-        default=10,
+        default=7,
         metadata={
             "x_oap_ui_config": {
                 "type": "slider",
-                "default": 10,
+                "default": 7,
                 "min": 3,
                 "max": 20,
                 "step": 1,
