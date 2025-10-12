@@ -162,7 +162,7 @@ async def arxiv_search(queries: List[str], config: RunnableConfig = None) -> str
             results = retriever.invoke(query)
             all_results.extend(results)
         except Exception as e:
-            logging.warning(f"arXiv search failed for query '{query}': {e}")
+            logging.debug(f"arXiv search failed for query '{query}': {e}")
 
     if not all_results:
         return "No arXiv papers found. Try different search terms."
@@ -210,7 +210,7 @@ async def pubmed_search(queries: List[str], config: RunnableConfig = None) -> st
             results = retriever.invoke(query)
             all_results.extend(results)
         except Exception as e:
-            logging.warning(f"PubMed search failed for query '{query}': {e}")
+            logging.debug(f"PubMed search failed for query '{query}': {e}")
 
     if not all_results:
         return "No PubMed articles found. Try different search terms."
@@ -300,11 +300,11 @@ async def summarize_webpage(model: BaseChatModel, webpage_content: str) -> str:
         
     except asyncio.TimeoutError:
         # Timeout during summarization - return original content
-        logging.warning("Summarization timed out after 60 seconds, returning original content")
+        logging.warning(f"Summarization timed out after 60 seconds for content length {len(webpage_content)}, returning original content")
         return webpage_content
     except Exception as e:
         # Other errors during summarization - log and return original content
-        logging.warning(f"Summarization failed with error: {str(e)}, returning original content")
+        logging.warning(f"Summarization failed: {type(e).__name__}: {str(e)}, returning original content")
         return webpage_content
 
 ##########################

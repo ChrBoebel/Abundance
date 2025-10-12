@@ -9,13 +9,14 @@ import nest_asyncio
 # Allow nested event loops (needed for sync Flask + async LangGraph)
 nest_asyncio.apply()
 import json
+import logging
 import os
 import sys
 import time
 import threading
 from datetime import datetime
 from pathlib import Path
-from queue import Queue
+from queue import Queue, Empty
 from typing import Dict, Any
 from enum import Enum
 
@@ -29,6 +30,13 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 load_dotenv()
+
+# Configure logging for production (Railway) vs development
+logging.basicConfig(
+    level=logging.INFO if os.getenv('RAILWAY_ENVIRONMENT') else logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
@@ -363,6 +371,7 @@ async def stream_research(message: str, thread_id: str):
         yield sse_event("done", {})
 
     except Exception as e:
+        logger.error(f"Research stream error: {e}", exc_info=True)
         yield sse_event("error", {"error": str(e)})
 
 def run_research_job(job_id: str, message: str, thread_id: str):
@@ -395,6 +404,7 @@ def run_research_job(job_id: str, message: str, thread_id: str):
             loop.close()
 
     except Exception as e:
+        logger.error(f"Research job failed [job_id={job_id}]: {e}", exc_info=True)
         update_job_status(job_id, JobStatus.FAILED.value, error=str(e))
         push_job_event(job_id, sse_event("error", {"error": str(e)}))
 
@@ -483,7 +493,8 @@ def chat_stream():
     last_event_id_header = request.headers.get('Last-Event-ID', '0')
     try:
         last_event_id = int(last_event_id_header)
-    except:
+    except ValueError:
+        logger.warning(f"Invalid Last-Event-ID header: {last_event_id_header}")
         last_event_id = 0
 
     def generate():
@@ -505,7 +516,7 @@ def chat_stream():
                 if job["status"] in [JobStatus.COMPLETED.value, JobStatus.FAILED.value]:
                     break
 
-            except:
+            except Empty:
                 # Timeout - send heartbeat
                 current_time = time.time()
                 if current_time - last_yield_time >= heartbeat_interval:
@@ -514,6 +525,7 @@ def chat_stream():
 
                 # Check if job still exists
                 if not get_job(job_id):
+                    logger.info(f"Job {job_id} no longer exists, closing stream")
                     break
 
                 # Check if job is done
@@ -551,9 +563,15 @@ def health():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 4290))
-    print(f"🚀 Deep Search Flask Frontend")
-    print(f"📡 Server läuft auf http://localhost:{port}")
-    print(f"💡 Öffne http://localhost:{port} im Browser")
-    print(f"🔑 Verwende Gemini 2.5 Flash + Tavily Search")
-    print("-" * 50)
+
+    # Only print startup info in development mode
+    if not os.getenv('RAILWAY_ENVIRONMENT'):
+        print(f"🚀 Deep Search Flask Frontend")
+        print(f"📡 Server läuft auf http://localhost:{port}")
+        print(f"💡 Öffne http://localhost:{port} im Browser")
+        print(f"🔑 Verwende Gemini 2.5 Flash + Tavily Search")
+        print("-" * 50)
+    else:
+        logger.info(f"Starting Flask app on port {port} in production mode")
+
     app.run(host='0.0.0.0', port=port, debug=True, threaded=True)

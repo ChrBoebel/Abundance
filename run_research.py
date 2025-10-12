@@ -11,9 +11,6 @@ load_dotenv()
 
 async def run_research(topic: str):
     """Run a research query."""
-    print(f"🔬 Starting Deep Research on: {topic}\n")
-    print("=" * 60)
-
     # Run the research
     config = {
         "configurable": {
@@ -32,9 +29,6 @@ async def run_research(topic: str):
         config=config
     )
 
-    print("\n" + "=" * 60)
-    print("📄 FINAL REPORT:")
-    print("=" * 60)
     print(result.get("final_report", "No report generated"))
 
 if __name__ == "__main__":

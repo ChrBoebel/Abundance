@@ -5,6 +5,7 @@ clarification, research supervision, and final report generation phases.
 """
 
 import asyncio
+import logging
 import re
 
 from langchain.chat_models import init_chat_model
@@ -25,6 +26,8 @@ from open_deep_research.utils import (
     is_retryable_api_error,
     is_token_limit_exceeded,
 )
+
+logger = logging.getLogger(__name__)
 
 # Initialize a configurable model that we will use throughout the agent
 configurable_model = init_chat_model(
@@ -94,21 +97,32 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                     # Handle token limit exceeded errors with progressive truncation
                     if is_token_limit_exceeded(e, configurable.final_report_model):
                         current_retry += 1
+                        logger.warning(
+                            f"Token limit exceeded during final report generation "
+                            f"(attempt {current_retry}/{max_retries}), truncating findings"
+                        )
 
                         if current_retry == 1:
                             # First retry: determine initial truncation limit
                             model_token_limit = get_model_token_limit(configurable.final_report_model)
                             if not model_token_limit:
+                                error_msg = (
+                                    f"Token limit exceeded but could not determine model's maximum context length. "
+                                    f"Please update the model map in utils.py with this information."
+                                )
+                                logger.error(f"{error_msg} Error: {e}")
                                 return {
-                                    "final_report": f"Error generating final report: Token limit exceeded, however, we could not determine the model's maximum context length. Please update the model map in deep_researcher/utils.py with this information. {e}",
+                                    "final_report": f"Error generating final report: {error_msg}",
                                     "messages": [AIMessage(content="Report generation failed due to token limits")],
                                     **cleared_state
                                 }
                             # Use 4x token limit as character approximation for truncation
                             findings_token_limit = model_token_limit * 4
+                            logger.info(f"Truncating findings to ~{findings_token_limit} characters")
                         else:
                             # Subsequent retries: reduce by 10% each time
                             findings_token_limit = int(findings_token_limit * 0.9)
+                            logger.info(f"Further reducing findings to ~{findings_token_limit} characters")
 
                         # Smart truncation: preserve sources section
                         sources_match = re.search(r'### Sources\n(.+)', findings, re.DOTALL)
@@ -142,13 +156,20 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                 # If not the last retry attempt, wait with exponential backoff
                 if api_retry_attempt < configurable.api_retry_attempts - 1:
                     delay = calculate_backoff_delay(api_retry_attempt, configurable)
+                    logger.info(
+                        f"Retryable API error during final report generation "
+                        f"(attempt {api_retry_attempt + 1}/{configurable.api_retry_attempts}), "
+                        f"retrying after {delay}s backoff"
+                    )
                     await asyncio.sleep(delay)
                     # Reset token retry counter for next API retry
                     current_retry = 0
                     continue
                 # Last attempt, fall through to return error
+                logger.error(f"Final report generation failed after {configurable.api_retry_attempts} API retries: {e}")
 
             # Non-retryable error or exhausted retries: return error
+            logger.error(f"Final report generation failed with non-retryable error: {e}", exc_info=True)
             return {
                 "final_report": f"Error generating final report: {e}",
                 "messages": [AIMessage(content="Report generation failed due to an error")],
@@ -156,6 +177,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             }
 
     # Step 4: Return failure result if all retries exhausted
+    logger.error("Final report generation failed: Maximum retries exceeded")
     return {
         "final_report": "Error generating final report: Maximum retries exceeded",
         "messages": [AIMessage(content="Report generation failed after maximum retries")],

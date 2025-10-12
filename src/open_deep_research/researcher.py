@@ -5,6 +5,7 @@ on specific topics using available search tools and MCP integrations.
 """
 
 import asyncio
+import logging
 from typing import Literal
 
 from langchain.chat_models import init_chat_model
@@ -38,6 +39,8 @@ from open_deep_research.utils import (
     remove_up_to_last_ai_message,
 )
 
+logger = logging.getLogger(__name__)
+
 # Initialize a configurable model for researcher workflow
 configurable_model = init_chat_model(
     configurable_fields=("model", "max_tokens", "api_key"),
@@ -58,6 +61,8 @@ async def execute_tool_safely(tool, args, config):
     try:
         return await tool.ainvoke(args, config)
     except Exception as e:
+        tool_name = tool.name if hasattr(tool, "name") else str(tool)
+        logger.error(f"Tool execution error [{tool_name}]: {e}", exc_info=True)
         return f"Error executing tool: {str(e)}"
 
 
@@ -256,9 +261,13 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
 
         except Exception as e:
             synthesis_attempts += 1
+            logger.warning(
+                f"Compression attempt {synthesis_attempts}/{max_attempts} failed: {type(e).__name__}: {str(e)}"
+            )
 
             # Handle token limit exceeded by removing older messages
             if is_token_limit_exceeded(e, configurable.research_model):
+                logger.info("Token limit exceeded during compression, removing older messages")
                 researcher_messages = remove_up_to_last_ai_message(researcher_messages)
                 continue
 
@@ -266,6 +275,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
             continue
 
     # Step 4: Return error result if all attempts failed
+    logger.error(f"Research compression failed after {max_attempts} attempts, returning raw notes")
     raw_notes_content = "\n".join([
         str(message.content)
         for message in filter_messages(researcher_messages, include_types=["tool", "ai"])

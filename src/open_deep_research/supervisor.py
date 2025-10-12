@@ -5,6 +5,7 @@ and delegates tasks to multiple parallel researchers.
 """
 
 import asyncio
+import logging
 from typing import Literal
 
 from langchain.chat_models import init_chat_model
@@ -26,6 +27,8 @@ from open_deep_research.utils import (
     is_token_limit_exceeded,
     think_tool,
 )
+
+logger = logging.getLogger(__name__)
 
 # Initialize a configurable model for supervisor workflow
 configurable_model = init_chat_model(
@@ -192,6 +195,10 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
             # Handle research execution errors
             if is_token_limit_exceeded(e, configurable.research_model):
                 # Token limit exceeded - end research phase
+                logger.warning(
+                    f"Token limit exceeded during research delegation, ending research phase early. "
+                    f"Collected {len(get_notes_from_tool_calls(supervisor_messages))} notes so far."
+                )
                 return Command(
                     goto=END,
                     update={
@@ -200,6 +207,7 @@ async def supervisor_tools(state: SupervisorState, config: RunnableConfig) -> Co
                     }
                 )
             # Re-raise other exceptions to allow retry logic to handle them
+            logger.error(f"Research delegation failed: {e}", exc_info=True)
             raise
 
     # Step 3: Return command with all tool results
