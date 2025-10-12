@@ -172,9 +172,3 @@ APP_PASSWORD=your-password
 - Adjust `max_concurrent_research_units` based on API rate limits (default: 10)
 - Set `max_search_results` higher (15-20) for comprehensive research, lower (5-10) for faster results
 - Token limits: Compression model needs sufficient tokens to summarize findings (default: 8192)
-
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

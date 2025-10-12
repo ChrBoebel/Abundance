@@ -59,7 +59,6 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
         "model": configurable.final_report_model,
         "max_tokens": configurable.final_report_model_max_tokens,
         "api_key": get_api_key_for_model(configurable.final_report_model, config),
-        "tags": ["langsmith:nostream"]
     }
 
     # Step 3: Attempt report generation with API retry and token limit retry logic
@@ -81,15 +80,18 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                         date=get_today_str()
                     )
 
-                    # Generate the final report
-                    final_report = await configurable_model.with_config(writer_model_config).ainvoke([
+                    # Generate the final report with streaming
+                    final_report_content = ""
+                    async for chunk in configurable_model.with_config(writer_model_config).astream([
                         HumanMessage(content=final_report_prompt)
-                    ])
+                    ]):
+                        if hasattr(chunk, 'content'):
+                            final_report_content += chunk.content
 
                     # Return successful report generation
                     return {
-                        "final_report": final_report.content,
-                        "messages": [final_report],
+                        "final_report": final_report_content,
+                        "messages": [AIMessage(content=final_report_content)],
                         **cleared_state
                     }
 
