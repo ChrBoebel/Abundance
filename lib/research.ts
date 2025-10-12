@@ -114,7 +114,9 @@ export function startResearch(
 
   // Spawn Python process
   const scriptPath = path.join(process.cwd(), 'scripts', 'research_bridge.py')
-  const pythonProcess = spawn('python3.11', [scriptPath])
+  // Try different Python commands in order of preference
+  const pythonCmd = process.env.PYTHON_CMD || 'python3'
+  const pythonProcess = spawn(pythonCmd, [scriptPath])
 
   // Store process reference
   job.process = pythonProcess
