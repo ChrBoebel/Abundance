@@ -133,7 +133,7 @@ export default function ChatPage() {
                 urls.push(match[1].trim())
               }
 
-              const newSources = []
+              const newSources: Source[] = []
               for (let i = 0; i < Math.min(titles.length, urls.length); i++) {
                 const title = titles[i]
                 const url = urls[i]

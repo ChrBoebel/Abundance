@@ -39,10 +39,11 @@ export interface Job {
   error: string | null
   created_at: string
   updated_at: string
+  process?: any
 }
 
 export interface SSEEvent {
-  type: 'job_started' | 'thinking' | 'step_start' | 'step_complete' | 'tool_call_start' | 'tool_call_complete' | 'agent_message' | 'done' | 'error'
+  type: 'job_started' | 'thinking' | 'step_start' | 'step_complete' | 'tool_call_start' | 'tool_call_complete' | 'report_stream' | 'agent_message' | 'done' | 'error'
   [key: string]: any
 }
 

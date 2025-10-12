@@ -1,1 +1,27 @@
 *.egg-info/
+
+# Next.js
+.next/
+out/
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
