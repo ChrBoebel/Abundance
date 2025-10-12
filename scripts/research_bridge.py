@@ -8,8 +8,8 @@ import json
 import asyncio
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+# Add project root to path so we can import the package
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from open_deep_research.deep_researcher import deep_researcher
 
