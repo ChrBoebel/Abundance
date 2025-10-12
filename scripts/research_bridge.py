@@ -8,10 +8,23 @@ import json
 import asyncio
 from pathlib import Path
 
-# Add project root to path so we can import the package
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add project root and src directory to path so we can import the package
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "src"))
 
-from open_deep_research.deep_researcher import deep_researcher
+try:
+    from open_deep_research.deep_researcher import deep_researcher
+except ImportError as e:
+    # If import fails, print diagnostic info and re-raise
+    print(json.dumps({
+        "event": "error",
+        "error": f"Import failed: {e}",
+        "sys_path": sys.path,
+        "project_root": str(project_root),
+        "cwd": str(Path.cwd())
+    }), flush=True)
+    raise
 
 
 def serialize_event(event):
