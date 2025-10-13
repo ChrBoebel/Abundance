@@ -117,7 +117,7 @@ export function startResearch(
   const scriptPath = path.join(process.cwd(), 'scripts', 'research_bridge.py')
 
   // Try to find Python in venv first, then fallback
-  let pythonCmd = 'python3'
+  let pythonCmd = 'python3.11'  // Use python3.11 explicitly
 
   const venvPython = '/opt/venv/bin/python'
   if (fs.existsSync(venvPython)) {

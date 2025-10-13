@@ -31,7 +31,8 @@ export default function LoginPage() {
         router.push('/')
         router.refresh()
       } else {
-        setError('Falsches Passwort')
+        const data = await response.json()
+        setError(data.error || 'Falsches Passwort')
       }
     } catch (err) {
       setError('Verbindungsfehler')
