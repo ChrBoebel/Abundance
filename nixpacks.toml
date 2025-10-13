@@ -6,7 +6,8 @@ cmds = [
   "npm ci",
   "python3.11 -m venv /opt/venv",
   "/opt/venv/bin/pip install --upgrade pip setuptools wheel",
-  "cd /app && /opt/venv/bin/pip install -e . --verbose"
+  "/opt/venv/bin/pip install -r requirements-core.txt",
+  "/opt/venv/bin/pip install -e . --no-deps"
 ]
 
 [phases.build]
