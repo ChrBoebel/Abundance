@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Literal
 
-from open_deep_research.utils import init_chat_model_wrapper
+from open_deep_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
@@ -111,7 +111,7 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
         configurable_model
         .bind_tools(tools)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(research_model_config)
+        .with_config(prepare_model_config(research_model_config))
     )
 
     # Step 3: Generate researcher response with system context
@@ -221,12 +221,12 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     """
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
-    synthesizer_model = configurable_model.with_config({
+    synthesizer_model = configurable_model.with_config(prepare_model_config({
         "model": configurable.compression_model,
         "max_tokens": configurable.compression_model_max_tokens,
         "api_key": get_api_key_for_model(configurable.compression_model, config),
         "tags": ["langsmith:nostream"]
-    })
+    }))
 
     # Step 2: Prepare messages for compression
     researcher_messages = state.get("researcher_messages", [])

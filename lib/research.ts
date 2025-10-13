@@ -86,7 +86,8 @@ export function addMessage(threadId: string, message: Message) {
 export function startResearch(
   jobId: string,
   message: string,
-  threadId: string
+  threadId: string,
+  modelName: string = 'deepseek'
 ): void {
   const job = getJob(jobId)
   if (!job) {
@@ -98,13 +99,18 @@ export function startResearch(
   // Add user message to thread
   addMessage(threadId, { role: 'user', content: message })
 
+  // Determine model based on selection
+  const model = modelName === 'gemini'
+    ? 'openrouter:google/gemini-2.5-flash-lite'
+    : 'openrouter:deepseek/deepseek-v3.2-exp'
+
   // Prepare config
   const config = {
     configurable: {
-      research_model: 'openrouter:deepseek/deepseek-v3.2-exp',
-      summarization_model: 'openrouter:deepseek/deepseek-v3.2-exp',
-      compression_model: 'openrouter:deepseek/deepseek-v3.2-exp',
-      final_report_model: 'openrouter:deepseek/deepseek-v3.2-exp',
+      research_model: model,
+      summarization_model: model,
+      compression_model: model,
+      final_report_model: model,
       search_api: 'tavily',
       allow_clarification: false,
       max_concurrent_research_units: 3,
@@ -127,7 +133,6 @@ export function startResearch(
   }
 
   console.log(`Starting Python process: ${pythonCmd} ${scriptPath}`)
-  console.log(`Python exists: ${fs.existsSync(pythonCmd)}`)
 
   const pythonProcess = spawn(pythonCmd, [scriptPath], {
     env: { ...process.env }  // Pass all environment variables to Python

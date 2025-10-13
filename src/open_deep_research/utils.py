@@ -38,51 +38,53 @@ from open_deep_research.state import ResearchComplete, Summary
 # Model Initialization Utils
 ##########################
 
+def strip_openrouter_prefix(model_name: str) -> str:
+    """Strip 'openrouter:' prefix from model name if present."""
+    if isinstance(model_name, str) and model_name.startswith("openrouter:"):
+        return model_name.replace("openrouter:", "", 1)
+    return model_name
+
+
+def prepare_model_config(config: dict) -> dict:
+    """Prepare model config by stripping openrouter: prefix from model field."""
+    config = dict(config)  # Make a copy
+    if "model" in config:
+        config["model"] = strip_openrouter_prefix(config["model"])
+    return config
+
+
 def init_chat_model_wrapper(configurable_fields=None, **kwargs):
-    """Wrapper around init_chat_model that supports OpenRouter models.
+    """Wrapper that creates ChatOpenAI with OpenRouter support.
 
     Args:
-        configurable_fields: Fields that can be configured at runtime
+        configurable_fields: Tuple of field names that can be configured at runtime
         **kwargs: Additional arguments passed to model initialization
 
     Returns:
-        Configured chat model with optional OpenRouter support
+        Configured ChatOpenAI model that routes to OpenRouter
     """
     if configurable_fields:
-        # Create base model with configurable fields
-        base_model = init_chat_model(configurable_fields=configurable_fields, **kwargs)
+        # Get API key or use placeholder
+        api_key = os.getenv("OPENROUTER_API_KEY") or "placeholder"
 
-        # Wrap with_config to handle OpenRouter
-        original_with_config = base_model.with_config
+        # Create base model pointing to OpenRouter
+        base_model = ChatOpenAI(
+            model="deepseek/deepseek-v3.2-exp",
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
+            **kwargs
+        ).configurable_fields(
+            model_name=dict(id="model", name="Model", description="Model to use"),
+            max_tokens=dict(id="max_tokens", name="Max Tokens"),
+            openai_api_key=dict(id="api_key", name="API Key"),
+        )
 
-        def wrapped_with_config(config):
-            model_name = config.get("configurable", {}).get("model", "")
-
-            if model_name.startswith("openrouter:"):
-                # OpenRouter model: use ChatOpenAI with custom base_url
-                actual_model = model_name.replace("openrouter:", "", 1)
-                api_key = config.get("configurable", {}).get("api_key") or os.getenv("OPENROUTER_API_KEY")
-                max_tokens = config.get("configurable", {}).get("max_tokens", 8192)
-
-                return ChatOpenAI(
-                    model=actual_model,
-                    base_url="https://openrouter.ai/api/v1",
-                    api_key=api_key,
-                    max_tokens=max_tokens,
-                    **kwargs
-                )
-            else:
-                # Standard model: use original with_config
-                return original_with_config(config)
-
-        # Replace with_config method
-        base_model.with_config = wrapped_with_config
         return base_model
     else:
         # Direct initialization without configurable fields
         model_name = kwargs.get("model", "")
         if model_name.startswith("openrouter:"):
-            actual_model = model_name.replace("openrouter:", "", 1)
+            actual_model = strip_openrouter_prefix(model_name)
             api_key = kwargs.get("api_key") or os.getenv("OPENROUTER_API_KEY")
             return ChatOpenAI(
                 model=actual_model,

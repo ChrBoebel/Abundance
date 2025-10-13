@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useTheme } from 'next-themes'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, Settings } from 'lucide-react'
 import Image from 'next/image'
 import ChatMessage from '@/components/ChatMessage'
 import ResearchStatus from '@/components/ResearchStatus'
@@ -40,17 +40,24 @@ export default function ChatPage() {
   const [phases, setPhases] = useState<ResearchPhase[]>(INITIAL_PHASES)
   const [sourceCount, setSourceCount] = useState(0)
   const [sources, setSources] = useState<Source[]>([])
+  const [citedSources, setCitedSources] = useState<Source[]>([])
   const [currentActivity, setCurrentActivity] = useState('')
   const [isCompleted, setIsCompleted] = useState(false)
   const [sessionId] = useState(`s-${Date.now().toString(36)}`)
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [eventSource, setEventSource] = useState<EventSource | null>(null)
   const [streamingReport, setStreamingReport] = useState('')
+  const [selectedModel, setSelectedModel] = useState<string>('gemini')
+  const [showModelMenu, setShowModelMenu] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMounted(true)
+    const savedModel = localStorage.getItem('selectedModel')
+    if (savedModel) {
+      setSelectedModel(savedModel)
+    }
   }, [])
 
   const scrollToBottom = () => {
@@ -65,6 +72,7 @@ export default function ChatPage() {
     setPhases(INITIAL_PHASES)
     setSourceCount(0)
     setSources([])
+    setCitedSources([])
     setCurrentActivity('')
     setIsCompleted(false)
     setShowResearchStatus(false)
@@ -73,6 +81,40 @@ export default function ChatPage() {
 
   const updatePhase = (phaseId: number, status: 'pending' | 'running' | 'completed') => {
     setPhases(prev => prev.map(p => p.id === phaseId ? { ...p, status } : p))
+  }
+
+  const extractCitedSources = (reportContent: string, allSources: Source[]): Source[] => {
+    try {
+      // Extract the Sources section from the report
+      const sourcesMatch = reportContent.match(/###\s+(Sources|Quellen)\s*\n([\s\S]+?)(\n###|$)/i)
+      if (!sourcesMatch) return []
+
+      const sourcesSection = sourcesMatch[2]
+
+      // Extract citation lines like "[1] Title: URL" or "[1] Title - URL"
+      const citationRegex = /\[(\d+)\]\s*(.+?)(?::\s*|\s+-\s*)(https?:\/\/[^\s\n]+)/g
+      const citedSourcesMap = new Map<string, Source>()
+
+      let match
+      while ((match = citationRegex.exec(sourcesSection)) !== null) {
+        const url = match[3].trim()
+        const title = match[2].trim()
+
+        // Try to find matching source from allSources based on URL
+        const matchingSource = allSources.find(s => s.url === url)
+        if (matchingSource) {
+          citedSourcesMap.set(url, matchingSource)
+        } else {
+          // If not found in allSources, create a new entry
+          citedSourcesMap.set(url, { title, url })
+        }
+      }
+
+      return Array.from(citedSourcesMap.values())
+    } catch (error) {
+      console.error('Error extracting cited sources:', error)
+      return []
+    }
   }
 
   const handleSSEMessage = (event: MessageEvent) => {
@@ -154,6 +196,10 @@ export default function ChatPage() {
         setStreamingReport('')
         setIsCompleted(true)
         phases.forEach(phase => updatePhase(phase.id, 'completed'))
+
+        // Extract cited sources from the final report
+        const cited = extractCitedSources(data.content, sources)
+        setCitedSources(cited)
       } else if (data.type === 'done') {
         setIsCompleted(true)
         setIsStreaming(false)
@@ -175,7 +221,7 @@ export default function ChatPage() {
     resetResearchState()
     setIsStreaming(true)
 
-    const url = `/api/chat/stream?thread_id=${sessionId}&message=${encodeURIComponent(message)}`
+    const url = `/api/chat/stream?thread_id=${sessionId}&message=${encodeURIComponent(message)}&model=${selectedModel}`
     const es = new EventSource(url)
 
     es.onmessage = handleSSEMessage
@@ -205,12 +251,86 @@ export default function ChatPage() {
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-green-500 rounded-full" title="Verbunden"></div>
             {mounted && (
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-              >
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
+              <>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowModelMenu(!showModelMenu)}
+                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                    title="Modell auswählen"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
+
+                  {showModelMenu && (
+                    <div
+                      className="absolute right-0 mt-2 w-64 rounded-xl border backdrop-blur-sm shadow-xl z-50 overflow-hidden"
+                      style={{
+                        background: 'hsl(var(--card) / 0.95)',
+                        borderColor: 'hsl(var(--border))',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                      }}
+                    >
+                      <div className="p-3">
+                        <div className="text-xs font-semibold mb-2 px-2" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
+                          KI-MODELL
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedModel('gemini')
+                            localStorage.setItem('selectedModel', 'gemini')
+                            setTimeout(() => setShowModelMenu(false), 200)
+                          }}
+                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
+                            selectedModel === 'gemini'
+                              ? 'shadow-lg'
+                              : 'hover:bg-opacity-50'
+                          }`}
+                          style={selectedModel === 'gemini' ? {
+                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
+                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
+                          } : {
+                            background: 'transparent'
+                          }}
+                        >
+                          <div className="font-medium">Gemini 2.5 Flash Lite</div>
+                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
+                            Schnell & effizient
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedModel('deepseek')
+                            localStorage.setItem('selectedModel', 'deepseek')
+                            setTimeout(() => setShowModelMenu(false), 200)
+                          }}
+                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 ${
+                            selectedModel === 'deepseek'
+                              ? 'shadow-lg'
+                              : 'hover:bg-opacity-50'
+                          }`}
+                          style={selectedModel === 'deepseek' ? {
+                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
+                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
+                          } : {
+                            background: 'transparent'
+                          }}
+                        >
+                          <div className="font-medium">DeepSeek V3.2</div>
+                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
+                            Leistungsstark & präzise
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                >
+                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -249,6 +369,7 @@ export default function ChatPage() {
                   phases={phases}
                   sourceCount={sourceCount}
                   sources={sources}
+                  citedSources={citedSources}
                   currentActivity={currentActivity}
                   isCompleted={isCompleted}
                 />

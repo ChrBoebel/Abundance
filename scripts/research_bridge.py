@@ -57,6 +57,17 @@ async def main():
         message = input_data['message']
         config = input_data['config']
 
+        # Log model configuration for debugging
+        configurable = config.get('configurable', {})
+        print(json.dumps({
+            "event": "debug",
+            "type": "model_config",
+            "research_model": configurable.get('research_model'),
+            "summarization_model": configurable.get('summarization_model'),
+            "compression_model": configurable.get('compression_model'),
+            "final_report_model": configurable.get('final_report_model')
+        }), flush=True, file=sys.stderr)
+
         # Stream events
         async for event in deep_researcher.astream_events(
             {"messages": [{"role": "user", "content": message}]},

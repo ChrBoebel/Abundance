@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const message = searchParams.get('message')
     const threadId = searchParams.get('thread_id') || 'default'
+    const modelName = searchParams.get('model') || 'deepseek'
     let jobId = searchParams.get('job_id')
 
     // If no job_id, create new job and start research
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
       // Generate job ID
       jobId = `${threadId}-${Date.now()}`
       createJob(jobId)
-      startResearch(jobId, message, threadId)
+      startResearch(jobId, message, threadId, modelName)
     }
 
     // Get job

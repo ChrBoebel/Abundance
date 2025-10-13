@@ -11,11 +11,12 @@ interface ResearchStatusProps {
   phases: ResearchPhase[]
   sourceCount: number
   sources: Source[]
+  citedSources: Source[]
   currentActivity: string
   isCompleted: boolean
 }
 
-export default function ResearchStatus({ phases, sourceCount, sources, currentActivity, isCompleted }: ResearchStatusProps) {
+export default function ResearchStatus({ phases, sourceCount, sources, citedSources, currentActivity, isCompleted }: ResearchStatusProps) {
   const [expanded, setExpanded] = useState(false)
 
   const currentPhase = phases.find(p => p.status === 'running')
@@ -90,24 +91,52 @@ export default function ResearchStatus({ phases, sourceCount, sources, currentAc
             </div>
 
             {sources.length > 0 && (
-              <div>
-                <div className="text-sm font-semibold mb-2">Durchsuchte Quellen ({sources.length}):</div>
-                <div className="space-y-1 text-xs max-h-48 overflow-y-auto">
-                  {sources.map((source, idx) => (
-                    <div key={idx} className="flex items-start gap-2" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
-                      <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline transition-colors"
-                        style={{ color: 'hsl(var(--primary))', wordBreak: 'break-word' }}
-                      >
-                        {source.title}
-                      </a>
-                    </div>
-                  ))}
+              <div className="space-y-3">
+                {/* All Found Sources */}
+                <div>
+                  <div className="text-sm font-semibold mb-2">Gefundene Quellen ({sources.length}):</div>
+                  <div className="space-y-1 text-xs max-h-48 overflow-y-auto">
+                    {sources.map((source, idx) => (
+                      <div key={idx} className="flex items-start gap-2" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
+                        <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline transition-colors"
+                          style={{ color: 'hsl(var(--primary))', wordBreak: 'break-word' }}
+                        >
+                          {source.title}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Cited Sources (only shown after research completion) */}
+                {isCompleted && citedSources.length > 0 && (
+                  <div>
+                    <div className="text-sm font-semibold mb-2" style={{ color: 'hsl(var(--primary))' }}>
+                      Zitierte Quellen ({citedSources.length}):
+                    </div>
+                    <div className="space-y-1 text-xs max-h-48 overflow-y-auto">
+                      {citedSources.map((source, idx) => (
+                        <div key={idx} className="flex items-start gap-2" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
+                          <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline transition-colors"
+                            style={{ color: 'hsl(var(--primary))', wordBreak: 'break-word' }}
+                          >
+                            {source.title}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

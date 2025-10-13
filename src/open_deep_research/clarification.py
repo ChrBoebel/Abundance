@@ -6,7 +6,7 @@ user clarification and research brief generation.
 
 from typing import Literal
 
-from open_deep_research.utils import init_chat_model_wrapper
+from open_deep_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -72,7 +72,7 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
         configurable_model
         .with_structured_output(ClarifyWithUser)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(model_config)
+        .with_config(prepare_model_config(model_config))
     )
 
     # Step 3: Analyze whether clarification is needed
@@ -125,7 +125,7 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
         configurable_model
         .with_structured_output(ResearchQuestion)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(research_model_config)
+        .with_config(prepare_model_config(research_model_config))
     )
 
     # Step 2: Generate structured research brief from user messages

@@ -25,6 +25,7 @@ from open_deep_research.utils import (
     get_today_str,
     is_retryable_api_error,
     is_token_limit_exceeded,
+    prepare_model_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
 
                     # Generate the final report with streaming
                     final_report_content = ""
-                    async for chunk in configurable_model.with_config(writer_model_config).astream([
+                    async for chunk in configurable_model.with_config(prepare_model_config(writer_model_config)).astream([
                         HumanMessage(content=final_report_prompt)
                     ]):
                         if hasattr(chunk, 'content'):

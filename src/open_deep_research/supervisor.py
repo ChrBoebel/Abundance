@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Literal
 
-from open_deep_research.utils import init_chat_model_wrapper
+from open_deep_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -67,7 +67,7 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
         configurable_model
         .bind_tools(lead_researcher_tools)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(research_model_config)
+        .with_config(prepare_model_config(research_model_config))
     )
 
     # Step 2: Generate supervisor response based on current context
