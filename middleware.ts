@@ -1,4 +1,4 @@
-/**
+1/**
  * Route protection middleware
  */
 import { NextResponse } from 'next/server'

@@ -10,6 +10,7 @@ from typing import Annotated, Any, Dict, List, Literal, Optional
 import aiohttp
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
+from langchain_openai import ChatOpenAI
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -32,6 +33,65 @@ from tavily import AsyncTavilyClient
 from open_deep_research.configuration import Configuration, SearchAPI
 from open_deep_research.prompts import summarize_webpage_prompt
 from open_deep_research.state import ResearchComplete, Summary
+
+##########################
+# Model Initialization Utils
+##########################
+
+def init_chat_model_wrapper(configurable_fields=None, **kwargs):
+    """Wrapper around init_chat_model that supports OpenRouter models.
+
+    Args:
+        configurable_fields: Fields that can be configured at runtime
+        **kwargs: Additional arguments passed to model initialization
+
+    Returns:
+        Configured chat model with optional OpenRouter support
+    """
+    if configurable_fields:
+        # Create base model with configurable fields
+        base_model = init_chat_model(configurable_fields=configurable_fields, **kwargs)
+
+        # Wrap with_config to handle OpenRouter
+        original_with_config = base_model.with_config
+
+        def wrapped_with_config(config):
+            model_name = config.get("configurable", {}).get("model", "")
+
+            if model_name.startswith("openrouter:"):
+                # OpenRouter model: use ChatOpenAI with custom base_url
+                actual_model = model_name.replace("openrouter:", "", 1)
+                api_key = config.get("configurable", {}).get("api_key") or os.getenv("OPENROUTER_API_KEY")
+                max_tokens = config.get("configurable", {}).get("max_tokens", 8192)
+
+                return ChatOpenAI(
+                    model=actual_model,
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key=api_key,
+                    max_tokens=max_tokens,
+                    **kwargs
+                )
+            else:
+                # Standard model: use original with_config
+                return original_with_config(config)
+
+        # Replace with_config method
+        base_model.with_config = wrapped_with_config
+        return base_model
+    else:
+        # Direct initialization without configurable fields
+        model_name = kwargs.get("model", "")
+        if model_name.startswith("openrouter:"):
+            actual_model = model_name.replace("openrouter:", "", 1)
+            api_key = kwargs.get("api_key") or os.getenv("OPENROUTER_API_KEY")
+            return ChatOpenAI(
+                model=actual_model,
+                base_url="https://openrouter.ai/api/v1",
+                api_key=api_key,
+                **{k: v for k, v in kwargs.items() if k not in ["model", "api_key"]}
+            )
+        else:
+            return init_chat_model(configurable_fields=configurable_fields, **kwargs)
 
 ##########################
 # Search Tool Utils
@@ -83,7 +143,7 @@ async def tavily_search(
     
     # Initialize summarization model with retry logic
     model_api_key = get_api_key_for_model(configurable.summarization_model, config)
-    summarization_model = init_chat_model(
+    summarization_model = init_chat_model_wrapper(
         model=configurable.summarization_model,
         max_tokens=configurable.summarization_model_max_tokens,
         api_key=model_api_key,
@@ -1064,14 +1124,18 @@ def get_api_key_for_model(model_name: str, config: RunnableConfig):
             return api_keys.get("ANTHROPIC_API_KEY")
         elif model_name.startswith("google"):
             return api_keys.get("GOOGLE_API_KEY")
+        elif model_name.startswith("openrouter:"):
+            return api_keys.get("OPENROUTER_API_KEY")
         return None
     else:
-        if model_name.startswith("openai:"): 
+        if model_name.startswith("openai:"):
             return os.getenv("OPENAI_API_KEY")
         elif model_name.startswith("anthropic:"):
             return os.getenv("ANTHROPIC_API_KEY")
         elif model_name.startswith("google"):
             return os.getenv("GOOGLE_API_KEY")
+        elif model_name.startswith("openrouter:"):
+            return os.getenv("OPENROUTER_API_KEY")
         return None
 
 def get_tavily_api_key(config: RunnableConfig):

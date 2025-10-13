@@ -6,7 +6,7 @@ user clarification and research brief generation.
 
 from typing import Literal
 
-from langchain.chat_models import init_chat_model
+from open_deep_research.utils import init_chat_model_wrapper
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -34,7 +34,7 @@ from open_deep_research.utils import (
 )
 
 # Initialize a configurable model for clarification workflow
-configurable_model = init_chat_model(
+configurable_model = init_chat_model_wrapper(
     configurable_fields=("model", "max_tokens", "api_key"),
 )
 

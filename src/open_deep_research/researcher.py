@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Literal
 
-from langchain.chat_models import init_chat_model
+from open_deep_research.utils import init_chat_model_wrapper
 from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
@@ -42,7 +42,7 @@ from open_deep_research.utils import (
 logger = logging.getLogger(__name__)
 
 # Initialize a configurable model for researcher workflow
-configurable_model = init_chat_model(
+configurable_model = init_chat_model_wrapper(
     configurable_fields=("model", "max_tokens", "api_key"),
 )
 
