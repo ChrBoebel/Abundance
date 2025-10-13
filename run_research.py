@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.11
 """
-Simple CLI to run Deep Research with Gemini 2.5 Flash
+Simple CLI to run Deep Research with OpenRouter DeepSeek V3.2 Exp
 """
 import asyncio
 from dotenv import load_dotenv
@@ -14,10 +14,10 @@ async def run_research(topic: str):
     # Run the research
     config = {
         "configurable": {
-            "research_model": "google_genai:models/gemini-2.5-flash",
-            "summarization_model": "google_genai:models/gemini-2.5-flash",
-            "compression_model": "google_genai:models/gemini-2.5-flash",
-            "final_report_model": "google_genai:models/gemini-2.5-flash",
+            "research_model": "openrouter:deepseek/deepseek-v3.2-exp",
+            "summarization_model": "openrouter:deepseek/deepseek-v3.2-exp",
+            "compression_model": "openrouter:deepseek/deepseek-v3.2-exp",
+            "final_report_model": "openrouter:deepseek/deepseek-v3.2-exp",
             "search_api": "tavily",  # Change to "none" if no Tavily key
             "allow_clarification": False,
             "max_concurrent_research_units": 3,

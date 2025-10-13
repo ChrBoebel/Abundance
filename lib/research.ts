@@ -101,10 +101,10 @@ export function startResearch(
   // Prepare config
   const config = {
     configurable: {
-      research_model: 'google_genai:models/gemini-2.5-flash',
-      summarization_model: 'google_genai:models/gemini-2.5-flash',
-      compression_model: 'google_genai:models/gemini-2.5-flash',
-      final_report_model: 'google_genai:models/gemini-2.5-flash',
+      research_model: 'openrouter:deepseek/deepseek-v3.2-exp',
+      summarization_model: 'openrouter:deepseek/deepseek-v3.2-exp',
+      compression_model: 'openrouter:deepseek/deepseek-v3.2-exp',
+      final_report_model: 'openrouter:deepseek/deepseek-v3.2-exp',
       search_api: 'tavily',
       allow_clarification: false,
       max_concurrent_research_units: 3,

@@ -47,7 +47,7 @@ class SessionManager:
             "messages": [],
             "metadata": {
                 "created": datetime.now().isoformat(),
-                "model": "gemini-2.5-flash",
+                "model": "deepseek-v3.2-exp",
                 "search_api": "tavily"
             }
         }
@@ -206,7 +206,7 @@ class CommandRegistry:
         table.add_column("Setting", style="cyan")
         table.add_column("Value", style="green")
 
-        table.add_row("Model", "google_genai:models/gemini-2.5-flash")
+        table.add_row("Model", "openrouter:deepseek/deepseek-v3.2-exp")
         table.add_row("Search API", "Tavily")
         table.add_row("Max Concurrent", "3")
         table.add_row("Session ID", self.session.current_session["id"])
@@ -329,10 +329,10 @@ class DeepSearchCLI:
             # Run the research
             config = {
                 "configurable": {
-                    "research_model": "google_genai:models/gemini-2.5-flash",
-                    "summarization_model": "google_genai:models/gemini-2.5-flash",
-                    "compression_model": "google_genai:models/gemini-2.5-flash",
-                    "final_report_model": "google_genai:models/gemini-2.5-flash",
+                    "research_model": "openrouter:deepseek/deepseek-v3.2-exp",
+                    "summarization_model": "openrouter:deepseek/deepseek-v3.2-exp",
+                    "compression_model": "openrouter:deepseek/deepseek-v3.2-exp",
+                    "final_report_model": "openrouter:deepseek/deepseek-v3.2-exp",
                     "search_api": "tavily",
                     "allow_clarification": False,
                     "max_concurrent_research_units": 3,
