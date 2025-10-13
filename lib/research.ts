@@ -4,6 +4,7 @@
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process'
 import { JobStatus, type Job, type Thread, type Message } from './types'
 import path from 'path'
+import fs from 'fs'
 
 // In-memory storage
 const jobs = new Map<string, Job & { process?: ChildProcessWithoutNullStreams, events: string[] }>()
@@ -114,10 +115,20 @@ export function startResearch(
 
   // Spawn Python process
   const scriptPath = path.join(process.cwd(), 'scripts', 'research_bridge.py')
-  // Use Python from environment variable or try venv, fallback to python3
-  const pythonCmd = process.env.PYTHON_CMD || 'python3'
+
+  // Try to find Python in venv first, then fallback
+  let pythonCmd = 'python3'
+
+  const venvPython = '/opt/venv/bin/python'
+  if (fs.existsSync(venvPython)) {
+    pythonCmd = venvPython
+  } else if (process.env.PYTHON_CMD) {
+    pythonCmd = process.env.PYTHON_CMD
+  }
 
   console.log(`Starting Python process: ${pythonCmd} ${scriptPath}`)
+  console.log(`Python exists: ${fs.existsSync(pythonCmd)}`)
+
   const pythonProcess = spawn(pythonCmd, [scriptPath], {
     env: { ...process.env }  // Pass all environment variables to Python
   })

@@ -20,9 +20,12 @@ except ImportError as e:
     print(json.dumps({
         "event": "error",
         "error": f"Import failed: {e}",
+        "python_executable": sys.executable,
+        "python_version": sys.version,
         "sys_path": sys.path,
         "project_root": str(project_root),
-        "cwd": str(Path.cwd())
+        "cwd": str(Path.cwd()),
+        "site_packages": [p for p in sys.path if 'site-packages' in p]
     }), flush=True)
     raise
 
