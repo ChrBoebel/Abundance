@@ -303,7 +303,7 @@ export default function ChatPage() {
                             localStorage.setItem('selectedModel', 'deepseek')
                             setTimeout(() => setShowModelMenu(false), 200)
                           }}
-                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 ${
+                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
                             selectedModel === 'deepseek'
                               ? 'shadow-lg'
                               : 'hover:bg-opacity-50'
@@ -318,6 +318,29 @@ export default function ChatPage() {
                           <div className="font-medium">DeepSeek V3.2</div>
                           <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
                             Leistungsstark & präzise
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedModel('glm')
+                            localStorage.setItem('selectedModel', 'glm')
+                            setTimeout(() => setShowModelMenu(false), 200)
+                          }}
+                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 ${
+                            selectedModel === 'glm'
+                              ? 'shadow-lg'
+                              : 'hover:bg-opacity-50'
+                          }`}
+                          style={selectedModel === 'glm' ? {
+                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
+                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
+                          } : {
+                            background: 'transparent'
+                          }}
+                        >
+                          <div className="font-medium">GLM-4.5-Air</div>
+                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
+                            Free & Reasoning-fähig
                           </div>
                         </button>
                       </div>
