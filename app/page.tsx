@@ -252,6 +252,12 @@ export default function ChatPage() {
             <div className="w-2 h-2 bg-green-500 rounded-full" title="Verbunden"></div>
             {mounted && (
               <>
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                >
+                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
                 <div className="relative">
                   <button
                     onClick={() => setShowModelMenu(!showModelMenu)}
@@ -347,12 +353,6 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                >
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
               </>
             )}
           </div>
