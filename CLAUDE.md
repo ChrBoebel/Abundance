@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Open Deep Research is an automated deep research engine powered by Google's Gemini 2.5 Flash and Tavily Search. The system uses LangGraph to orchestrate a multi-agent research workflow where a supervisor delegates research tasks to specialized sub-agents, then synthesizes findings into comprehensive reports.
+Open Deep Research is an automated deep research engine powered by LangGraph and configurable LLM providers. The system uses LangGraph to orchestrate a multi-agent research workflow where a supervisor delegates research tasks to specialized sub-agents, then synthesizes findings into comprehensive reports.
+
+**Current Default Setup**: All models route through OpenRouter using DeepSeek V3.2 Experimental (`openrouter:deepseek/deepseek-v3.2-exp`)
 
 ## Core Architecture
 

@@ -102,6 +102,8 @@ export function startResearch(
   // Determine model based on selection
   const model = modelName === 'gemini'
     ? 'openrouter:google/gemini-2.5-flash-lite'
+    : modelName === 'gemini-flash'
+    ? 'openrouter:google/gemini-2.5-flash'
     : modelName === 'glm'
     ? 'openrouter:z-ai/glm-4.5-air:free'
     : 'openrouter:deepseek/deepseek-v3.2-exp'
