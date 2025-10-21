@@ -87,7 +87,7 @@ export function startResearch(
   jobId: string,
   message: string,
   threadId: string,
-  modelName: string = 'deepseek'
+  modelName: string = 'gemini-flash'
 ): void {
   const job = getJob(jobId)
   if (!job) {
@@ -108,8 +108,8 @@ export function startResearch(
     ? 'openrouter:z-ai/glm-4.5-air:free'
     : 'openrouter:deepseek/deepseek-v3.2-exp'
 
-  // Prepare config with reasoning support for GLM
-  const baseConfig: any = {
+  // Prepare config - reasoning is handled automatically by Python's build_reasoning_config()
+  const config: any = {
     configurable: {
       research_model: model,
       summarization_model: model,
@@ -120,18 +120,6 @@ export function startResearch(
       max_concurrent_research_units: 3,
     },
   }
-
-  // Add reasoning parameters for GLM-4.5-Air
-  if (modelName === 'glm') {
-    baseConfig.configurable.model_kwargs = {
-      reasoning: {
-        enabled: true,
-        effort: 'medium'
-      }
-    }
-  }
-
-  const config = baseConfig
 
   const input = JSON.stringify({ message, config })
 

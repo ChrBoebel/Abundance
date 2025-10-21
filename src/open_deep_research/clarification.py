@@ -29,6 +29,7 @@ from open_deep_research.state import (
     ResearchQuestion,
 )
 from open_deep_research.utils import (
+    create_cached_message,
     get_api_key_for_model,
     get_today_str,
 )
@@ -142,6 +143,19 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
         max_researcher_iterations=configurable.max_researcher_iterations
     )
 
+    # Use cached messages for cost savings (supervisor prompt is consistent)
+    # The research brief is especially valuable to cache as it's sent to all parallel researchers
+    cached_supervisor_system = create_cached_message(
+        SystemMessage,
+        supervisor_system_prompt,
+        enable_caching=configurable.enable_prompt_caching
+    )
+    cached_research_brief = create_cached_message(
+        HumanMessage,
+        response.research_brief,
+        enable_caching=configurable.enable_prompt_caching
+    )
+
     return Command(
         goto="research_supervisor",
         update={
@@ -149,8 +163,8 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
             "supervisor_messages": {
                 "type": "override",
                 "value": [
-                    SystemMessage(content=supervisor_system_prompt),
-                    HumanMessage(content=response.research_brief)
+                    cached_supervisor_system,
+                    cached_research_brief
                 ]
             }
         }

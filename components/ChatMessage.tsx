@@ -3,19 +3,24 @@
  */
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import type { Message } from '@/lib/types'
 
 interface ChatMessageProps {
   message: Message
+  isStreaming?: boolean
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+export default function ChatMessage({ message, isStreaming = false }: ChatMessageProps) {
   const contentRef = useRef<HTMLDivElement>(null)
+  const parsedContent = marked.parse(message.content, { async: false }) as string
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Skip heavy DOM processing during streaming for smooth rendering
+    if (isStreaming) return
+
     if (message.role === 'agent' && contentRef.current) {
       // Highlight code blocks
       contentRef.current.querySelectorAll('pre code').forEach((block) => {
@@ -122,7 +127,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         }
       }
     }
-  }, [message])
+  }, [message.content, isStreaming])
 
   if (message.role === 'user') {
     return (
@@ -141,9 +146,9 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     <div className="message-bubble flex justify-start">
       <div
         ref={contentRef}
-        className="markdown-content rounded-lg px-6 py-5 w-full report-content"
+        className={`markdown-content rounded-lg px-6 py-5 w-full report-content ${isStreaming ? 'streaming-cursor' : ''}`}
         style={{ background: 'hsl(var(--card))', color: 'hsl(var(--foreground))', border: '1px solid hsl(var(--border))' }}
-        dangerouslySetInnerHTML={{ __html: marked.parse(message.content) }}
+        dangerouslySetInnerHTML={{ __html: parsedContent }}
       />
     </div>
   )

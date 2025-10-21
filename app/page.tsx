@@ -47,7 +47,7 @@ export default function ChatPage() {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [eventSource, setEventSource] = useState<EventSource | null>(null)
   const [streamingReport, setStreamingReport] = useState('')
-  const [selectedModel, setSelectedModel] = useState<string>('gemini')
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-flash')
   const [showModelMenu, setShowModelMenu] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -261,10 +261,10 @@ export default function ChatPage() {
                 <div className="relative">
                   <button
                     onClick={() => setShowModelMenu(!showModelMenu)}
-                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-transform duration-300"
                     title="Modell auswählen"
                   >
-                    <Settings className="w-5 h-5" />
+                    <Settings className="w-5 h-5" style={{ transform: showModelMenu ? 'rotate(90deg)' : 'rotate(0deg)' }} />
                   </button>
 
                   {showModelMenu && (
@@ -389,13 +389,13 @@ export default function ChatPage() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-4 max-w-md">
                 <div
-                  className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center p-0 overflow-visible"
+                  className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-0 overflow-visible"
                   style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)' }}
                 >
                   <Image src="/bergbild2.svg" alt="Abundance Logo" width={80} height={80} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
                 </div>
-                <h2 className="text-xl font-semibold abundance-title">Abundance</h2>
-                <p className="text-sm" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold abundance-title">Abundance</h2>
+                <p className="text-base md:text-lg" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
                   Erkunde die Fülle des Wissens: Stelle eine Frage und erhalte fundierte Antworten aus vielfältigen Perspektiven.
                 </p>
               </div>

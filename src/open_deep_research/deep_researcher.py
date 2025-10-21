@@ -19,6 +19,7 @@ from open_deep_research.prompts import final_report_generation_prompt
 from open_deep_research.state import AgentInputState, AgentState
 from open_deep_research.supervisor import supervisor_subgraph
 from open_deep_research.utils import (
+    build_reasoning_config,
     calculate_backoff_delay,
     get_api_key_for_model,
     get_model_token_limit,
@@ -56,6 +57,16 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
 
     # Step 2: Configure the final report generation model
     configurable = Configuration.from_runnable_config(config)
+
+    # Build reasoning configuration for final report (synthesis & critical analysis)
+    reasoning_config = build_reasoning_config(
+        model_name=configurable.final_report_model,
+        enable_reasoning=configurable.enable_reasoning,
+        reasoning_effort=configurable.reasoning_effort,
+        reasoning_max_tokens=configurable.reasoning_max_tokens,
+        exclude_reasoning=configurable.exclude_reasoning_from_output
+    )
+
     writer_model_config = {
         "model": configurable.final_report_model,
         "max_tokens": configurable.final_report_model_max_tokens,
@@ -83,7 +94,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
 
                     # Generate the final report with streaming
                     final_report_content = ""
-                    async for chunk in configurable_model.with_config(prepare_model_config(writer_model_config)).astream([
+                    async for chunk in configurable_model.with_config(prepare_model_config(writer_model_config, reasoning_config)).astream([
                         HumanMessage(content=final_report_prompt)
                     ]):
                         if hasattr(chunk, 'content'):

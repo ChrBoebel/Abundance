@@ -1,11 +1,11 @@
 /**
  * Root Layout
  */
-import { Space_Grotesk } from 'next/font/google'
+import { Playfair_Display } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import './globals.css'
 
-const spaceGrotesk = Space_Grotesk({ subsets: ['latin'], variable: '--font-space-grotesk' })
+const playfairDisplay = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', weight: ['400', '500', '600', '700'] })
 
 export const metadata = {
   title: 'Abundance - Deep Research',
@@ -19,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de" suppressHydrationWarning>
-      <body className={`${spaceGrotesk.variable} h-screen flex flex-col`}>
+      <body className={`${playfairDisplay.variable} h-screen flex flex-col`}>
         <Providers>{children}</Providers>
       </body>
     </html>

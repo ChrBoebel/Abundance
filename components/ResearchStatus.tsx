@@ -19,7 +19,7 @@ interface ResearchStatusProps {
 export default function ResearchStatus({ phases, sourceCount, sources, citedSources, currentActivity, isCompleted }: ResearchStatusProps) {
   const [expanded, setExpanded] = useState(false)
 
-  const currentPhase = phases.find(p => p.status === 'running')
+  const currentPhase = phases.find(p => p.status === 'running') || (isCompleted ? phases[phases.length - 1] : null)
   const phaseIcons = {
     'clipboard': Clipboard,
     'search': Search,
@@ -45,7 +45,7 @@ export default function ResearchStatus({ phases, sourceCount, sources, citedSour
 
         <div className="text-sm mb-1 flex items-center gap-2" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>
           {PhaseIcon && <PhaseIcon className="w-4 h-4" />}
-          <span>{currentPhase ? currentPhase.name : 'Plane Recherche-Strategie...'}</span>
+          <span>{isCompleted ? 'Bericht erstellt' : (currentPhase ? currentPhase.name : 'Plane Recherche-Strategie...')}</span>
         </div>
 
         <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: 'hsl(var(--primary))' }}>
@@ -113,30 +113,6 @@ export default function ResearchStatus({ phases, sourceCount, sources, citedSour
                   </div>
                 </div>
 
-                {/* Cited Sources (only shown after research completion) */}
-                {isCompleted && citedSources.length > 0 && (
-                  <div>
-                    <div className="text-sm font-semibold mb-2" style={{ color: 'hsl(var(--primary))' }}>
-                      Zitierte Quellen ({citedSources.length}):
-                    </div>
-                    <div className="space-y-1 text-xs max-h-48 overflow-y-auto">
-                      {citedSources.map((source, idx) => (
-                        <div key={idx} className="flex items-start gap-2" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
-                          <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:underline transition-colors"
-                            style={{ color: 'hsl(var(--primary))', wordBreak: 'break-word' }}
-                          >
-                            {source.title}
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

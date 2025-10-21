@@ -22,6 +22,7 @@ from open_deep_research.state import (
     SupervisorState,
 )
 from open_deep_research.utils import (
+    build_reasoning_config,
     get_api_key_for_model,
     get_notes_from_tool_calls,
     is_token_limit_exceeded,
@@ -52,6 +53,16 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
     """
     # Step 1: Configure the supervisor model with available tools
     configurable = Configuration.from_runnable_config(config)
+
+    # Build reasoning configuration for supervisor (strategic thinking)
+    reasoning_config = build_reasoning_config(
+        model_name=configurable.research_model,
+        enable_reasoning=configurable.enable_reasoning,
+        reasoning_effort=configurable.reasoning_effort,
+        reasoning_max_tokens=configurable.reasoning_max_tokens,
+        exclude_reasoning=configurable.exclude_reasoning_from_output
+    )
+
     research_model_config = {
         "model": configurable.research_model,
         "max_tokens": configurable.research_model_max_tokens,
@@ -67,7 +78,7 @@ async def supervisor(state: SupervisorState, config: RunnableConfig) -> Command[
         configurable_model
         .bind_tools(lead_researcher_tools)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(prepare_model_config(research_model_config))
+        .with_config(prepare_model_config(research_model_config, reasoning_config))
     )
 
     # Step 2: Generate supervisor response based on current context

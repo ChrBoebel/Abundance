@@ -31,6 +31,8 @@ from open_deep_research.state import (
 )
 from open_deep_research.utils import (
     anthropic_websearch_called,
+    build_reasoning_config,
+    create_cached_message,
     get_all_tools,
     get_api_key_for_model,
     get_today_str,
@@ -93,6 +95,15 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
         )
 
     # Step 2: Configure the researcher model with tools
+    # Build reasoning configuration for researcher (analytical thinking)
+    reasoning_config = build_reasoning_config(
+        model_name=configurable.research_model,
+        enable_reasoning=configurable.enable_reasoning,
+        reasoning_effort=configurable.reasoning_effort,
+        reasoning_max_tokens=configurable.reasoning_max_tokens,
+        exclude_reasoning=configurable.exclude_reasoning_from_output
+    )
+
     research_model_config = {
         "model": configurable.research_model,
         "max_tokens": configurable.research_model_max_tokens,
@@ -111,11 +122,17 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
         configurable_model
         .bind_tools(tools)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
-        .with_config(prepare_model_config(research_model_config))
+        .with_config(prepare_model_config(research_model_config, reasoning_config))
     )
 
     # Step 3: Generate researcher response with system context
-    messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
+    # Use cached system message for cost savings (system prompt is consistent)
+    cached_system_message = create_cached_message(
+        SystemMessage,
+        researcher_prompt,
+        enable_caching=configurable.enable_prompt_caching
+    )
+    messages = [cached_system_message] + researcher_messages
     response = await research_model.ainvoke(messages)
 
     # Step 4: Update state and proceed to tool execution
@@ -221,12 +238,22 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     """
     # Step 1: Configure the compression model
     configurable = Configuration.from_runnable_config(config)
+
+    # Build reasoning configuration for compression (synthesis thinking)
+    reasoning_config = build_reasoning_config(
+        model_name=configurable.compression_model,
+        enable_reasoning=configurable.enable_reasoning,
+        reasoning_effort=configurable.reasoning_effort,
+        reasoning_max_tokens=configurable.reasoning_max_tokens,
+        exclude_reasoning=configurable.exclude_reasoning_from_output
+    )
+
     synthesizer_model = configurable_model.with_config(prepare_model_config({
         "model": configurable.compression_model,
         "max_tokens": configurable.compression_model_max_tokens,
         "api_key": get_api_key_for_model(configurable.compression_model, config),
         "tags": ["langsmith:nostream"]
-    }))
+    }, reasoning_config))
 
     # Step 2: Prepare messages for compression
     researcher_messages = state.get("researcher_messages", [])
@@ -242,7 +269,13 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
         try:
             # Create system prompt focused on compression task
             compression_prompt = compress_research_system_prompt.format(date=get_today_str())
-            messages = [SystemMessage(content=compression_prompt)] + researcher_messages
+            # Use cached system message for compression (consistent across all compressions)
+            cached_compression_message = create_cached_message(
+                SystemMessage,
+                compression_prompt,
+                enable_caching=configurable.enable_prompt_caching
+            )
+            messages = [cached_compression_message] + researcher_messages
 
             # Execute compression
             response = await synthesizer_model.ainvoke(messages)

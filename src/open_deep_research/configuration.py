@@ -271,6 +271,65 @@ class Configuration(BaseModel):
             }
         }
     )
+    # Reasoning Configuration (OpenRouter Extended Thinking)
+    enable_reasoning: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Enable OpenRouter reasoning/extended thinking for improved research quality"
+            }
+        }
+    )
+    reasoning_effort: str = Field(
+        default="high",
+        metadata={
+            "x_oap_ui_config": {
+                "type": "select",
+                "default": "high",
+                "description": "Reasoning effort level for OpenAI-compatible models (o-series, GPT-5, Grok)",
+                "options": [
+                    {"label": "High", "value": "high"},
+                    {"label": "Medium", "value": "medium"},
+                    {"label": "Low", "value": "low"}
+                ]
+            }
+        }
+    )
+    reasoning_max_tokens: int = Field(
+        default=8000,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "number",
+                "default": 8000,
+                "min": 1024,
+                "max": 32000,
+                "description": "Maximum reasoning tokens for Anthropic/Gemini models (Claude, Gemini). Must leave room for final response."
+            }
+        }
+    )
+    exclude_reasoning_from_output: bool = Field(
+        default=False,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": False,
+                "description": "Hide reasoning tokens from output (keep reasoning internal). Set to True to reduce output verbosity."
+            }
+        }
+    )
+    # Prompt Caching Configuration
+    enable_prompt_caching: bool = Field(
+        default=True,
+        metadata={
+            "x_oap_ui_config": {
+                "type": "boolean",
+                "default": True,
+                "description": "Enable OpenRouter prompt caching for cost reduction (50-90% savings on repeated prompts)"
+            }
+        }
+    )
     # MCP server configuration
     mcp_config: Optional[MCPConfig] = Field(
         default=None,
