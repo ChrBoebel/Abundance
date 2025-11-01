@@ -40,6 +40,7 @@ export interface Job {
   created_at: string
   updated_at: string
   process?: any
+  controller?: AbortController
 }
 
 export interface SSEEvent {
