@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  research-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deep-research-backend
+    # Docker Compose automatically loads .env from the same directory
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=${PORT:-8000}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY:-}
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING:-false}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - research-network
+
+networks:
+  research-network:
+    driver: bridge

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Open Deep Research is an automated deep research engine powered by LangGraph and configurable LLM providers. The system uses LangGraph to orchestrate a multi-agent research workflow where a supervisor delegates research tasks to specialized sub-agents, then synthesizes findings into comprehensive reports.
 
-**Current Default Setup**: All models route through OpenRouter using DeepSeek V3.2 Experimental (`openrouter:deepseek/deepseek-v3.2-exp`)
+**Current Default Setup**: All models route through OpenRouter using Gemini 2.5 Flash (`openrouter:google/gemini-2.5-flash`)
 
 ## Core Architecture
 
@@ -66,10 +66,15 @@ python3.11 deepresearch_cli.py
 python3.11 run_research.py "Your research question"
 ```
 
-**Flask Web Frontend** (password-protected, SSE streaming):
+**Docker Backend + Next.js Frontend** (web interface with SSE streaming):
 ```bash
-cd flask_frontend
-python app.py  # Opens on http://localhost:4290
+# Start backend
+cd backend
+docker-compose up -d  # Runs on http://localhost:8000
+
+# Start frontend (in separate terminal)
+cd frontend
+npm run dev  # Opens on http://localhost:4290
 ```
 
 **LangGraph Studio** (visual workflow debugging):
@@ -131,11 +136,37 @@ Required `.env` variables:
 GEMINI_API_KEY=your-key
 GOOGLE_API_KEY=your-key  # Can be same as GEMINI_API_KEY
 TAVILY_API_KEY=your-key
+OPENROUTER_API_KEY=your-key
 
-# Flask frontend only:
-SECRET_KEY=your-secret-key
+# Frontend authentication:
 APP_PASSWORD=your-password
+SESSION_SECRET=your-secret-key
 ```
+
+**Note**: Separate `.env` files exist in `backend/.env` and `frontend/.env` for their respective services.
+
+## Architecture Overview
+
+The project has two deployment modes:
+
+### 1. Web Application (Production)
+- **Backend**: Docker container (`backend/`) with FastAPI server
+  - Source code in `backend/src/`
+  - Runs on port 8000
+  - SSE streaming via `/research/stream`
+- **Frontend**: Next.js app (`frontend/`)
+  - React components, Server-Side Rendering
+  - Runs on port 4290
+  - Communicates with backend via HTTP/SSE
+
+### 2. Local Development (CLI/Scripts)
+- **Source**: `src/open_deep_research/` (shared Python package)
+- **Tools**: `deepresearch_cli.py`, `run_research.py`, LangGraph Studio
+- **Tests**: `tests/` directory
+
+**Important**: `src/open_deep_research/` and `backend/src/` contain duplicate code. This is intentional:
+- `src/open_deep_research/` - For local tools (CLI, tests, LangGraph Studio)
+- `backend/src/` - For Docker backend (self-contained deployment)
 
 ## Frontend Architecture
 
@@ -145,11 +176,11 @@ APP_PASSWORD=your-password
 - Slash commands: `/help`, `/save`, `/load`, `/history`
 - Persistent history in `~/.deepresearch/`
 
-**Flask Web** (`flask_frontend/app.py`):
-- Password authentication with rate limiting
-- SSE streaming via `astream_events(version="v2")`
-- Real-time step/tool tracking with hierarchical display
-- Session storage in memory (threads dict)
+**Next.js Web** (`frontend/`):
+- Password authentication with iron-session
+- SSE streaming for real-time updates
+- React components with TypeScript
+- Communicates with Docker backend
 
 **LangGraph Studio**:
 - Visual workflow debugging

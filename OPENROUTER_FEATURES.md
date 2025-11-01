@@ -16,7 +16,9 @@ Enables models to perform explicit reasoning steps before generating responses, 
 
 ### Configuration
 
-All reasoning settings are in `Configuration` class (`src/open_deep_research/configuration.py`):
+All reasoning settings are in `Configuration` class:
+- Local development: `src/open_deep_research/configuration.py`
+- Docker backend: `backend/src/configuration.py`
 
 ```python
 enable_reasoning: bool = True  # Enable/disable reasoning tokens

@@ -1,104 +1,82 @@
-# 🔬 Open Deep Research - Gemini 2.5 Flash Edition
+# 🔬 Open Deep Research - Web Application
 
-Vollautomatisierte Deep Research Engine mit **Gemini 2.5 Flash** und **Tavily Search**.
+Vollautomatisierte Deep Research Engine mit **Docker Backend** und **Next.js Frontend**.
 
-Jetzt mit **Premium Interactive CLI** - inspiriert von Gemini CLI, Claude Code & Codex CLI!
+Powered by **Gemini 2.5 Flash** via **OpenRouter** und **Tavily Search**.
 
 ## ✅ Status: VOLL FUNKTIONSFÄHIG
 
-Alle Tests bestanden:
-- ✅ Gemini 2.5 Flash API funktioniert
-- ✅ Tavily Search API funktioniert
-- ✅ LangChain Integration funktioniert
-- ✅ Complete Research Pipeline funktioniert
-- ✅ Premium CLI mit Rich UI funktioniert
+- ✅ Docker Backend (FastAPI + LangGraph)
+- ✅ Next.js Frontend (React + SSE Streaming)
+- ✅ Gemini 2.5 Flash via OpenRouter
+- ✅ Tavily Search Integration
 
 ---
 
 ## 🚀 Schnellstart
 
-### 🌟 Option 1: Premium Interactive CLI (EMPFOHLEN)
+### 1️⃣ Backend starten (Docker)
 
 ```bash
-python3.11 deepresearch_cli.py
+cd backend
+docker-compose up -d
 ```
 
-**Features:**
-- ✨ Interaktive Multi-turn Conversations
-- ⌨️ Keyboard Shortcuts (Ctrl+R, Escape, etc.)
-- 📋 Slash Commands (/help, /save, /history)
-- 💾 Automatic Session Management
-- 🎨 Beautiful Rich Terminal UI
-- 📊 Real-time Progress Indicators
-- 📝 Markdown Rendering
+Backend läuft auf: **http://localhost:8000**
 
-**Siehe [CLI_GUIDE.md](CLI_GUIDE.md) für vollständige Anleitung!**
+Prüfe Status:
+```bash
+curl http://localhost:8000/health
+```
 
----
-
-### Option 2: Simple One-Shot Script
+### 2️⃣ Frontend starten (Next.js)
 
 ```bash
-python3.11 run_research.py "Was ist künstliche Intelligenz?"
+cd frontend
+npm install
+npm run dev
 ```
 
-**Weitere Beispiele:**
-```bash
-python3.11 run_research.py "Explain quantum computing"
-python3.11 run_research.py "Latest developments in renewable energy"
-python3.11 run_research.py "Wie funktioniert maschinelles Lernen?"
+Frontend läuft auf: **http://localhost:4290**
+
+### 3️⃣ Öffne im Browser
+
+```
+http://localhost:4290
 ```
 
-### Option 3: LangGraph Studio (mit GUI)
-
-```bash
-uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev
-```
-
-Dies öffnet eine Web-UI im Browser für interaktive Research.
+Login-Passwort siehe `frontend/.env` → `APP_PASSWORD`
 
 ---
 
 ## ⚙️ Konfiguration
 
-### API Keys (in `.env`)
-```
-GEMINI_API_KEY=AIzaSyCQANQ-oRtHnGOD7AFTySZLxvveqI0tpIA
-GOOGLE_API_KEY=AIzaSyCQANQ-oRtHnGOD7AFTySZLxvveqI0tpIA
-TAVILY_API_KEY=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
-```
-
-### Modelle (in `src/open_deep_research/configuration.py`)
-Alle 4 Modelle nutzen **Gemini 2.5 Flash**:
-- Research Model: `google_genai:models/gemini-2.5-flash`
-- Summarization Model: `google_genai:models/gemini-2.5-flash`
-- Compression Model: `google_genai:models/gemini-2.5-flash`
-- Final Report Model: `google_genai:models/gemini-2.5-flash`
-
-### Search API
-- Standard: **Tavily** (konfiguriert und funktionsfähig)
-- Alternativen: OpenAI, Anthropic, None
-
----
-
-## 📦 Installation
-
-Bereits installiert! Falls nötig:
-
+### Backend Environment (`backend/.env`)
 ```bash
-python3.11 -m pip install -e .
+GEMINI_API_KEY=your-key
+GOOGLE_API_KEY=your-key
+TAVILY_API_KEY=your-key
+OPENROUTER_API_KEY=your-key
 ```
 
----
+### Frontend Environment (`frontend/.env`)
+```bash
+APP_PASSWORD=your-password
+SESSION_SECRET=your-session-secret
+GEMINI_API_KEY=your-key
+GOOGLE_API_KEY=your-key
+TAVILY_API_KEY=your-key
+OPENROUTER_API_KEY=your-key
+PORT=4290
+```
 
-## 🧪 Tests
+### Modell-Konfiguration
 
-Alle Tests erfolgreich durchgeführt:
+Alle Modelle sind hardcoded auf **Gemini 2.5 Flash** via **OpenRouter**:
+- Model: `openrouter:google/gemini-2.5-flash`
+- Search API: **Tavily** (Standard)
 
-1. **API-Verbindung**: ✅
-2. **Modell-Inference**: ✅
-3. **Search-Integration**: ✅
-4. **Full Pipeline**: ✅
+Konfiguration in: `backend/backend_server.py`
 
 ---
 
@@ -106,108 +84,131 @@ Alle Tests erfolgreich durchgeführt:
 
 ```
 open_deep_research/
-├── .env                      # API Keys
-├── deepresearch_cli.py       # 🌟 Premium Interactive CLI (NEU!)
-├── CLI_GUIDE.md              # Vollständige CLI-Dokumentation
-├── run_research.py           # Simple One-Shot CLI
-├── langgraph.json            # LangGraph Konfiguration
-├── pyproject.toml            # Dependencies
-├── test_cli.py               # CLI Tests
-└── src/open_deep_research/
-    ├── configuration.py      # Gemini 2.5 Flash Konfiguration
-    ├── deep_researcher.py    # Haupt-Agent
-    ├── prompts.py            # System Prompts
-    ├── state.py              # State Management
-    └── utils.py              # Utilities
-
-~/.deepresearch/              # User data
-├── history.txt               # Command history
-└── sessions/                 # Saved sessions
-    └── *.json
+├── backend/                    # 🐳 Docker Backend
+│   ├── src/                   # LangGraph research engine
+│   │   ├── deep_researcher.py # Main agent graph
+│   │   ├── supervisor.py      # Research coordinator
+│   │   ├── researcher.py      # Research executor
+│   │   ├── configuration.py   # Model config
+│   │   └── utils/             # Utilities
+│   ├── backend_server.py      # FastAPI + SSE streaming
+│   ├── Dockerfile             # Docker image
+│   ├── docker-compose.yml     # Docker orchestration
+│   ├── requirements.txt       # Python deps
+│   └── README.md              # Backend docs
+│
+├── frontend/                  # ⚛️ Next.js Frontend
+│   ├── app/                  # Next.js app router
+│   │   ├── page.tsx          # Main chat UI
+│   │   ├── login/            # Login page
+│   │   └── api/              # API routes
+│   ├── components/           # React components
+│   ├── lib/                  # Frontend utilities
+│   ├── package.json          # Node deps
+│   └── README.md             # Frontend docs
+│
+├── .env.example              # Environment template
+├── .gitignore                # Git ignore
+├── CLAUDE.md                 # Project instructions
+├── README.md                 # This file
+├── OPENROUTER_FEATURES.md    # Feature documentation
+└── workflow_architecture.md  # Architecture diagrams
 ```
 
 ---
 
-## 💡 Beispiel-Nutzung
+## 💡 Verwendung
 
-```python
-import asyncio
-from dotenv import load_dotenv
-
-load_dotenv()
-
-async def research():
-    from open_deep_research.deep_researcher import deep_researcher
-
-    result = await deep_researcher.ainvoke({
-        "messages": [{
-            "role": "user",
-            "content": "What are the benefits of renewable energy?"
-        }]
-    })
-
-    print(result["final_report"])
-
-asyncio.run(research())
-```
-
----
-
-## ⚠️ Wichtige Hinweise
-
-- **Python Version**: Mindestens Python 3.10 (3.11 empfohlen)
-- **Modellname-Format**: Gemini-Modelle benötigen `models/` Prefix
-- **Rate Limits**: Achte auf API Rate Limits bei vielen Anfragen
-- **Concurrency**: Standard 3 parallele Research Units (anpassbar)
+1. **Öffne Browser**: http://localhost:4290
+2. **Login**: Passwort aus `frontend/.env`
+3. **Stelle Frage**: z.B. "What are the latest developments in AI?"
+4. **Warte auf Ergebnis**: Live-Streaming der Research-Schritte
+5. **Lese Report**: Comprehensive research report
 
 ---
 
 ## 🎯 Features
 
-### 🌟 Premium CLI Features (NEU!)
-- ✅ **Interactive REPL**: Multi-turn Konversationen wie bei Gemini/Claude/Codex CLI
-- ✅ **Rich Terminal UI**: Schöne Panels, Markdown-Rendering, Syntax-Highlighting
-- ✅ **Keyboard Shortcuts**: Ctrl+R (history search), Escape (stop), Tab (autocomplete)
-- ✅ **Slash Commands**: /help, /save, /load, /history, /settings, etc.
-- ✅ **Session Management**: Automatisches Speichern & Laden von Conversations
-- ✅ **Progress Indicators**: Real-time Research-Visualisierung mit Spinners & Progress Bars
-- ✅ **History Search**: Durchsuchbare Command History
-- ✅ **Auto-Save**: Jede Research wird automatisch gespeichert
+### Backend
+- ✅ **LangGraph Workflow**: Multi-agent research orchestration
+- ✅ **Parallel Research**: Multiple sub-agents working concurrently
+- ✅ **Tavily Search**: Web search integration
+- ✅ **OpenRouter**: Gemini 2.5 Flash routing
+- ✅ **SSE Streaming**: Real-time event streaming
+- ✅ **Docker Deployment**: Self-contained containerization
 
-### Research Engine Features
-- ✅ **Parallele Research**: Mehrere Sub-Agents arbeiten gleichzeitig
-- ✅ **Web Search**: Integrierte Tavily Search
-- ✅ **Smart Compression**: Intelligente Zusammenfassung großer Datensätze
-- ✅ **Structured Output**: Klar strukturierte Forschungsberichte
-- ✅ **Streaming Support**: Real-time Output während der Research
+### Frontend
+- ✅ **Next.js 14**: React Server Components
+- ✅ **Real-time Updates**: SSE-based live streaming
+- ✅ **Authentication**: Password-protected access
+- ✅ **Responsive UI**: Works on desktop and mobile
+- ✅ **Dark Mode**: Theme toggle
+- ✅ **Progress Tracking**: Visual research progress indicators
 
 ---
 
 ## 🔧 Troubleshooting
 
-### "No module named 'open_deep_research'"
+### Backend startet nicht
 ```bash
-python3.11 -m pip install -e .
+# Check Docker status
+docker ps
+
+# Check logs
+cd backend
+docker-compose logs -f
+
+# Rebuild if needed
+docker-compose down
+docker-compose up --build -d
 ```
 
-### "404 model not found"
-Stelle sicher, dass der Modellname das `models/` Prefix hat:
-`google_genai:models/gemini-2.5-flash`
-
-### Tavily API Fehler
-Überprüfe deinen API Key in `.env`:
+### Frontend startet nicht
 ```bash
-echo $TAVILY_API_KEY
+# Check port 4290 is free
+lsof -i :4290
+
+# Kill if occupied
+kill <PID>
+
+# Restart frontend
+cd frontend
+npm run dev
+```
+
+### API Connection Failed
+```bash
+# Check backend is running
+curl http://localhost:8000/health
+
+# Check frontend .env has correct BACKEND_URL
+cat frontend/.env | grep RESEARCH_BACKEND_URL
 ```
 
 ---
 
-## 📊 Performance
+## 📊 Deployment
 
-- **Gemini 2.5 Flash**: Schnell, kosteneffizient, hohe Qualität
-- **Tavily Search**: Zuverlässige Web-Suche mit guten Ergebnissen
-- **Durchschnittliche Research-Zeit**: 2-5 Minuten (je nach Komplexität)
+### Production Deployment
+
+**Backend (Railway/Docker Host):**
+```bash
+cd backend
+railway up
+# oder
+docker push your-registry/deep-research-backend
+```
+
+**Frontend (Vercel/Railway):**
+```bash
+cd frontend
+vercel deploy
+# oder
+railway up
+```
+
+Siehe `backend/README.md` und `frontend/README.md` für Details.
 
 ---
 
-**Erstellt mit Gemini 2.5 Flash** 🤖
+**Powered by Gemini 2.5 Flash via OpenRouter** 🤖
