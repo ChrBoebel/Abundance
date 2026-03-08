@@ -5,17 +5,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, Clock, X, Sun, Moon, ChevronUp, PanelLeftClose } from 'lucide-react'
+import { Plus, Trash2, Clock, X, Sun, Moon, ChevronUp, PanelLeftClose, Check, Sparkles } from 'lucide-react'
 import Image from 'next/image'
 import type { HistoryEntry } from '@/lib/types'
 import { MODEL_DISPLAY_NAMES } from '@/lib/types'
 
-const MODEL_OPTIONS: { key: string; name: string; desc: string }[] = [
-  { key: 'mercury', name: 'Mercury 2', desc: 'Ultraschnell & kosteneffizient' },
-  { key: 'gemini', name: 'Gemini 2.5 Flash Lite', desc: 'Schnell & effizient' },
-  { key: 'deepseek', name: 'DeepSeek V3.2', desc: 'Leistungsstark & präzise' },
-  { key: 'glm', name: 'GLM-4.5-Air', desc: 'Free & Reasoning-fähig' },
-  { key: 'gemini-flash', name: 'Gemini 2.5 Flash', desc: 'Schnell & leistungsstark' },
+const MODEL_OPTIONS: { key: string; name: string; desc: string; icon: string }[] = [
+  { key: 'mercury', name: 'Mercury 2', desc: 'Ultraschnell & kosteneffizient', icon: '/model-icons/inception.svg' },
+  { key: 'gemini', name: 'Gemini 2.5 Flash Lite', desc: 'Schnell & effizient', icon: '/model-icons/gemini.svg' },
+  { key: 'deepseek', name: 'DeepSeek V3.2', desc: 'Leistungsstark & präzise', icon: '/model-icons/deepseek.svg' },
+  { key: 'glm', name: 'GLM-4.5-Air', desc: 'Free & Reasoning-fähig', icon: '/model-icons/glm.svg' },
+  { key: 'gemini-flash', name: 'Gemini 2.5 Flash', desc: 'Schnell & leistungsstark', icon: '/model-icons/gemini-flash.svg' },
 ]
 
 interface HistorySidebarProps {
@@ -197,68 +197,123 @@ export default function HistorySidebar({
         </div>
 
         {/* Footer: Model Selector + Theme Toggle */}
-        <div className="border-t p-3 space-y-2" style={{ borderColor: 'hsl(var(--border))' }}>
+        <div className="border-t p-3 space-y-3" style={{ borderColor: 'hsl(var(--border))' }}>
           {/* Model Selector */}
           <div className="relative">
             {/* Model menu (expands upward) */}
             {showModelMenu && (
               <div
-                className="absolute bottom-full left-0 right-0 mb-1 rounded-xl border backdrop-blur-sm shadow-xl z-50 overflow-hidden"
+                className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border shadow-2xl z-50 overflow-hidden"
                 style={{
-                  background: 'hsl(var(--card) / 0.98)',
+                  background: 'hsl(var(--card))',
                   borderColor: 'hsl(var(--border))',
-                  boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.4)'
+                  boxShadow: '0 -4px 24px rgba(0, 0, 0, 0.3), 0 -1px 6px rgba(0, 0, 0, 0.15)'
                 }}
               >
-                <div className="p-2">
-                  <div className="text-xs font-semibold mb-1.5 px-2" style={{ color: 'hsl(var(--foreground) / 0.5)' }}>
-                    KI-MODELL
+                <div className="p-1.5">
+                  <div className="flex items-center gap-1.5 px-2.5 pt-1.5 pb-2">
+                    <Sparkles className="w-3 h-3" style={{ color: 'hsl(var(--primary))' }} />
+                    <span className="text-xs font-semibold tracking-wider" style={{ color: 'hsl(var(--foreground) / 0.45)' }}>
+                      KI-MODELL
+                    </span>
                   </div>
-                  {MODEL_OPTIONS.map(m => (
-                    <button
-                      key={m.key}
-                      onClick={() => {
-                        onSelectModel(m.key)
-                        setTimeout(() => setShowModelMenu(false), 150)
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 mb-0.5 ${
-                        selectedModel === m.key ? 'shadow-md' : 'hover:bg-opacity-50'
-                      }`}
-                      style={selectedModel === m.key ? {
-                        background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
-                        boxShadow: '0 2px 8px hsl(var(--primary) / 0.3)'
-                      } : {
-                        background: 'transparent'
-                      }}
-                    >
-                      <div className="text-sm font-medium">{m.name}</div>
-                      <div className="text-xs mt-0.5" style={{ color: 'hsl(var(--foreground) / 0.5)' }}>
-                        {m.desc}
-                      </div>
-                    </button>
-                  ))}
+                  {MODEL_OPTIONS.map(m => {
+                    const isSelected = selectedModel === m.key
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => {
+                          onSelectModel(m.key)
+                          setTimeout(() => setShowModelMenu(false), 150)
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 mb-0.5"
+                        style={{
+                          background: isSelected
+                            ? 'linear-gradient(135deg, hsl(var(--primary) / 0.15) 0%, hsl(var(--primary) / 0.08) 100%)'
+                            : 'transparent',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'hsl(var(--foreground) / 0.05)'
+                        }}
+                        onMouseLeave={e => {
+                          if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent'
+                        }}
+                      >
+                        <div
+                          className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                          style={{
+                            background: isSelected ? 'hsl(var(--primary) / 0.2)' : 'hsl(var(--foreground) / 0.06)',
+                          }}
+                        >
+                          <Image src={m.icon} alt={m.name} width={18} height={18} className="w-[18px] h-[18px]" />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="text-sm font-medium" style={{ color: isSelected ? 'hsl(var(--primary))' : 'hsl(var(--foreground) / 0.9)' }}>
+                            {m.name}
+                          </div>
+                          <div className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>
+                            {m.desc}
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'hsl(var(--primary))' }} />
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Current model button */}
+            {/* Current model trigger button */}
             <button
               onClick={() => setShowModelMenu(!showModelMenu)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200"
               style={{
-                background: 'hsl(var(--foreground) / 0.05)',
+                background: showModelMenu
+                  ? 'hsl(var(--primary) / 0.1)'
+                  : 'hsl(var(--foreground) / 0.04)',
+                border: '1px solid',
+                borderColor: showModelMenu
+                  ? 'hsl(var(--primary) / 0.3)'
+                  : 'hsl(var(--border) / 0.5)',
+              }}
+              onMouseEnter={e => {
+                if (!showModelMenu) {
+                  (e.currentTarget as HTMLElement).style.background = 'hsl(var(--foreground) / 0.07)'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = 'hsl(var(--border))'
+                }
+              }}
+              onMouseLeave={e => {
+                if (!showModelMenu) {
+                  (e.currentTarget as HTMLElement).style.background = 'hsl(var(--foreground) / 0.04)'
+                  ;(e.currentTarget as HTMLElement).style.borderColor = 'hsl(var(--border) / 0.5)'
+                }
               }}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm font-medium truncate">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: 'hsl(var(--primary) / 0.12)' }}
+              >
+                <Image
+                  src={MODEL_OPTIONS.find(m => m.key === selectedModel)?.icon || '/model-icons/inception.svg'}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="w-5 h-5"
+                />
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <div className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>Modell</div>
+                <div className="text-sm font-medium truncate">
                   {MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}
-                </span>
+                </div>
               </div>
               <ChevronUp
                 className="w-4 h-4 flex-shrink-0 transition-transform duration-200"
                 style={{
-                  color: 'hsl(var(--foreground) / 0.4)',
-                  transform: showModelMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                  color: 'hsl(var(--foreground) / 0.35)',
+                  transform: showModelMenu ? 'rotate(0deg)' : 'rotate(180deg)',
                 }}
               />
             </button>
@@ -269,15 +324,18 @@ export default function HistorySidebar({
             {mounted && (
               <button
                 onClick={onToggleTheme}
-                className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                className="p-2 rounded-lg transition"
+                style={{ color: 'hsl(var(--foreground) / 0.5)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(var(--foreground) / 0.07)'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                 title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
               >
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
             )}
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-500 rounded-full" title="Verbunden"></div>
-              <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>Verbunden</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Verbunden"></div>
+              <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.35)' }}>Verbunden</span>
             </div>
           </div>
         </div>
