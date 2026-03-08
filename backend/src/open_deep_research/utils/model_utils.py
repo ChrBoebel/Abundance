@@ -62,7 +62,7 @@ def build_reasoning_config(model_name: str, enable_reasoning: bool, reasoning_ef
     model_lower = model_name.lower()
 
     # Detect provider from model name
-    is_openai_style = any(provider in model_lower for provider in ["openai", "gpt", "o1", "o3", "o4", "grok"])
+    is_openai_style = any(provider in model_lower for provider in ["openai", "gpt", "o1", "o3", "o4", "grok", "mercury", "inception"])
     is_anthropic_style = "anthropic" in model_lower or "claude" in model_lower
     is_gemini_style = "gemini" in model_lower or "google" in model_lower
 
@@ -98,7 +98,7 @@ def init_chat_model_wrapper(configurable_fields=None, **kwargs):
         # NOTE: The actual field name in ChatOpenAI is "model_name", not "model"
         # We map it to id="model" for backwards compatibility with existing code
         base_model = ChatOpenAI(
-            model="google/gemini-2.5-flash",  # This is the fallback if no config provided
+            model="inception/mercury-2",  # This is the fallback if no config provided
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
             **kwargs
@@ -227,6 +227,7 @@ MODEL_TOKEN_LIMITS = {
     "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0": 200000,
     "bedrock:us.anthropic.claude-opus-4-20250514-v1:0": 200000,
     "anthropic.claude-opus-4-1-20250805-v1:0": 200000,
+    "openrouter:inception/mercury-2": 128000,
 }
 
 

@@ -39,6 +39,17 @@ app.add_middleware(
 class ResearchRequest(BaseModel):
     """Research request payload."""
     message: str
+    model: str = "mercury"
+
+
+# Mapping from frontend model keys to OpenRouter model IDs
+MODEL_MAP = {
+    "mercury": "openrouter:inception/mercury-2",
+    "gemini-flash": "openrouter:google/gemini-2.5-flash",
+    "gemini": "openrouter:google/gemini-2.5-flash-lite",
+    "deepseek": "openrouter:deepseek/deepseek-v3.2",
+    "glm": "openrouter:z-ai/glm-4.5-air:free",
+}
 
 
 def serialize_event(event):
@@ -60,11 +71,11 @@ def serialize_event(event):
     return convert(event)
 
 
-async def stream_research_events(message: str):
+async def stream_research_events(message: str, model: str = "mercury"):
     """Stream research events as SSE."""
     try:
-        # Hardcoded model: Gemini 2.5 Flash via OpenRouter
-        model_id = "openrouter:google/gemini-2.5-flash"
+        # Resolve model key to OpenRouter model ID
+        model_id = MODEL_MAP.get(model, MODEL_MAP["mercury"])
 
         # Build configuration with single model for all roles
         config = {
@@ -117,7 +128,7 @@ async def research_stream(request: ResearchRequest):
         raise HTTPException(status_code=400, detail="Message is required")
 
     return StreamingResponse(
-        stream_research_events(request.message),
+        stream_research_events(request.message, request.model),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

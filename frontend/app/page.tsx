@@ -47,7 +47,7 @@ export default function ChatPage() {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [eventSource, setEventSource] = useState<EventSource | null>(null)
   const [streamingReport, setStreamingReport] = useState('')
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-flash')
+  const [selectedModel, setSelectedModel] = useState<string>('mercury')
   const [showModelMenu, setShowModelMenu] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -280,6 +280,29 @@ export default function ChatPage() {
                         <div className="text-xs font-semibold mb-2 px-2" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
                           KI-MODELL
                         </div>
+                        <button
+                          onClick={() => {
+                            setSelectedModel('mercury')
+                            localStorage.setItem('selectedModel', 'mercury')
+                            setTimeout(() => setShowModelMenu(false), 200)
+                          }}
+                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
+                            selectedModel === 'mercury'
+                              ? 'shadow-lg'
+                              : 'hover:bg-opacity-50'
+                          }`}
+                          style={selectedModel === 'mercury' ? {
+                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
+                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
+                          } : {
+                            background: 'transparent'
+                          }}
+                        >
+                          <div className="font-medium">Mercury 2</div>
+                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
+                            Ultraschnell & kosteneffizient
+                          </div>
+                        </button>
                         <button
                           onClick={() => {
                             setSelectedModel('gemini')

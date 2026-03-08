@@ -86,7 +86,8 @@ export function addMessage(threadId: string, message: Message) {
 export async function startResearch(
   jobId: string,
   message: string,
-  threadId: string
+  threadId: string,
+  model: string = 'mercury'
 ): Promise<void> {
   const job = getJob(jobId)
   if (!job) {
@@ -215,6 +216,7 @@ export async function startResearch(
       },
       body: JSON.stringify({
         message,
+        model,
       }),
       signal: controller.signal,
     })
