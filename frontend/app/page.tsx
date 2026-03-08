@@ -3,14 +3,16 @@
  */
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Settings } from 'lucide-react'
+import { Sun, Moon, Settings, Menu } from 'lucide-react'
 import Image from 'next/image'
 import ChatMessage from '@/components/ChatMessage'
 import ResearchStatus from '@/components/ResearchStatus'
 import ChatInput from '@/components/ChatInput'
-import type { Message, ResearchPhase, Source, SSEEvent } from '@/lib/types'
+import HistorySidebar from '@/components/HistorySidebar'
+import { getHistory, saveEntry, deleteEntry } from '@/lib/history'
+import type { Message, ResearchPhase, Source, SSEEvent, HistoryEntry } from '@/lib/types'
 
 const INITIAL_PHASES: ResearchPhase[] = [
   { id: 1, name: 'Recherche vorbereiten', icon: 'clipboard', status: 'pending' },
@@ -43,12 +45,15 @@ export default function ChatPage() {
   const [citedSources, setCitedSources] = useState<Source[]>([])
   const [currentActivity, setCurrentActivity] = useState('')
   const [isCompleted, setIsCompleted] = useState(false)
-  const [sessionId] = useState(`s-${Date.now().toString(36)}`)
+  const [sessionId, setSessionId] = useState(`s-${Date.now().toString(36)}`)
   const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [eventSource, setEventSource] = useState<EventSource | null>(null)
   const [streamingReport, setStreamingReport] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('mercury')
   const [showModelMenu, setShowModelMenu] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -57,6 +62,11 @@ export default function ChatPage() {
     const savedModel = localStorage.getItem('selectedModel')
     if (savedModel) {
       setSelectedModel(savedModel)
+    }
+    setHistoryEntries(getHistory())
+    // Open sidebar by default on desktop
+    if (window.innerWidth >= 1024) {
+      setSidebarOpen(true)
     }
   }, [])
 
@@ -82,6 +92,70 @@ export default function ChatPage() {
   const updatePhase = (phaseId: number, status: 'pending' | 'running' | 'completed') => {
     setPhases(prev => prev.map(p => p.id === phaseId ? { ...p, status } : p))
   }
+
+  // Auto-save completed research to history
+  useEffect(() => {
+    if (isCompleted && !isStreaming && !activeEntryId) {
+      const agentMsg = messages.find(m => m.role === 'agent')
+      const userMsg = messages.find(m => m.role === 'user')
+      if (agentMsg && userMsg) {
+        const entry: HistoryEntry = {
+          id: `h-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+          query: userMsg.content,
+          report: agentMsg.content,
+          sources: citedSources.length > 0 ? citedSources : sources,
+          model: selectedModel,
+          createdAt: new Date().toISOString(),
+        }
+        saveEntry(entry)
+        setActiveEntryId(entry.id)
+        setHistoryEntries(getHistory())
+      }
+    }
+  }, [isCompleted, isStreaming]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSelectEntry = useCallback((entry: HistoryEntry) => {
+    if (isStreaming) return
+    setActiveEntryId(entry.id)
+    setMessages([
+      { role: 'user', content: entry.query },
+      { role: 'agent', content: entry.report },
+    ])
+    setSources(entry.sources)
+    setCitedSources(entry.sources)
+    setSourceCount(entry.sources.length)
+    setIsCompleted(true)
+    setShowResearchStatus(false)
+    setStreamingReport('')
+    setPhases(INITIAL_PHASES.map(p => ({ ...p, status: 'completed' as const })))
+    setCurrentActivity('')
+    // Close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false)
+    }
+  }, [isStreaming])
+
+  const handleDeleteEntry = useCallback((id: string) => {
+    deleteEntry(id)
+    setHistoryEntries(getHistory())
+    if (activeEntryId === id) {
+      setActiveEntryId(null)
+      setMessages([])
+      resetResearchState()
+    }
+  }, [activeEntryId])
+
+  const handleNewResearch = useCallback(() => {
+    if (isStreaming) return
+    setActiveEntryId(null)
+    setMessages([])
+    resetResearchState()
+    setSessionId(`s-${Date.now().toString(36)}`)
+    // Close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false)
+    }
+  }, [isStreaming])
 
   const extractCitedSources = (reportContent: string, allSources: Source[]): Source[] => {
     try {
@@ -217,6 +291,7 @@ export default function ChatPage() {
   }
 
   const handleSendMessage = async (message: string) => {
+    setActiveEntryId(null)
     setMessages(prev => [...prev, { role: 'user', content: message }])
     resetResearchState()
     setIsStreaming(true)
@@ -235,11 +310,29 @@ export default function ChatPage() {
   }
 
   return (
-    <>
+    <div className="flex h-full overflow-hidden">
+      <HistorySidebar
+        isOpen={sidebarOpen}
+        entries={historyEntries}
+        activeEntryId={activeEntryId}
+        onSelectEntry={handleSelectEntry}
+        onDeleteEntry={handleDeleteEntry}
+        onNewResearch={handleNewResearch}
+        onClose={() => setSidebarOpen(false)}
+      />
+
+      <div className="flex flex-col flex-1 min-w-0">
       {/* Header */}
       <header className="border-b" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
         <div className="flex items-center justify-between p-4 max-w-6xl mx-auto">
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+              title="Verlauf"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
             <div
               className="w-12 h-12 rounded-xl flex items-center justify-center p-0 overflow-visible"
               style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 4px 20px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.2)' }}
@@ -461,6 +554,7 @@ export default function ChatPage() {
 
       {/* Input Area */}
       <ChatInput onSubmit={handleSendMessage} isStreaming={isStreaming} />
-    </>
+      </div>
+    </div>
   )
 }
