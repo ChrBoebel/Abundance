@@ -1,12 +1,22 @@
 /**
- * History sidebar component with research entry list.
+ * History sidebar component with branding, model selector, and theme toggle.
  */
 
 'use client'
 
-import { Plus, Trash2, Clock, X } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Trash2, Clock, X, Sun, Moon, ChevronUp, PanelLeftClose } from 'lucide-react'
+import Image from 'next/image'
 import type { HistoryEntry } from '@/lib/types'
 import { MODEL_DISPLAY_NAMES } from '@/lib/types'
+
+const MODEL_OPTIONS: { key: string; name: string; desc: string }[] = [
+  { key: 'mercury', name: 'Mercury 2', desc: 'Ultraschnell & kosteneffizient' },
+  { key: 'gemini', name: 'Gemini 2.5 Flash Lite', desc: 'Schnell & effizient' },
+  { key: 'deepseek', name: 'DeepSeek V3.2', desc: 'Leistungsstark & präzise' },
+  { key: 'glm', name: 'GLM-4.5-Air', desc: 'Free & Reasoning-fähig' },
+  { key: 'gemini-flash', name: 'Gemini 2.5 Flash', desc: 'Schnell & leistungsstark' },
+]
 
 interface HistorySidebarProps {
   isOpen: boolean
@@ -16,6 +26,11 @@ interface HistorySidebarProps {
   onDeleteEntry: (id: string) => void
   onNewResearch: () => void
   onClose: () => void
+  mounted: boolean
+  theme: string | undefined
+  onToggleTheme: () => void
+  selectedModel: string
+  onSelectModel: (model: string) => void
 }
 
 function formatDate(iso: string): string {
@@ -49,7 +64,14 @@ export default function HistorySidebar({
   onDeleteEntry,
   onNewResearch,
   onClose,
+  mounted,
+  theme,
+  onToggleTheme,
+  selectedModel,
+  onSelectModel,
 }: HistorySidebarProps) {
+  const [showModelMenu, setShowModelMenu] = useState(false)
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -74,17 +96,32 @@ export default function HistorySidebar({
           borderColor: 'hsl(var(--border))',
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
-          <span className="text-xs font-semibold tracking-wider" style={{ color: 'hsl(var(--foreground) / 0.5)' }}>
-            VERLAUF
-          </span>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-md hover:bg-white/10 transition lg:hidden"
-          >
-            <X className="w-4 h-4" style={{ color: 'hsl(var(--foreground) / 0.5)' }} />
-          </button>
+        {/* Logo + Brand Header */}
+        <div className="p-4 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center overflow-visible flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 2px 12px hsl(var(--primary) / 0.4)' }}
+              >
+                <Image src="/bergbild2.svg" alt="Abundance Logo" width={40} height={40} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
+              </div>
+              <h1 className="text-lg font-bold abundance-title">Abundance</h1>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md hover:bg-white/10 transition"
+              title="Sidebar schließen"
+            >
+              <PanelLeftClose className="w-4 h-4 hidden lg:block" style={{ color: 'hsl(var(--foreground) / 0.5)' }} />
+              <X className="w-4 h-4 lg:hidden" style={{ color: 'hsl(var(--foreground) / 0.5)' }} />
+            </button>
+          </div>
+          <div className="mt-2">
+            <span className="text-xs font-semibold tracking-wider" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>
+              VERLAUF
+            </span>
+          </div>
         </div>
 
         {/* New Research Button */}
@@ -103,7 +140,7 @@ export default function HistorySidebar({
         </div>
 
         {/* Entries List */}
-        <div className="flex-1 overflow-y-auto px-2 pb-4">
+        <div className="flex-1 overflow-y-auto px-2 pb-2">
           {entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 gap-3" style={{ color: 'hsl(var(--foreground) / 0.3)' }}>
               <Clock className="w-8 h-8" />
@@ -157,6 +194,92 @@ export default function HistorySidebar({
               ))}
             </div>
           )}
+        </div>
+
+        {/* Footer: Model Selector + Theme Toggle */}
+        <div className="border-t p-3 space-y-2" style={{ borderColor: 'hsl(var(--border))' }}>
+          {/* Model Selector */}
+          <div className="relative">
+            {/* Model menu (expands upward) */}
+            {showModelMenu && (
+              <div
+                className="absolute bottom-full left-0 right-0 mb-1 rounded-xl border backdrop-blur-sm shadow-xl z-50 overflow-hidden"
+                style={{
+                  background: 'hsl(var(--card) / 0.98)',
+                  borderColor: 'hsl(var(--border))',
+                  boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.4)'
+                }}
+              >
+                <div className="p-2">
+                  <div className="text-xs font-semibold mb-1.5 px-2" style={{ color: 'hsl(var(--foreground) / 0.5)' }}>
+                    KI-MODELL
+                  </div>
+                  {MODEL_OPTIONS.map(m => (
+                    <button
+                      key={m.key}
+                      onClick={() => {
+                        onSelectModel(m.key)
+                        setTimeout(() => setShowModelMenu(false), 150)
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 mb-0.5 ${
+                        selectedModel === m.key ? 'shadow-md' : 'hover:bg-opacity-50'
+                      }`}
+                      style={selectedModel === m.key ? {
+                        background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
+                        boxShadow: '0 2px 8px hsl(var(--primary) / 0.3)'
+                      } : {
+                        background: 'transparent'
+                      }}
+                    >
+                      <div className="text-sm font-medium">{m.name}</div>
+                      <div className="text-xs mt-0.5" style={{ color: 'hsl(var(--foreground) / 0.5)' }}>
+                        {m.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Current model button */}
+            <button
+              onClick={() => setShowModelMenu(!showModelMenu)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all"
+              style={{
+                background: 'hsl(var(--foreground) / 0.05)',
+              }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-medium truncate">
+                  {MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}
+                </span>
+              </div>
+              <ChevronUp
+                className="w-4 h-4 flex-shrink-0 transition-transform duration-200"
+                style={{
+                  color: 'hsl(var(--foreground) / 0.4)',
+                  transform: showModelMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              />
+            </button>
+          </div>
+
+          {/* Bottom row: Theme toggle + Connection indicator */}
+          <div className="flex items-center justify-between px-1">
+            {mounted && (
+              <button
+                onClick={onToggleTheme}
+                className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+            )}
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 bg-green-500 rounded-full" title="Verbunden"></div>
+              <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>Verbunden</span>
+            </div>
+          </div>
         </div>
       </aside>
     </>

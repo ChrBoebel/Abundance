@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Settings, Menu } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import Image from 'next/image'
 import ChatMessage from '@/components/ChatMessage'
 import ResearchStatus from '@/components/ResearchStatus'
@@ -50,7 +50,6 @@ export default function ChatPage() {
   const [eventSource, setEventSource] = useState<EventSource | null>(null)
   const [streamingReport, setStreamingReport] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('mercury')
-  const [showModelMenu, setShowModelMenu] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
@@ -319,184 +318,28 @@ export default function ChatPage() {
         onDeleteEntry={handleDeleteEntry}
         onNewResearch={handleNewResearch}
         onClose={() => setSidebarOpen(false)}
+        mounted={mounted}
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        selectedModel={selectedModel}
+        onSelectModel={(model) => {
+          setSelectedModel(model)
+          localStorage.setItem('selectedModel', model)
+        }}
       />
 
-      <div className="flex flex-col flex-1 min-w-0">
-      {/* Header */}
-      <header className="border-b" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
-        <div className="flex items-center justify-between p-4 max-w-6xl mx-auto">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-              title="Verlauf"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center p-0 overflow-visible"
-              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 4px 20px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.2)' }}
-            >
-              <Image src="/bergbild2.svg" alt="Abundance Logo" width={60} height={60} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
-            </div>
-            <h1 className="text-2xl font-bold abundance-title">Abundance</h1>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full" title="Verbunden"></div>
-            {mounted && (
-              <>
-                <button
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                >
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowModelMenu(!showModelMenu)}
-                    className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-transform duration-300"
-                    title="Modell auswählen"
-                  >
-                    <Settings className="w-5 h-5" style={{ transform: showModelMenu ? 'rotate(90deg)' : 'rotate(0deg)' }} />
-                  </button>
-
-                  {showModelMenu && (
-                    <div
-                      className="absolute right-0 mt-2 w-64 rounded-xl border backdrop-blur-sm shadow-xl z-50 overflow-hidden"
-                      style={{
-                        background: 'hsl(var(--card) / 0.95)',
-                        borderColor: 'hsl(var(--border))',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                      }}
-                    >
-                      <div className="p-3">
-                        <div className="text-xs font-semibold mb-2 px-2" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
-                          KI-MODELL
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedModel('mercury')
-                            localStorage.setItem('selectedModel', 'mercury')
-                            setTimeout(() => setShowModelMenu(false), 200)
-                          }}
-                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
-                            selectedModel === 'mercury'
-                              ? 'shadow-lg'
-                              : 'hover:bg-opacity-50'
-                          }`}
-                          style={selectedModel === 'mercury' ? {
-                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
-                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
-                          } : {
-                            background: 'transparent'
-                          }}
-                        >
-                          <div className="font-medium">Mercury 2</div>
-                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
-                            Ultraschnell & kosteneffizient
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedModel('gemini')
-                            localStorage.setItem('selectedModel', 'gemini')
-                            setTimeout(() => setShowModelMenu(false), 200)
-                          }}
-                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
-                            selectedModel === 'gemini'
-                              ? 'shadow-lg'
-                              : 'hover:bg-opacity-50'
-                          }`}
-                          style={selectedModel === 'gemini' ? {
-                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
-                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
-                          } : {
-                            background: 'transparent'
-                          }}
-                        >
-                          <div className="font-medium">Gemini 2.5 Flash Lite</div>
-                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
-                            Schnell & effizient
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedModel('deepseek')
-                            localStorage.setItem('selectedModel', 'deepseek')
-                            setTimeout(() => setShowModelMenu(false), 200)
-                          }}
-                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
-                            selectedModel === 'deepseek'
-                              ? 'shadow-lg'
-                              : 'hover:bg-opacity-50'
-                          }`}
-                          style={selectedModel === 'deepseek' ? {
-                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
-                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
-                          } : {
-                            background: 'transparent'
-                          }}
-                        >
-                          <div className="font-medium">DeepSeek V3.2</div>
-                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
-                            Leistungsstark & präzise
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedModel('glm')
-                            localStorage.setItem('selectedModel', 'glm')
-                            setTimeout(() => setShowModelMenu(false), 200)
-                          }}
-                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 mb-1 ${
-                            selectedModel === 'glm'
-                              ? 'shadow-lg'
-                              : 'hover:bg-opacity-50'
-                          }`}
-                          style={selectedModel === 'glm' ? {
-                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
-                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
-                          } : {
-                            background: 'transparent'
-                          }}
-                        >
-                          <div className="font-medium">GLM-4.5-Air</div>
-                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
-                            Free & Reasoning-fähig
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedModel('gemini-flash')
-                            localStorage.setItem('selectedModel', 'gemini-flash')
-                            setTimeout(() => setShowModelMenu(false), 200)
-                          }}
-                          className={`w-full text-left px-3 py-3 rounded-lg transition-all duration-200 ${
-                            selectedModel === 'gemini-flash'
-                              ? 'shadow-lg'
-                              : 'hover:bg-opacity-50'
-                          }`}
-                          style={selectedModel === 'gemini-flash' ? {
-                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.9) 0%, hsl(var(--primary) / 0.7) 100%)',
-                            boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
-                          } : {
-                            background: 'transparent'
-                          }}
-                        >
-                          <div className="font-medium">Gemini 2.5 Flash</div>
-                          <div className="text-xs mt-1" style={{ color: 'hsl(var(--foreground) / 0.6)' }}>
-                            Schnell & leistungsstark
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <div className="flex flex-col flex-1 min-w-0 relative">
+      {/* Sidebar toggle (visible when sidebar is closed) */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="absolute top-3 left-3 z-10 p-2 rounded-lg transition"
+          style={{ background: 'hsl(var(--card) / 0.8)', color: 'hsl(var(--foreground) / 0.7)' }}
+          title="Verlauf öffnen"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 overflow-hidden max-w-6xl mx-auto w-full">
