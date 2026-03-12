@@ -8,13 +8,15 @@ function requireSessionSecret(): string {
   return value
 }
 
-export const sessionOptions: SessionOptions = {
-  password: requireSessionSecret(),
-  cookieName: 'abundance_session',
-  cookieOptions: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-  },
+export function getSessionOptions(): SessionOptions {
+  return {
+    password: requireSessionSecret(),
+    cookieName: 'abundance_session',
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7,
+    },
+  }
 }

@@ -5,7 +5,7 @@ import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 import { timingSafeEqual } from 'crypto'
 import type { SessionData } from './types'
-import { sessionOptions } from './session'
+import { getSessionOptions } from './session'
 
 function requireAppPassword(): string {
   const value = process.env.APP_PASSWORD
@@ -17,7 +17,7 @@ function requireAppPassword(): string {
 
 export async function getSession() {
   const cookieStore = await cookies()
-  return getIronSession<SessionData>(cookieStore, sessionOptions)
+  return getIronSession<SessionData>(cookieStore, getSessionOptions())
 }
 
 export async function isAuthenticated(): Promise<boolean> {
