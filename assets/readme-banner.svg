@@ -1,60 +1,135 @@
 <svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Abundance README banner</title>
-  <desc id="desc">A branded banner for the Abundance deep research application.</desc>
+  <desc id="desc">A branded banner for Abundance with stronger text contrast and deep search symbolism.</desc>
   <defs>
-    <linearGradient id="bg" x1="44" y1="34" x2="1108" y2="396" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#163443"/>
-      <stop offset="0.52" stop-color="#25485A"/>
-      <stop offset="1" stop-color="#C79647"/>
+    <linearGradient id="bg" x1="32" y1="28" x2="1168" y2="392" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#07141D"/>
+      <stop offset="0.44" stop-color="#143244"/>
+      <stop offset="0.78" stop-color="#21485B"/>
+      <stop offset="1" stop-color="#B9883B"/>
     </linearGradient>
-    <linearGradient id="glow" x1="826" y1="84" x2="1055" y2="262" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFF1C9" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#FFF1C9" stop-opacity="0"/>
+    <linearGradient id="panel" x1="52" y1="44" x2="640" y2="354" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#081720" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#102736" stop-opacity="0.82"/>
     </linearGradient>
-    <linearGradient id="mountainBack" x1="720" y1="161" x2="720" y2="351" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#EFD8A8" stop-opacity="0.8"/>
-      <stop offset="1" stop-color="#EFD8A8" stop-opacity="0.28"/>
+    <linearGradient id="chip" x1="0" y1="0" x2="0" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2E4959"/>
+      <stop offset="1" stop-color="#38596A"/>
     </linearGradient>
-    <linearGradient id="mountainFront" x1="748" y1="178" x2="748" y2="359" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFF8E7"/>
-      <stop offset="1" stop-color="#F0D9A8"/>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="130" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF5DD" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFF5DD" stop-opacity="0.06"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(945 160) rotate(90) scale(178 210)">
+      <stop offset="0" stop-color="#F7D793" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#F7D793" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lens" x1="876" y1="110" x2="1002" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF3D0" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#FFF3D0" stop-opacity="0.08"/>
     </linearGradient>
   </defs>
 
-  <rect x="8" y="8" width="1184" height="404" rx="32" fill="url(#bg)"/>
-  <rect x="8" y="8" width="1184" height="404" rx="32" stroke="#F4E4BC" stroke-opacity="0.18" stroke-width="2"/>
+  <rect x="8" y="8" width="1184" height="404" rx="34" fill="url(#bg)"/>
+  <rect x="8" y="8" width="1184" height="404" rx="34" stroke="#F1E0B2" stroke-opacity="0.22" stroke-width="2"/>
 
-  <circle cx="965" cy="116" r="124" fill="url(#glow)"/>
-  <circle cx="1008" cy="103" r="19" fill="#FFF5D9" fill-opacity="0.85"/>
-  <circle cx="1060" cy="141" r="7" fill="#FFF5D9" fill-opacity="0.65"/>
-  <circle cx="919" cy="74" r="6" fill="#FFF5D9" fill-opacity="0.58"/>
+  <rect x="8" y="8" width="1184" height="10" rx="5" fill="#D4A048"/>
+  <rect x="8" y="8" width="870" height="10" rx="5" fill="#244757" fill-opacity="0.95"/>
 
-  <path d="M640 330L760 182L842 272L918 214L1044 330H640Z" fill="url(#mountainBack)"/>
-  <path d="M700 346L828 166L900 255L968 205L1104 346H700Z" fill="url(#mountainFront)"/>
-  <path d="M828 166L864 216L841 212L819 237L790 231L828 166Z" fill="#FFFDF5"/>
+  <rect x="38" y="42" width="610" height="336" rx="28" fill="url(#panel)"/>
+  <path d="M58 78H628" stroke="#F1E0B2" stroke-opacity="0.08" stroke-width="1"/>
+  <path d="M58 324H628" stroke="#F1E0B2" stroke-opacity="0.08" stroke-width="1"/>
 
-  <path d="M615 356C712 329 799 320 902 320C1014 320 1092 332 1180 356V381H615V356Z" fill="#12303E" fill-opacity="0.56"/>
-  <path d="M590 376C686 357 790 351 905 351C1021 351 1116 359 1190 376V404H590V376Z" fill="#0D2530" fill-opacity="0.68"/>
+  <circle cx="948" cy="166" r="170" fill="url(#glow)"/>
 
-  <text x="86" y="146" fill="#FFF9E7" font-family="Georgia, 'Times New Roman', serif" font-size="72" font-weight="700" letter-spacing="0.5">Abundance</text>
-  <text x="90" y="196" fill="#E7DCC0" font-family="Arial, Helvetica, sans-serif" font-size="24">
-    Deep research with a streaming LangGraph backend and a polished Next.js interface.
+  <g opacity="0.34">
+    <path d="M756 118L840 104L890 140L972 132L1046 178" stroke="#F4E7C6" stroke-width="2"/>
+    <path d="M770 250L852 224L914 252L978 212L1056 228" stroke="#F4E7C6" stroke-width="2"/>
+    <circle cx="756" cy="118" r="7" fill="#F8EFD7"/>
+    <circle cx="840" cy="104" r="7" fill="#F8EFD7"/>
+    <circle cx="890" cy="140" r="7" fill="#F8EFD7"/>
+    <circle cx="972" cy="132" r="7" fill="#F8EFD7"/>
+    <circle cx="1046" cy="178" r="7" fill="#F8EFD7"/>
+    <circle cx="770" cy="250" r="7" fill="#F8EFD7"/>
+    <circle cx="852" cy="224" r="7" fill="#F8EFD7"/>
+    <circle cx="914" cy="252" r="7" fill="#F8EFD7"/>
+    <circle cx="978" cy="212" r="7" fill="#F8EFD7"/>
+    <circle cx="1056" cy="228" r="7" fill="#F8EFD7"/>
+  </g>
+
+  <g transform="translate(798 84)">
+    <rect width="112" height="112" rx="28" fill="#C9953B"/>
+    <rect width="112" height="112" rx="28" stroke="#F8E6B9" stroke-opacity="0.30" stroke-width="2"/>
+    <svg x="18" y="18" width="76" height="76" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)" fill="#FFF9E6" stroke="none">
+        <path d="M5046 6792 c-29 -38 -124 -160 -209 -273 -85 -113 -162 -210 -170 -218 -9 -7 -24 -10 -34 -7 -23 7 -50 -20 -195 -199 -59 -71 -118 -141 -132 -154 l-26 -25 -53 50 c-28 27 -102 98 -163 157 -67 65 -119 107 -131 107 -23 0 -178 -154 -404 -402 -79 -87 -148 -158 -154 -158 -5 0 -39 23 -74 50 -36 28 -75 50 -87 50 -16 0 -66 -52 -190 -197 -93 -108 -233 -271 -311 -362 -79 -90 -143 -168 -143 -173 0 -4 66 -8 148 -8 674 -1 1068 -63 1447 -228 378 -164 706 -456 897 -797 29 -52 55 -95 59 -95 3 0 15 21 28 48 12 26 56 97 96 157 275 413 692 691 1238 824 237 58 444 79 875 88 172 3 311 10 310 14 -3 9 -576 683 -644 758 -49 53 -52 53 -153 -28 -35 -28 -69 -51 -76 -51 -15 0 -157 153 -338 363 -90 105 -124 137 -142 137 -26 0 -75 -38 -255 -200 l-114 -103 -38 43 c-21 24 -80 98 -130 164 -148 195 -176 226 -207 226 -35 0 -58 24 -215 230 -205 268 -215 280 -236 280 -12 0 -40 -26 -74 -68z"/>
+        <path fill="#F7E7CE" d="M2353 5028 c-28 -31 -406 -539 -453 -608 -20 -30 -68 -134 -107 -230 -39 -96 -86 -212 -106 -257 -24 -55 -32 -83 -24 -85 7 -3 172 -1 367 4 195 4 850 9 1455 11 1030 2 1104 1 1165 -16 89 -24 139 -50 223 -114 117 -89 138 -98 242 -98 105 0 141 15 260 105 86 66 149 95 240 112 83 15 1034 18 2227 5 l747 -8 -46 103 c-25 57 -74 176 -108 265 -70 181 -55 156 -357 558 -117 155 -211 271 -222 273 -27 5 -126 -8 -126 -17 0 -7 108 -160 296 -416 60 -82 120 -165 134 -184 l23 -34 -104 7 c-57 4 -248 20 -424 36 -829 76 -1172 64 -1605 -55 -292 -80 -523 -196 -722 -362 -72 -60 -160 -159 -187 -210 -6 -13 -15 -23 -19 -23 -4 0 -20 20 -36 46 -41 65 -148 172 -244 242 -339 250 -807 391 -1357 409 -207 6 -428 -5 -880 -47 -452 -42 -550 -47 -539 -29 7 13 109 155 343 478 106 148 106 147 78 155 -12 3 -43 6 -68 6 -35 0 -50 -5 -66 -22z"/>
+        <path fill="#E8D4B0" d="M1484 3766 c-38 -32 -39 -86 -1 -124 l27 -27 1571 -1 1571 -2 56 -55 c118 -116 251 -171 412 -171 158 0 278 48 399 160 l67 62 1575 7 1574 7 24 24 c36 34 34 89 -3 120 l-27 24 -1589 0 c-1103 0 -1597 -3 -1617 -11 -15 -6 -60 -42 -99 -80 -48 -46 -95 -80 -140 -102 -64 -29 -77 -32 -169 -32 -93 0 -105 2 -165 32 -40 20 -92 59 -136 101 -55 53 -81 71 -117 80 -34 9 -460 12 -1616 12 l-1570 0 -27 -24z"/>
+      </g>
+    </svg>
+  </g>
+
+  <g transform="translate(760 150)">
+    <rect x="0" y="0" width="116" height="90" rx="18" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.20"/>
+    <path d="M22 26H94" stroke="#FFF4D9" stroke-opacity="0.82" stroke-width="6" stroke-linecap="round"/>
+    <path d="M22 44H82" stroke="#FFF4D9" stroke-opacity="0.45" stroke-width="5" stroke-linecap="round"/>
+    <path d="M22 60H70" stroke="#FFF4D9" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(1024 212)">
+    <rect x="0" y="0" width="116" height="90" rx="18" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.20"/>
+    <path d="M22 26H94" stroke="#FFF4D9" stroke-opacity="0.82" stroke-width="6" stroke-linecap="round"/>
+    <path d="M22 44H82" stroke="#FFF4D9" stroke-opacity="0.45" stroke-width="5" stroke-linecap="round"/>
+    <path d="M22 60H70" stroke="#FFF4D9" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(850 260)">
+    <rect x="0" y="0" width="126" height="96" rx="18" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.20"/>
+    <path d="M24 28H102" stroke="#FFF4D9" stroke-opacity="0.82" stroke-width="6" stroke-linecap="round"/>
+    <path d="M24 48H88" stroke="#FFF4D9" stroke-opacity="0.45" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 66H76" stroke="#FFF4D9" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g opacity="0.82">
+    <path d="M922 204L884 246" stroke="#F8E4B0" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="874" cy="194" r="54" fill="url(#lens)" stroke="#F7E3B2" stroke-width="8"/>
+    <circle cx="874" cy="194" r="30" stroke="#F7E3B2" stroke-opacity="0.65" stroke-width="3" stroke-dasharray="6 7"/>
+    <path d="M842 190L858 190" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
+    <path d="M890 190L906 190" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
+    <path d="M874 158L874 174" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
+    <path d="M874 214L874 230" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <path d="M930 182L815 195" stroke="#F5E8C8" stroke-opacity="0.30" stroke-width="2"/>
+  <path d="M930 182L1078 250" stroke="#F5E8C8" stroke-opacity="0.24" stroke-width="2"/>
+  <path d="M910 228L914 260" stroke="#F5E8C8" stroke-opacity="0.24" stroke-width="2"/>
+
+  <text x="84" y="136" fill="#FFF9E8" font-family="Georgia, 'Times New Roman', serif" font-size="74" font-weight="700" letter-spacing="0.5">Abundance</text>
+  <text x="86" y="188" fill="#F3E7C7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">
+    Deep research with a streaming LangGraph backend
+  </text>
+  <text x="86" y="218" fill="#F3E7C7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">
+    and a polished Next.js interface.
   </text>
 
-  <g transform="translate(86 248)">
-    <rect width="142" height="36" rx="18" fill="#FFF4D8" fill-opacity="0.16"/>
-    <text x="71" y="23" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">LangGraph</text>
+  <g transform="translate(86 252)">
+    <rect width="142" height="36" rx="18" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
+    <text x="71" y="24" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">LangGraph</text>
   </g>
-  <g transform="translate(240 248)">
-    <rect width="152" height="36" rx="18" fill="#FFF4D8" fill-opacity="0.16"/>
-    <text x="76" y="23" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">FastAPI SSE</text>
+  <g transform="translate(242 252)">
+    <rect width="152" height="36" rx="18" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
+    <text x="76" y="24" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">FastAPI SSE</text>
   </g>
-  <g transform="translate(404 248)">
-    <rect width="136" height="36" rx="18" fill="#FFF4D8" fill-opacity="0.16"/>
-    <text x="68" y="23" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">Next.js UI</text>
+  <g transform="translate(408 252)">
+    <rect width="136" height="36" rx="18" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
+    <text x="68" y="24" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Next.js UI</text>
+  </g>
+  <g transform="translate(86 304)">
+    <rect width="170" height="34" rx="17" fill="#D6A24B" fill-opacity="0.18" stroke="#F8E6B8" stroke-opacity="0.12"/>
+    <text x="85" y="22" text-anchor="middle" fill="#FFF3D4" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">Deep Search Workflow</text>
   </g>
 
-  <text x="90" y="326" fill="#F2E7C8" font-family="Arial, Helvetica, sans-serif" font-size="18">
-    Search, synthesis, source tracking, and final report streaming in one full-stack app.
+  <text x="86" y="360" fill="#F0E2BE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">
+    Search, synthesize, trace sources, and stream the final report in one focused product.
   </text>
+
+  <path d="M756 376C872 352 995 350 1170 382" stroke="#0A2330" stroke-opacity="0.40" stroke-width="36" stroke-linecap="round"/>
 </svg>
