@@ -5,16 +5,14 @@ import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 import { timingSafeEqual } from 'crypto'
 import type { SessionData } from './types'
+import { sessionOptions } from './session'
 
-const sessionOptions = {
-  password: process.env.SESSION_SECRET || 'complex_password_at_least_32_characters_long_for_security',
-  cookieName: 'abundance_session',
-  cookieOptions: {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 60 * 60 * 24 * 7, // 1 week
-  },
+function requireAppPassword(): string {
+  const value = process.env.APP_PASSWORD
+  if (!value) {
+    throw new Error('APP_PASSWORD environment variable is required')
+  }
+  return value
 }
 
 export async function getSession() {
@@ -56,7 +54,7 @@ function comparePasswords(provided: string, correct: string): boolean {
 }
 
 export async function authenticate(password: string): Promise<boolean> {
-  const correctPassword = process.env.APP_PASSWORD || 'changeme'
+  const correctPassword = requireAppPassword()
 
   // Use timing-safe comparison
   if (comparePasswords(password, correctPassword)) {

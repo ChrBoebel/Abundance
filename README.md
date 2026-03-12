@@ -1,214 +1,109 @@
-# 🔬 Open Deep Research - Web Application
+# Abundance
 
-Vollautomatisierte Deep Research Engine mit **Docker Backend** und **Next.js Frontend**.
+Abundance is a full-stack deep research application that streams multi-step web research from a LangGraph-powered FastAPI backend into a Next.js interface.
 
-Powered by **Gemini 2.5 Flash** via **OpenRouter** und **Tavily Search**.
+The repository is structured as a small monorepo:
 
-## ✅ Status: VOLL FUNKTIONSFÄHIG
+- `backend/` contains the research graph, model integration, and SSE API.
+- `frontend/` contains the authenticated UI and the client-side event stream handling.
 
-- ✅ Docker Backend (FastAPI + LangGraph)
-- ✅ Next.js Frontend (React + SSE Streaming)
-- ✅ Gemini 2.5 Flash via OpenRouter
-- ✅ Tavily Search Integration
+## Highlights
 
----
+- Multi-step research workflow built with LangGraph
+- FastAPI streaming backend with Server-Sent Events
+- Next.js frontend with live research progress updates
+- Tavily-backed web search
+- Password-protected UI session flow
+- Docker-based backend workflow for local development
 
-## 🚀 Schnellstart
+## Architecture
 
-### 1️⃣ Backend starten (Docker)
+```mermaid
+flowchart LR
+    User["User"] --> UI["Next.js frontend"]
+    UI -->|"GET /api/chat/stream"| FrontendAPI["Next.js API route"]
+    FrontendAPI -->|"POST /research/stream"| Backend["FastAPI backend"]
+    Backend --> Graph["LangGraph research graph"]
+    Graph --> Search["Tavily search"]
+    Graph --> Model["OpenRouter / Gemini"]
+```
+
+## Stack
+
+- Frontend: Next.js 14, React 18, TypeScript, Tailwind CSS
+- Backend: FastAPI, LangGraph, Python
+- Model routing: OpenRouter
+- Search: Tavily
+
+## Local Setup
+
+### 1. Backend
 
 ```bash
 cd backend
-docker-compose up -d
+cp .env.example .env
 ```
 
-Backend läuft auf: **http://localhost:8000**
+Set at least these variables in `backend/.env`:
 
-Prüfe Status:
+- `OPENROUTER_API_KEY`
+- `TAVILY_API_KEY`
+
+Then start the backend:
+
 ```bash
-curl http://localhost:8000/health
+docker-compose up --build
 ```
 
-### 2️⃣ Frontend starten (Next.js)
+The API will be available at `http://localhost:8000`.
+
+### 2. Frontend
 
 ```bash
 cd frontend
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-Frontend läuft auf: **http://localhost:4290**
+Set these variables in `frontend/.env`:
 
-### 3️⃣ Öffne im Browser
+- `RESEARCH_BACKEND_URL=http://localhost:8000`
+- `SESSION_SECRET=<random secret>`
+- `APP_PASSWORD=<local password>`
 
-```
-http://localhost:4290
-```
+The UI runs at `http://localhost:4290`.
 
-Login-Passwort siehe `frontend/.env` → `APP_PASSWORD`
+## Project Structure
 
----
-
-## ⚙️ Konfiguration
-
-### Backend Environment (`backend/.env`)
-```bash
-GEMINI_API_KEY=your-key
-GOOGLE_API_KEY=your-key
-TAVILY_API_KEY=your-key
-OPENROUTER_API_KEY=your-key
-```
-
-### Frontend Environment (`frontend/.env`)
-```bash
-APP_PASSWORD=your-password
-SESSION_SECRET=your-session-secret
-GEMINI_API_KEY=your-key
-GOOGLE_API_KEY=your-key
-TAVILY_API_KEY=your-key
-OPENROUTER_API_KEY=your-key
-PORT=4290
+```text
+.
+├── backend/
+│   ├── backend_server.py
+│   ├── docker-compose.yml
+│   ├── README.md
+│   └── src/open_deep_research/
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   ├── public/
+│   └── README.md
+└── README.md
 ```
 
-### Modell-Konfiguration
+## Development Notes
 
-Alle Modelle sind hardcoded auf **Gemini 2.5 Flash** via **OpenRouter**:
-- Model: `openrouter:google/gemini-2.5-flash`
-- Search API: **Tavily** (Standard)
+- The frontend expects the backend SSE endpoint at `POST /research/stream`.
+- Authentication is intentionally simple and based on a single password for private demos.
+- The repository uses local `.env` files only; example files are provided for both apps.
 
-Konfiguration in: `backend/backend_server.py`
+## Publication Checklist
 
----
+- Do not commit `.env` files.
+- Rotate any previously used API keys before publishing if they were ever committed in private history.
+- Verify `backend/.env.example` and `frontend/.env.example` stay placeholder-only.
 
-## 📁 Projektstruktur
+## License
 
-```
-open_deep_research/
-├── backend/                    # 🐳 Docker Backend
-│   ├── src/                   # LangGraph research engine
-│   │   ├── deep_researcher.py # Main agent graph
-│   │   ├── supervisor.py      # Research coordinator
-│   │   ├── researcher.py      # Research executor
-│   │   ├── configuration.py   # Model config
-│   │   └── utils/             # Utilities
-│   ├── backend_server.py      # FastAPI + SSE streaming
-│   ├── Dockerfile             # Docker image
-│   ├── docker-compose.yml     # Docker orchestration
-│   ├── requirements.txt       # Python deps
-│   └── README.md              # Backend docs
-│
-├── frontend/                  # ⚛️ Next.js Frontend
-│   ├── app/                  # Next.js app router
-│   │   ├── page.tsx          # Main chat UI
-│   │   ├── login/            # Login page
-│   │   └── api/              # API routes
-│   ├── components/           # React components
-│   ├── lib/                  # Frontend utilities
-│   ├── package.json          # Node deps
-│   └── README.md             # Frontend docs
-│
-├── .env.example              # Environment template
-├── .gitignore                # Git ignore
-├── CLAUDE.md                 # Project instructions
-├── README.md                 # This file
-├── OPENROUTER_FEATURES.md    # Feature documentation
-└── workflow_architecture.md  # Architecture diagrams
-```
-
----
-
-## 💡 Verwendung
-
-1. **Öffne Browser**: http://localhost:4290
-2. **Login**: Passwort aus `frontend/.env`
-3. **Stelle Frage**: z.B. "What are the latest developments in AI?"
-4. **Warte auf Ergebnis**: Live-Streaming der Research-Schritte
-5. **Lese Report**: Comprehensive research report
-
----
-
-## 🎯 Features
-
-### Backend
-- ✅ **LangGraph Workflow**: Multi-agent research orchestration
-- ✅ **Parallel Research**: Multiple sub-agents working concurrently
-- ✅ **Tavily Search**: Web search integration
-- ✅ **OpenRouter**: Gemini 2.5 Flash routing
-- ✅ **SSE Streaming**: Real-time event streaming
-- ✅ **Docker Deployment**: Self-contained containerization
-
-### Frontend
-- ✅ **Next.js 14**: React Server Components
-- ✅ **Real-time Updates**: SSE-based live streaming
-- ✅ **Authentication**: Password-protected access
-- ✅ **Responsive UI**: Works on desktop and mobile
-- ✅ **Dark Mode**: Theme toggle
-- ✅ **Progress Tracking**: Visual research progress indicators
-
----
-
-## 🔧 Troubleshooting
-
-### Backend startet nicht
-```bash
-# Check Docker status
-docker ps
-
-# Check logs
-cd backend
-docker-compose logs -f
-
-# Rebuild if needed
-docker-compose down
-docker-compose up --build -d
-```
-
-### Frontend startet nicht
-```bash
-# Check port 4290 is free
-lsof -i :4290
-
-# Kill if occupied
-kill <PID>
-
-# Restart frontend
-cd frontend
-npm run dev
-```
-
-### API Connection Failed
-```bash
-# Check backend is running
-curl http://localhost:8000/health
-
-# Check frontend .env has correct BACKEND_URL
-cat frontend/.env | grep RESEARCH_BACKEND_URL
-```
-
----
-
-## 📊 Deployment
-
-### Production Deployment
-
-**Backend (Railway/Docker Host):**
-```bash
-cd backend
-railway up
-# oder
-docker push your-registry/deep-research-backend
-```
-
-**Frontend (Vercel/Railway):**
-```bash
-cd frontend
-vercel deploy
-# oder
-railway up
-```
-
-Siehe `backend/README.md` und `frontend/README.md` für Details.
-
----
-
-**Powered by Gemini 2.5 Flash via OpenRouter** 🤖
+MIT. See [LICENSE](LICENSE).

@@ -3,6 +3,7 @@
 # Next.js
 .next/
 out/
+frontend/.next/
 node_modules/
 .DS_Store
 *.log
@@ -22,10 +23,20 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+.claude/
 
 # Environment
 .env
+backend/.env
+frontend/.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Deployment metadata
+.railway/
+frontend/.railway/
+
+# Local duplicate workspace copy
+frontend/frontend/

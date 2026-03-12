@@ -5,6 +5,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Eye, EyeOff, Unlock, ShieldCheck, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
@@ -33,7 +34,7 @@ export default function LoginPage() {
         const data = await response.json()
         setError(data.error || 'Falsches Passwort')
       }
-    } catch (err) {
+    } catch {
       setError('Verbindungsfehler')
     } finally {
       setLoading(false)
@@ -48,7 +49,7 @@ export default function LoginPage() {
             className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl mx-auto mb-4 sm:mb-6 flex items-center justify-center p-0 overflow-visible"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)' }}
           >
-            <img src="/bergbild2.svg" alt="Abundance Logo" className="w-[247%] h-[247%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))', imageRendering: 'auto', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', transform: 'translateZ(0)' }} />
+            <Image src="/bergbild2.svg" alt="Abundance Logo" width={198} height={198} className="w-[247%] h-[247%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))', imageRendering: 'auto', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', transform: 'translateZ(0)' }} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold mb-2 abundance-title">Abundance</h1>
           <p className="text-sm opacity-70">Passwort eingeben um fortzufahren</p>

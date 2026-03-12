@@ -127,7 +127,7 @@ export default function ChatMessage({ message, isStreaming = false }: ChatMessag
         }
       }
     }
-  }, [message.content, isStreaming])
+  }, [message.content, message.role, isStreaming])
 
   if (message.role === 'user') {
     return (
