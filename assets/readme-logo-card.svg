@@ -1,0 +1,30 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Abundance logo card</title>
+  <desc id="desc">Gold rounded square logo mark used in the Abundance README.</desc>
+  <defs>
+    <linearGradient id="card" x1="36" y1="28" x2="184" y2="194" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D3A24A"/>
+      <stop offset="1" stop-color="#9D6B1B"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(110 110) rotate(90) scale(104)">
+      <stop stop-color="#F9D88F" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#F9D88F" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="110" cy="110" r="104" fill="url(#halo)"/>
+  <rect x="36" y="36" width="148" height="148" rx="34" fill="url(#card)"/>
+  <rect x="36" y="36" width="148" height="148" rx="34" stroke="#F8E6B9" stroke-opacity="0.28" stroke-width="2"/>
+
+  <path d="M72 118C83 113 92 111 102 111C112 111 120 113 129 118" stroke="#FFF7E5" stroke-width="6" stroke-linecap="round"/>
+  <path d="M92 121L110 93L122 111L133 102L151 121H92Z" fill="#FFF8EA"/>
+  <path d="M78 121L97 99L110 112L122 104L143 121H78Z" fill="#F6E4BE"/>
+
+  <path d="M70 127C81 124 91 123 102 123C111 123 121 124 132 127" stroke="#FFF7E5" stroke-width="4" stroke-linecap="round"/>
+  <path d="M70 127V138C82 132 92 129 102 129C111 129 121 132 132 138V127" stroke="#FFF7E5" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M132 127V138C143 132 153 129 162 129C170 129 178 131 184 134" stroke="#FFF7E5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+  <path d="M88 127V138C98 132 107 129 116 129C126 129 136 132 150 138V127" stroke="#FFF7E5" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M88 127C97 124 107 123 116 123C127 123 137 124 150 127" stroke="#FFF7E5" stroke-width="4" stroke-linecap="round"/>
+
+  <path d="M109 124V139" stroke="#FFF7E5" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+</svg>
