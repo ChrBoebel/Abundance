@@ -1,65 +1,76 @@
 <svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Abundance README banner</title>
-  <desc id="desc">A branded banner for Abundance with stronger text contrast and deep search symbolism.</desc>
+  <desc id="desc">A branded Abundance banner with stronger readability and deep-search symbolism.</desc>
   <defs>
-    <linearGradient id="bg" x1="32" y1="28" x2="1168" y2="392" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#07141D"/>
-      <stop offset="0.44" stop-color="#143244"/>
-      <stop offset="0.78" stop-color="#21485B"/>
-      <stop offset="1" stop-color="#B9883B"/>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1200" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06131C"/>
+      <stop offset="1" stop-color="#07111A"/>
     </linearGradient>
-    <linearGradient id="panel" x1="52" y1="44" x2="640" y2="354" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#081720" stop-opacity="0.96"/>
-      <stop offset="1" stop-color="#102736" stop-opacity="0.82"/>
+    <linearGradient id="frame" x1="18" y1="18" x2="1182" y2="402" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#071A25"/>
+      <stop offset="0.48" stop-color="#1C455C"/>
+      <stop offset="1" stop-color="#B78639"/>
     </linearGradient>
-    <linearGradient id="chip" x1="0" y1="0" x2="0" y2="36" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2E4959"/>
-      <stop offset="1" stop-color="#38596A"/>
+    <linearGradient id="panel" x1="46" y1="48" x2="678" y2="374" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#051520" stop-opacity="0.96"/>
+      <stop offset="0.52" stop-color="#082235" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#0D2838" stop-opacity="0.88"/>
+    </linearGradient>
+    <linearGradient id="chip" x1="0" y1="0" x2="0" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#33576B"/>
+      <stop offset="1" stop-color="#3E667A"/>
+    </linearGradient>
+    <linearGradient id="chipGold" x1="0" y1="0" x2="174" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D4A048" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#F0C56B" stop-opacity="0.12"/>
     </linearGradient>
     <linearGradient id="card" x1="0" y1="0" x2="0" y2="130" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFF5DD" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#FFF5DD" stop-opacity="0.06"/>
+      <stop offset="0" stop-color="#FFF6DE" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFF6DE" stop-opacity="0.08"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(945 160) rotate(90) scale(178 210)">
-      <stop offset="0" stop-color="#F7D793" stop-opacity="0.30"/>
-      <stop offset="1" stop-color="#F7D793" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(970 170) rotate(90) scale(170 180)">
+      <stop offset="0" stop-color="#F3D086" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#F3D086" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="lens" x1="876" y1="110" x2="1002" y2="232" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFF3D0" stop-opacity="0.26"/>
-      <stop offset="1" stop-color="#FFF3D0" stop-opacity="0.08"/>
+    <linearGradient id="lensFill" x1="842" y1="132" x2="964" y2="252" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF3D1" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFF3D1" stop-opacity="0.10"/>
     </linearGradient>
   </defs>
 
-  <rect x="8" y="8" width="1184" height="404" rx="34" fill="url(#bg)"/>
-  <rect x="8" y="8" width="1184" height="404" rx="34" stroke="#F1E0B2" stroke-opacity="0.22" stroke-width="2"/>
+  <rect width="1200" height="420" fill="url(#canvas)"/>
 
-  <rect x="8" y="8" width="1184" height="10" rx="5" fill="#D4A048"/>
-  <rect x="8" y="8" width="870" height="10" rx="5" fill="#244757" fill-opacity="0.95"/>
+  <rect x="10" y="18" width="1180" height="384" rx="34" fill="url(#frame)"/>
+  <rect x="10" y="18" width="1180" height="384" rx="34" stroke="#F2E0B0" stroke-opacity="0.24" stroke-width="2"/>
 
-  <rect x="38" y="42" width="610" height="336" rx="28" fill="url(#panel)"/>
-  <path d="M58 78H628" stroke="#F1E0B2" stroke-opacity="0.08" stroke-width="1"/>
-  <path d="M58 324H628" stroke="#F1E0B2" stroke-opacity="0.08" stroke-width="1"/>
+  <path d="M54 42H932" stroke="#2D556B" stroke-width="10" stroke-linecap="round"/>
+  <path d="M932 42H1148" stroke="#D3A149" stroke-width="10" stroke-linecap="round"/>
 
-  <circle cx="948" cy="166" r="170" fill="url(#glow)"/>
+  <rect x="46" y="48" width="632" height="326" rx="30" fill="url(#panel)"/>
+  <path d="M76 92H648" stroke="#F2E0B0" stroke-opacity="0.10" stroke-width="1"/>
+  <path d="M76 324H648" stroke="#F2E0B0" stroke-opacity="0.10" stroke-width="1"/>
 
-  <g opacity="0.34">
-    <path d="M756 118L840 104L890 140L972 132L1046 178" stroke="#F4E7C6" stroke-width="2"/>
-    <path d="M770 250L852 224L914 252L978 212L1056 228" stroke="#F4E7C6" stroke-width="2"/>
-    <circle cx="756" cy="118" r="7" fill="#F8EFD7"/>
-    <circle cx="840" cy="104" r="7" fill="#F8EFD7"/>
-    <circle cx="890" cy="140" r="7" fill="#F8EFD7"/>
-    <circle cx="972" cy="132" r="7" fill="#F8EFD7"/>
-    <circle cx="1046" cy="178" r="7" fill="#F8EFD7"/>
-    <circle cx="770" cy="250" r="7" fill="#F8EFD7"/>
-    <circle cx="852" cy="224" r="7" fill="#F8EFD7"/>
-    <circle cx="914" cy="252" r="7" fill="#F8EFD7"/>
-    <circle cx="978" cy="212" r="7" fill="#F8EFD7"/>
-    <circle cx="1056" cy="228" r="7" fill="#F8EFD7"/>
+  <circle cx="970" cy="170" r="164" fill="url(#glow)"/>
+  <path d="M770 372C902 346 1044 346 1148 378" stroke="#072131" stroke-opacity="0.56" stroke-width="38" stroke-linecap="round"/>
+
+  <g opacity="0.48">
+    <path d="M756 134L838 118L892 156L978 146L1058 194" stroke="#F3E7C7" stroke-width="3" stroke-linecap="round"/>
+    <path d="M774 254L854 226L916 254L982 212L1062 230" stroke="#F3E7C7" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="756" cy="134" r="8" fill="#F8EFD7"/>
+    <circle cx="838" cy="118" r="8" fill="#F8EFD7"/>
+    <circle cx="892" cy="156" r="8" fill="#F8EFD7"/>
+    <circle cx="978" cy="146" r="8" fill="#F8EFD7"/>
+    <circle cx="1058" cy="194" r="8" fill="#F8EFD7"/>
+    <circle cx="774" cy="254" r="8" fill="#F8EFD7"/>
+    <circle cx="854" cy="226" r="8" fill="#F8EFD7"/>
+    <circle cx="916" cy="254" r="8" fill="#F8EFD7"/>
+    <circle cx="982" cy="212" r="8" fill="#F8EFD7"/>
+    <circle cx="1062" cy="230" r="8" fill="#F8EFD7"/>
   </g>
 
-  <g transform="translate(798 84)">
+  <g transform="translate(806 84)">
     <rect width="112" height="112" rx="28" fill="#C9953B"/>
-    <rect width="112" height="112" rx="28" stroke="#F8E6B9" stroke-opacity="0.30" stroke-width="2"/>
+    <rect width="112" height="112" rx="28" stroke="#F8E6B9" stroke-opacity="0.34" stroke-width="2"/>
     <svg x="18" y="18" width="76" height="76" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
       <g transform="translate(0.000000,1024.000000) scale(0.100000,-0.100000)" fill="#FFF9E6" stroke="none">
         <path d="M5046 6792 c-29 -38 -124 -160 -209 -273 -85 -113 -162 -210 -170 -218 -9 -7 -24 -10 -34 -7 -23 7 -50 -20 -195 -199 -59 -71 -118 -141 -132 -154 l-26 -25 -53 50 c-28 27 -102 98 -163 157 -67 65 -119 107 -131 107 -23 0 -178 -154 -404 -402 -79 -87 -148 -158 -154 -158 -5 0 -39 23 -74 50 -36 28 -75 50 -87 50 -16 0 -66 -52 -190 -197 -93 -108 -233 -271 -311 -362 -79 -90 -143 -168 -143 -173 0 -4 66 -8 148 -8 674 -1 1068 -63 1447 -228 378 -164 706 -456 897 -797 29 -52 55 -95 59 -95 3 0 15 21 28 48 12 26 56 97 96 157 275 413 692 691 1238 824 237 58 444 79 875 88 172 3 311 10 310 14 -3 9 -576 683 -644 758 -49 53 -52 53 -153 -28 -35 -28 -69 -51 -76 -51 -15 0 -157 153 -338 363 -90 105 -124 137 -142 137 -26 0 -75 -38 -255 -200 l-114 -103 -38 43 c-21 24 -80 98 -130 164 -148 195 -176 226 -207 226 -35 0 -58 24 -215 230 -205 268 -215 280 -236 280 -12 0 -40 -26 -74 -68z"/>
@@ -69,67 +80,69 @@
     </svg>
   </g>
 
-  <g transform="translate(760 150)">
-    <rect x="0" y="0" width="116" height="90" rx="18" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.20"/>
-    <path d="M22 26H94" stroke="#FFF4D9" stroke-opacity="0.82" stroke-width="6" stroke-linecap="round"/>
-    <path d="M22 44H82" stroke="#FFF4D9" stroke-opacity="0.45" stroke-width="5" stroke-linecap="round"/>
-    <path d="M22 60H70" stroke="#FFF4D9" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
+  <g transform="translate(760 164)">
+    <rect width="120" height="92" rx="20" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.24" stroke-width="1.5"/>
+    <path d="M24 32H96" stroke="#FFF4D9" stroke-opacity="0.84" stroke-width="6" stroke-linecap="round"/>
+    <path d="M24 50H84" stroke="#FFF4D9" stroke-opacity="0.54" stroke-width="5" stroke-linecap="round"/>
+    <path d="M24 66H72" stroke="#FFF4D9" stroke-opacity="0.38" stroke-width="5" stroke-linecap="round"/>
   </g>
-  <g transform="translate(1024 212)">
-    <rect x="0" y="0" width="116" height="90" rx="18" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.20"/>
-    <path d="M22 26H94" stroke="#FFF4D9" stroke-opacity="0.82" stroke-width="6" stroke-linecap="round"/>
-    <path d="M22 44H82" stroke="#FFF4D9" stroke-opacity="0.45" stroke-width="5" stroke-linecap="round"/>
-    <path d="M22 60H70" stroke="#FFF4D9" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
+  <g transform="translate(1018 220)">
+    <rect width="126" height="94" rx="20" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.24" stroke-width="1.5"/>
+    <path d="M26 34H98" stroke="#FFF4D9" stroke-opacity="0.84" stroke-width="6" stroke-linecap="round"/>
+    <path d="M26 52H86" stroke="#FFF4D9" stroke-opacity="0.54" stroke-width="5" stroke-linecap="round"/>
+    <path d="M26 68H74" stroke="#FFF4D9" stroke-opacity="0.38" stroke-width="5" stroke-linecap="round"/>
   </g>
-  <g transform="translate(850 260)">
-    <rect x="0" y="0" width="126" height="96" rx="18" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.20"/>
-    <path d="M24 28H102" stroke="#FFF4D9" stroke-opacity="0.82" stroke-width="6" stroke-linecap="round"/>
-    <path d="M24 48H88" stroke="#FFF4D9" stroke-opacity="0.45" stroke-width="5" stroke-linecap="round"/>
-    <path d="M24 66H76" stroke="#FFF4D9" stroke-opacity="0.34" stroke-width="5" stroke-linecap="round"/>
-  </g>
-
-  <g opacity="0.82">
-    <path d="M922 204L884 246" stroke="#F8E4B0" stroke-width="14" stroke-linecap="round"/>
-    <circle cx="874" cy="194" r="54" fill="url(#lens)" stroke="#F7E3B2" stroke-width="8"/>
-    <circle cx="874" cy="194" r="30" stroke="#F7E3B2" stroke-opacity="0.65" stroke-width="3" stroke-dasharray="6 7"/>
-    <path d="M842 190L858 190" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
-    <path d="M890 190L906 190" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
-    <path d="M874 158L874 174" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
-    <path d="M874 214L874 230" stroke="#F7E3B2" stroke-opacity="0.72" stroke-width="4" stroke-linecap="round"/>
+  <g transform="translate(868 286)">
+    <rect width="126" height="94" rx="20" fill="url(#card)" stroke="#F7E8C2" stroke-opacity="0.24" stroke-width="1.5"/>
+    <path d="M26 34H98" stroke="#FFF4D9" stroke-opacity="0.84" stroke-width="6" stroke-linecap="round"/>
+    <path d="M26 52H86" stroke="#FFF4D9" stroke-opacity="0.54" stroke-width="5" stroke-linecap="round"/>
+    <path d="M26 68H74" stroke="#FFF4D9" stroke-opacity="0.38" stroke-width="5" stroke-linecap="round"/>
   </g>
 
-  <path d="M930 182L815 195" stroke="#F5E8C8" stroke-opacity="0.30" stroke-width="2"/>
-  <path d="M930 182L1078 250" stroke="#F5E8C8" stroke-opacity="0.24" stroke-width="2"/>
-  <path d="M910 228L914 260" stroke="#F5E8C8" stroke-opacity="0.24" stroke-width="2"/>
+  <path d="M926 190L820 206" stroke="#F5E8C8" stroke-opacity="0.36" stroke-width="2.5"/>
+  <path d="M926 190L1078 266" stroke="#F5E8C8" stroke-opacity="0.30" stroke-width="2.5"/>
+  <path d="M908 236L928 286" stroke="#F5E8C8" stroke-opacity="0.28" stroke-width="2.5"/>
 
-  <text x="84" y="136" fill="#FFF9E8" font-family="Georgia, 'Times New Roman', serif" font-size="74" font-weight="700" letter-spacing="0.5">Abundance</text>
-  <text x="86" y="188" fill="#F3E7C7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">
+  <g opacity="0.94">
+    <path d="M956 236L912 282" stroke="#F7E3B2" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="900" cy="184" r="60" fill="url(#lensFill)" stroke="#F7E3B2" stroke-width="8"/>
+    <circle cx="900" cy="184" r="34" stroke="#F7E3B2" stroke-opacity="0.66" stroke-width="3.5" stroke-dasharray="7 8"/>
+    <path d="M864 180L882 180" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M918 180L936 180" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M900 148L900 166" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M900 202L900 220" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
+
+  <text x="90" y="148" fill="#FFF9E8" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700" letter-spacing="0.4">Abundance</text>
+  <text x="90" y="206" fill="#F4E7C6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">
     Deep research with a streaming LangGraph backend
   </text>
-  <text x="86" y="218" fill="#F3E7C7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">
+  <text x="90" y="238" fill="#F4E7C6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">
     and a polished Next.js interface.
   </text>
 
-  <g transform="translate(86 252)">
-    <rect width="142" height="36" rx="18" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
-    <text x="71" y="24" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">LangGraph</text>
-  </g>
-  <g transform="translate(242 252)">
-    <rect width="152" height="36" rx="18" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
-    <text x="76" y="24" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">FastAPI SSE</text>
-  </g>
-  <g transform="translate(408 252)">
-    <rect width="136" height="36" rx="18" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
-    <text x="68" y="24" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Next.js UI</text>
-  </g>
-  <g transform="translate(86 304)">
-    <rect width="170" height="34" rx="17" fill="#D6A24B" fill-opacity="0.18" stroke="#F8E6B8" stroke-opacity="0.12"/>
-    <text x="85" y="22" text-anchor="middle" fill="#FFF3D4" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">Deep Search Workflow</text>
+  <g transform="translate(90 258)">
+    <rect width="186" height="34" rx="17" fill="url(#chipGold)" stroke="#F8E6B8" stroke-opacity="0.18"/>
+    <text x="93" y="22" text-anchor="middle" fill="#FFF3D4" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">Deep Search Workflow</text>
   </g>
 
-  <text x="86" y="360" fill="#F0E2BE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">
-    Search, synthesize, trace sources, and stream the final report in one focused product.
+  <g transform="translate(90 304)">
+    <rect width="142" height="38" rx="19" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
+    <text x="71" y="25" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">LangGraph</text>
+  </g>
+  <g transform="translate(248 304)">
+    <rect width="152" height="38" rx="19" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
+    <text x="76" y="25" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">FastAPI SSE</text>
+  </g>
+  <g transform="translate(416 304)">
+    <rect width="136" height="38" rx="19" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
+    <text x="68" y="25" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Next.js UI</text>
+  </g>
+
+  <text x="90" y="354" fill="#F0E2BE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">
+    Search, synthesize, trace sources, and stream
   </text>
-
-  <path d="M756 376C872 352 995 350 1170 382" stroke="#0A2330" stroke-opacity="0.40" stroke-width="36" stroke-linecap="round"/>
+  <text x="90" y="380" fill="#F0E2BE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">
+    the final report in one focused product.
+  </text>
 </svg>
