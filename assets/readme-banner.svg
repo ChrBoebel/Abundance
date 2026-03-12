@@ -32,7 +32,7 @@
       <stop offset="0" stop-color="#F3D086" stop-opacity="0.20"/>
       <stop offset="1" stop-color="#F3D086" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="lensFill" x1="842" y1="132" x2="964" y2="252" gradientUnits="userSpaceOnUse">
+    <linearGradient id="lensFill" x1="862" y1="146" x2="990" y2="278" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#FFF3D1" stop-opacity="0.22"/>
       <stop offset="1" stop-color="#FFF3D1" stop-opacity="0.10"/>
     </linearGradient>
@@ -46,9 +46,9 @@
   <path d="M54 42H932" stroke="#2D556B" stroke-width="10" stroke-linecap="round"/>
   <path d="M932 42H1148" stroke="#D3A149" stroke-width="10" stroke-linecap="round"/>
 
-  <rect x="46" y="48" width="632" height="326" rx="30" fill="url(#panel)"/>
+  <rect x="46" y="48" width="632" height="346" rx="30" fill="url(#panel)"/>
   <path d="M76 92H648" stroke="#F2E0B0" stroke-opacity="0.10" stroke-width="1"/>
-  <path d="M76 324H648" stroke="#F2E0B0" stroke-opacity="0.10" stroke-width="1"/>
+  <path d="M76 338H648" stroke="#F2E0B0" stroke-opacity="0.10" stroke-width="1"/>
 
   <circle cx="970" cy="170" r="164" fill="url(#glow)"/>
   <path d="M770 372C902 346 1044 346 1148 378" stroke="#072131" stroke-opacity="0.56" stroke-width="38" stroke-linecap="round"/>
@@ -99,50 +99,45 @@
     <path d="M26 68H74" stroke="#FFF4D9" stroke-opacity="0.38" stroke-width="5" stroke-linecap="round"/>
   </g>
 
-  <path d="M926 190L820 206" stroke="#F5E8C8" stroke-opacity="0.36" stroke-width="2.5"/>
-  <path d="M926 190L1078 266" stroke="#F5E8C8" stroke-opacity="0.30" stroke-width="2.5"/>
-  <path d="M908 236L928 286" stroke="#F5E8C8" stroke-opacity="0.28" stroke-width="2.5"/>
+  <path d="M938 212L826 206" stroke="#F5E8C8" stroke-opacity="0.34" stroke-width="2.5"/>
+  <path d="M938 212L1078 258" stroke="#F5E8C8" stroke-opacity="0.28" stroke-width="2.5"/>
+  <path d="M930 244L930 286" stroke="#F5E8C8" stroke-opacity="0.24" stroke-width="2.5"/>
 
-  <g opacity="0.94">
-    <path d="M956 236L912 282" stroke="#F7E3B2" stroke-width="14" stroke-linecap="round"/>
-    <circle cx="900" cy="184" r="60" fill="url(#lensFill)" stroke="#F7E3B2" stroke-width="8"/>
-    <circle cx="900" cy="184" r="34" stroke="#F7E3B2" stroke-opacity="0.66" stroke-width="3.5" stroke-dasharray="7 8"/>
-    <path d="M864 180L882 180" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M918 180L936 180" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M900 148L900 166" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M900 202L900 220" stroke="#F7E3B2" stroke-opacity="0.76" stroke-width="4.5" stroke-linecap="round"/>
+  <g opacity="0.96">
+    <path d="M968 250L1014 296" stroke="#F7E3B2" stroke-width="15" stroke-linecap="round"/>
+    <circle cx="930" cy="212" r="54" fill="url(#lensFill)" stroke="#F7E3B2" stroke-width="8"/>
+    <path d="M898 180C909 171 923 166 940 167" stroke="#FFF4D4" stroke-opacity="0.44" stroke-width="3" stroke-linecap="round"/>
+    <path d="M904 212L922 198L944 214L962 188" stroke="#F7E3B2" stroke-opacity="0.78" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="904" cy="212" r="5.5" fill="#F7E3B2"/>
+    <circle cx="922" cy="198" r="5.5" fill="#F7E3B2"/>
+    <circle cx="944" cy="214" r="5.5" fill="#F7E3B2"/>
+    <circle cx="962" cy="188" r="5.5" fill="#F7E3B2"/>
   </g>
 
-  <text x="90" y="148" fill="#FFF9E8" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700" letter-spacing="0.4">Abundance</text>
-  <text x="90" y="206" fill="#F4E7C6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">
+  <text x="90" y="144" fill="#FFF9E8" font-family="Georgia, 'Times New Roman', serif" font-size="74" font-weight="700" letter-spacing="0.4">Abundance</text>
+  <text x="90" y="198" fill="#F4E7C6" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700">
     Deep research with a streaming LangGraph backend
   </text>
-  <text x="90" y="238" fill="#F4E7C6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">
+  <text x="90" y="228" fill="#F4E7C6" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700">
     and a polished Next.js interface.
   </text>
 
-  <g transform="translate(90 258)">
+  <g transform="translate(90 246)">
     <rect width="186" height="34" rx="17" fill="url(#chipGold)" stroke="#F8E6B8" stroke-opacity="0.18"/>
     <text x="93" y="22" text-anchor="middle" fill="#FFF3D4" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">Deep Search Workflow</text>
   </g>
 
-  <g transform="translate(90 304)">
+  <g transform="translate(90 292)">
     <rect width="142" height="38" rx="19" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
     <text x="71" y="25" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">LangGraph</text>
   </g>
-  <g transform="translate(248 304)">
+  <g transform="translate(248 292)">
     <rect width="152" height="38" rx="19" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
     <text x="76" y="25" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">FastAPI SSE</text>
   </g>
-  <g transform="translate(416 304)">
+  <g transform="translate(416 292)">
     <rect width="136" height="38" rx="19" fill="url(#chip)" stroke="#F8E6B8" stroke-opacity="0.10"/>
     <text x="68" y="25" text-anchor="middle" fill="#FFF8E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Next.js UI</text>
   </g>
 
-  <text x="90" y="354" fill="#F0E2BE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">
-    Search, synthesize, trace sources, and stream
-  </text>
-  <text x="90" y="380" fill="#F0E2BE" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">
-    the final report in one focused product.
-  </text>
 </svg>
