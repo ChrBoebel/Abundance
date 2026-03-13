@@ -57,12 +57,6 @@ The repository is structured as a compact monorepo:
 - Password-gated interface for private demos and local deployments
 - Docker-friendly local backend setup
 
-## Why It Works For A Portfolio
-
-- It combines product design, backend orchestration, API integration, and frontend streaming UX in one project.
-- The architecture is understandable at a glance but still demonstrates non-trivial system design.
-- The repo is split cleanly into backend and frontend surfaces, which makes it easy for reviewers to navigate.
-
 ## Architecture
 
 ```mermaid
