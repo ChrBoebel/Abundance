@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 from typing import Any, NoReturn, TypeVar
 
-from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openrouter import ChatOpenRouter
+from pydantic import BaseModel, Field, SecretStr
 
 from abundance_research.application.errors import FailureCode, ResearchFailure
 from abundance_research.domain import (
@@ -23,7 +24,7 @@ from abundance_research.domain import (
 )
 
 StructuredOutput = TypeVar("StructuredOutput", bound=BaseModel)
-CompletionParser = Callable[..., Awaitable[Any]]
+ChatModelFactory = Callable[[str, int], Any]
 
 
 class ModelCatalog:
@@ -96,7 +97,7 @@ class OpenRouterResearchModel:
         synthesis_tokens: int = 12000,
         timeout_seconds: float = 90.0,
         max_retries: int = 2,
-        completion_parser: CompletionParser | None = None,
+        chat_model_factory: ChatModelFactory | None = None,
     ) -> None:
         """Initialize provider configuration without exposing credentials."""
         if not api_key:
@@ -104,15 +105,26 @@ class OpenRouterResearchModel:
                 FailureCode.CONFIGURATION,
                 "Der Modellanbieter ist nicht konfiguriert.",
             )
-        self._client = AsyncOpenAI(
-            api_key=api_key,
-            base_url=base_url,
-            timeout=timeout_seconds,
-            max_retries=max_retries,
-        )
-        self._parse_completion = completion_parser or self._client.chat.completions.parse
+        self._api_key = SecretStr(api_key)
+        self._base_url = base_url
+        self._timeout_seconds = timeout_seconds
+        self._max_retries = max_retries
+        self._chat_model_factory = chat_model_factory or self._build_chat_model
         self._planning_tokens = planning_tokens
         self._synthesis_tokens = synthesis_tokens
+
+    def _build_chat_model(self, model_id: str, max_tokens: int) -> ChatOpenRouter:
+        """Build the official LangChain OpenRouter integration without tools."""
+        return ChatOpenRouter(
+            model=model_id,
+            api_key=self._api_key,
+            base_url=self._base_url,
+            temperature=0,
+            max_completion_tokens=max_tokens,
+            timeout=int(self._timeout_seconds),
+            max_retries=self._max_retries,
+            openrouter_provider={"require_parameters": True},
+        )
 
     async def _complete(
         self,
@@ -125,24 +137,22 @@ class OpenRouterResearchModel:
     ) -> StructuredOutput:
         """Request one schema-constrained completion without tool capabilities."""
         try:
-            completion = await self._parse_completion(
-                model=ModelCatalog.resolve(model_alias),
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-                ],
-                response_format=output_type,
-                max_completion_tokens=max_tokens,
-                temperature=0,
+            chat_model = self._chat_model_factory(
+                ModelCatalog.resolve(model_alias),
+                max_tokens,
             )
-            message = completion.choices[0].message
-            parsed = getattr(message, "parsed", None)
-            if parsed is not None:
-                return output_type.model_validate(parsed)
-            content = getattr(message, "content", None)
-            if isinstance(content, str) and content.strip():
-                return output_type.model_validate_json(content)
-            raise ValueError("Provider response did not contain structured output")
+            structured_model = chat_model.with_structured_output(
+                output_type,
+                method="json_schema",
+                strict=True,
+            )
+            response = await structured_model.ainvoke(
+                [
+                    SystemMessage(content=system),
+                    HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
+                ]
+            )
+            return output_type.model_validate(response)
         except ResearchFailure:
             raise
         except Exception as exc:

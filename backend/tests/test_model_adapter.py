@@ -1,6 +1,5 @@
-from types import SimpleNamespace
-
 import pytest
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from abundance_research.adapters.models import (
     ClaimDraft,
@@ -16,31 +15,41 @@ from abundance_research.domain import Confidence, EvidenceRecord, Inquiry
 async def test_model_adapter_requests_schema_output_without_tools() -> None:
     captured: dict[str, object] = {}
 
-    async def parse_completion(**kwargs):
-        captured.update(kwargs)
-        return SimpleNamespace(
-            choices=[
-                SimpleNamespace(
-                    message=SimpleNamespace(
-                        parsed={
-                            "objective": "Test the central proposition",
-                            "research_questions": ["What evidence supports it?"],
-                            "falsification_questions": ["What evidence contradicts it?"],
-                        }
-                    )
-                )
-            ]
-        )
+    class FakeStructuredModel:
+        async def ainvoke(self, messages):
+            captured["messages"] = messages
+            return {
+                "objective": "Test the central proposition",
+                "research_questions": ["What evidence supports it?"],
+                "falsification_questions": ["What evidence contradicts it?"],
+            }
 
-    model = OpenRouterResearchModel("test-key", completion_parser=parse_completion)
+    class FakeChatModel:
+        def with_structured_output(self, schema, **kwargs):
+            captured["schema"] = schema
+            captured["structured_output_options"] = kwargs
+            return FakeStructuredModel()
+
+    def build_chat_model(model_id: str, max_tokens: int):
+        captured["model"] = model_id
+        captured["max_tokens"] = max_tokens
+        return FakeChatModel()
+
+    model = OpenRouterResearchModel("test-key", chat_model_factory=build_chat_model)
     inquiry = Inquiry(question="Does the proposition hold?")
 
     plan = await model.create_plan(inquiry, model="mercury")
 
     assert plan.inquiry_id == inquiry.id
-    assert captured["response_format"].__name__ == "PlanDraft"
-    assert "tools" not in captured
+    assert captured["schema"].__name__ == "PlanDraft"
+    assert captured["structured_output_options"] == {
+        "method": "json_schema",
+        "strict": True,
+    }
     assert captured["model"] == "inception/mercury-2"
+    assert captured["max_tokens"] == 3000
+    assert isinstance(captured["messages"][0], SystemMessage)
+    assert isinstance(captured["messages"][1], HumanMessage)
 
 
 def test_model_catalog_rejects_arbitrary_provider_identifiers() -> None:

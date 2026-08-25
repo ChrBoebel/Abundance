@@ -5,6 +5,8 @@ uvicorn[standard]>=0.32.0
 pydantic>=2.0.0
 python-dotenv>=1.0.1
 
-# Constrained model and read-only evidence provider adapters
-openai>=2.8.0,<4
+# LangChain provider abstraction and LangGraph orchestration
+langchain-core>=1.5.0,<2
+langchain-openrouter>=0.2.8,<0.3
+langgraph>=1.2.11,<2
 tavily-python>=0.5.0
