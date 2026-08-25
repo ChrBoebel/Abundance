@@ -1,0 +1,120 @@
+name: Staging Delivery
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to publish or deploy
+        required: true
+        default: staging
+        type: string
+      publish:
+        description: Build and publish images from this revision
+        required: true
+        default: true
+        type: boolean
+      deploy:
+        description: Deploy the selected image tag to the staging host
+        required: true
+        default: false
+        type: boolean
+      run_research_smoke:
+        description: Execute one real provider-backed research smoke test
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: staging-delivery
+  cancel-in-progress: false
+
+jobs:
+  images:
+    if: inputs.publish
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Authenticate to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.component }}
+          push: true
+          tags: |
+            ghcr.io/chrboebel/abundance-${{ matrix.component }}:${{ inputs.image_tag }}
+            ghcr.io/chrboebel/abundance-${{ matrix.component }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+
+  deploy:
+    if: always() && inputs.deploy && (needs.images.result == 'success' || needs.images.result == 'skipped')
+    needs: [images]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_BASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure authenticated SSH context
+        env:
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$STAGING_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$STAGING_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          docker context create abundance-staging --docker "host=ssh://${STAGING_USER}@${STAGING_HOST}"
+
+      - name: Authenticate remote image pulls
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_READ_TOKEN }}
+
+      - name: Apply migrations and deploy staging
+        env:
+          BACKEND_IMAGE: ghcr.io/chrboebel/abundance-backend:${{ inputs.image_tag }}
+          FRONTEND_IMAGE: ghcr.io/chrboebel/abundance-frontend:${{ inputs.image_tag }}
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          STAGING_PORT: ${{ vars.STAGING_PORT }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          INTERNAL_API_TOKEN: ${{ secrets.INTERNAL_API_TOKEN }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          RATE_LIMIT_KEY_SECRET: ${{ secrets.RATE_LIMIT_KEY_SECRET }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+        run: docker --context abundance-staging compose -f deploy/staging/compose.yml up -d --wait --remove-orphans
+
+      - name: Run staging smoke tests
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          RUN_RESEARCH_SMOKE: ${{ inputs.run_research_smoke }}
+        run: sh deploy/staging/smoke.sh
