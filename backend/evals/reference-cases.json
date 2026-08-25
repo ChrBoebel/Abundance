@@ -1,0 +1,245 @@
+{
+  "version": "2026-08-25.1",
+  "cases": [
+    {
+      "id": "climate-heat-pumps",
+      "category": "climate-energy",
+      "inquiry": "Welche belastbaren Erkenntnisse gibt es zur Lebenszyklus-Klimawirkung von Wärmepumpen gegenüber Gasheizungen in Deutschland?",
+      "mode": "balanced",
+      "focus_terms": ["Wärmepumpe", "Gasheizung", "Lebenszyklus", "Emission"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5, "max_duration_ms": 240000, "max_cost_usd": 0.75}
+    },
+    {
+      "id": "climate-grid-storage",
+      "category": "climate-energy",
+      "inquiry": "Unter welchen technischen und wirtschaftlichen Bedingungen stabilisieren Batteriespeicher ein Stromnetz mit hohem Anteil erneuerbarer Energien?",
+      "mode": "balanced",
+      "focus_terms": ["Batteriespeicher", "Netzstabilität", "Erneuerbare", "Kosten"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "climate-carbon-removal",
+      "category": "climate-energy",
+      "inquiry": "Welche Evidenz stützt oder widerlegt die Skalierbarkeit technischer CO2-Entnahme bis 2040?",
+      "mode": "thorough",
+      "focus_terms": ["CO2-Entnahme", "Skalierung", "Energiebedarf", "Kosten"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5, "max_duration_ms": 480000, "max_cost_usd": 1.5}
+    },
+    {
+      "id": "health-screen-time",
+      "category": "public-health",
+      "inquiry": "Was zeigen systematische Untersuchungen über Zusammenhänge zwischen Bildschirmzeit, Schlaf und psychischer Gesundheit bei Jugendlichen?",
+      "mode": "balanced",
+      "focus_terms": ["Bildschirmzeit", "Schlaf", "Jugendliche", "Kausalität"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "health-ultra-processed-food",
+      "category": "public-health",
+      "inquiry": "Wie stark ist die Evidenz für kausale Gesundheitseffekte hochverarbeiteter Lebensmittel, und welche Confounder bleiben?",
+      "mode": "thorough",
+      "focus_terms": ["hochverarbeitet", "Gesundheit", "kausal", "Confounder"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.25, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "health-air-quality",
+      "category": "public-health",
+      "inquiry": "Welche Maßnahmen verbessern nachweislich die Luftqualität in Schulen und welche Effekte sind nur indirekt belegt?",
+      "mode": "quick",
+      "focus_terms": ["Luftqualität", "Schule", "Lüftung", "Evidenz"],
+      "expectations": {"min_sources": 2, "min_claim_evidence_coverage": 0.75, "min_challenged_claim_ratio": 0.15, "min_primary_source_ratio": 0.1, "min_focus_term_coverage": 0.5, "max_duration_ms": 120000, "max_cost_usd": 0.5}
+    },
+    {
+      "id": "economy-four-day-week",
+      "category": "economics-labour",
+      "inquiry": "Welche Auswirkungen einer Vier-Tage-Woche auf Produktivität, Gesundheit und Beschäftigung sind durch kontrollierte oder quasi-experimentelle Daten belegt?",
+      "mode": "balanced",
+      "focus_terms": ["Vier-Tage-Woche", "Produktivität", "Gesundheit", "Beschäftigung"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "economy-minimum-wage",
+      "category": "economics-labour",
+      "inquiry": "Wie verändert eine moderate Mindestlohnerhöhung Beschäftigung, Preise und Einkommen laut neuerer empirischer Forschung?",
+      "mode": "thorough",
+      "focus_terms": ["Mindestlohn", "Beschäftigung", "Preise", "Einkommen"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "economy-remote-work",
+      "category": "economics-labour",
+      "inquiry": "Welche messbaren langfristigen Effekte hat hybrides Arbeiten auf Produktivität, Innovation und Mitarbeiterbindung?",
+      "mode": "balanced",
+      "focus_terms": ["hybrid", "Produktivität", "Innovation", "Mitarbeiterbindung"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "technology-ai-coding",
+      "category": "technology",
+      "inquiry": "Unter welchen Bedingungen verbessern KI-Coding-Assistenten Geschwindigkeit und Qualität professioneller Softwareentwicklung?",
+      "mode": "balanced",
+      "focus_terms": ["Coding-Assistent", "Geschwindigkeit", "Qualität", "Softwareentwicklung"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "technology-passkeys",
+      "category": "technology",
+      "inquiry": "Welche Sicherheits- und Nutzbarkeitsvorteile haben Passkeys gegenüber Passwörtern, und welche neuen Risiken entstehen?",
+      "mode": "quick",
+      "focus_terms": ["Passkey", "Passwort", "Phishing", "Wiederherstellung"],
+      "expectations": {"min_sources": 2, "min_claim_evidence_coverage": 0.75, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "technology-quantum-claims",
+      "category": "technology",
+      "inquiry": "Welche praktischen Vorteile heutiger Quantencomputer sind unabhängig reproduziert und wo übersteigen Behauptungen die Evidenz?",
+      "mode": "thorough",
+      "focus_terms": ["Quantencomputer", "Vorteil", "reproduziert", "Evidenz"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.35, "min_primary_source_ratio": 0.25, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "education-tutoring",
+      "category": "education",
+      "inquiry": "Welche Formen intensiver Nachhilfe verbessern Lernleistungen dauerhaft und für welche Schülergruppen?",
+      "mode": "balanced",
+      "focus_terms": ["Nachhilfe", "Lernleistung", "dauerhaft", "Schüler"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "education-class-size",
+      "category": "education",
+      "inquiry": "Wie wirkt sich eine kleinere Klassengröße auf Lernergebnisse aus, und wann rechtfertigt der Effekt die Kosten?",
+      "mode": "thorough",
+      "focus_terms": ["Klassengröße", "Lernergebnis", "Kosten", "Effekt"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "education-spaced-practice",
+      "category": "education",
+      "inquiry": "Wie robust ist der Vorteil verteilten Lernens gegenüber geblocktem Lernen in realen Bildungssettings?",
+      "mode": "quick",
+      "focus_terms": ["verteiltes Lernen", "geblockt", "Lernerfolg", "Bildung"],
+      "expectations": {"min_sources": 2, "min_claim_evidence_coverage": 0.75, "min_challenged_claim_ratio": 0.15, "min_primary_source_ratio": 0.1, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "policy-congestion-pricing",
+      "category": "public-policy",
+      "inquiry": "Welche Effekte haben City-Maut-Systeme auf Verkehr, Emissionen, lokale Wirtschaft und Verteilungsgerechtigkeit?",
+      "mode": "thorough",
+      "focus_terms": ["City-Maut", "Verkehr", "Emission", "Verteilung"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "policy-housing-supply",
+      "category": "public-policy",
+      "inquiry": "Welche Maßnahmen erhöhen das Wohnungsangebot in angespannten Städten, ohne Verdrängung kurzfristig zu verschärfen?",
+      "mode": "balanced",
+      "focus_terms": ["Wohnungsangebot", "Stadt", "Verdrängung", "Baugenehmigung"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "policy-plastic-bans",
+      "category": "public-policy",
+      "inquiry": "Reduzieren Verbote bestimmter Einwegkunststoffe die gesamte Umweltbelastung oder verlagern sie diese auf Ersatzmaterialien?",
+      "mode": "balanced",
+      "focus_terms": ["Einwegkunststoff", "Umweltbelastung", "Ersatzmaterial", "Lebenszyklus"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "science-replication",
+      "category": "research-methods",
+      "inquiry": "Welche Interventionen erhöhen nachweislich Replizierbarkeit und Transparenz empirischer Forschung?",
+      "mode": "balanced",
+      "focus_terms": ["Replikation", "Transparenz", "Präregistrierung", "Daten"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.25, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "science-peer-review",
+      "category": "research-methods",
+      "inquiry": "Welche Peer-Review-Verfahren erkennen Fehler zuverlässig, und welche Schwächen bleiben bestehen?",
+      "mode": "quick",
+      "focus_terms": ["Peer Review", "Fehler", "Blind", "Transparenz"],
+      "expectations": {"min_sources": 2, "min_claim_evidence_coverage": 0.75, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.1, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "science-open-data",
+      "category": "research-methods",
+      "inquiry": "Wann verbessert offene Forschungsdaten die Qualität wissenschaftlicher Ergebnisse und welche Datenschutzkonflikte entstehen?",
+      "mode": "balanced",
+      "focus_terms": ["offene Daten", "Forschungsqualität", "Datenschutz", "Nachnutzung"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "business-price-testing",
+      "category": "business-strategy",
+      "inquiry": "Welche experimentellen Methoden liefern belastbare Preiselastizitäten, ohne langfristiges Kundenvertrauen zu beschädigen?",
+      "mode": "balanced",
+      "focus_terms": ["Preiselastizität", "Experiment", "Kundenvertrauen", "Preis"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.1, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "business-subscription-churn",
+      "category": "business-strategy",
+      "inquiry": "Welche Interventionen reduzieren Kündigungen bei digitalen Abonnements kausal statt nur korrelativ?",
+      "mode": "quick",
+      "focus_terms": ["Abonnement", "Kündigung", "kausal", "Retention"],
+      "expectations": {"min_sources": 2, "min_claim_evidence_coverage": 0.75, "min_challenged_claim_ratio": 0.15, "min_primary_source_ratio": 0.05, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "business-ai-service",
+      "category": "business-strategy",
+      "inquiry": "Wann verbessert generative KI im Kundenservice Auflösungsgeschwindigkeit und Zufriedenheit, und wann verschlechtert sie beides?",
+      "mode": "thorough",
+      "focus_terms": ["generative KI", "Kundenservice", "Auflösung", "Zufriedenheit"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "transport-e-bikes",
+      "category": "transport",
+      "inquiry": "Unter welchen Bedingungen ersetzen E-Bikes Autofahrten und wie verändern sie Emissionen und körperliche Aktivität?",
+      "mode": "balanced",
+      "focus_terms": ["E-Bike", "Autofahrt", "Emission", "Aktivität"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.15, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "transport-high-speed-rail",
+      "category": "transport",
+      "inquiry": "Wann ist Hochgeschwindigkeitsverkehr auf der Schiene gegenüber Flugverkehr ökologisch und wirtschaftlich vorteilhaft?",
+      "mode": "thorough",
+      "focus_terms": ["Hochgeschwindigkeit", "Schiene", "Flugverkehr", "Auslastung"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "transport-traffic-calming",
+      "category": "transport",
+      "inquiry": "Welche Maßnahmen zur Verkehrsberuhigung senken Unfälle nachweislich, ohne Verkehr nur in Nachbarstraßen zu verlagern?",
+      "mode": "quick",
+      "focus_terms": ["Verkehrsberuhigung", "Unfall", "Verlagerung", "Straße"],
+      "expectations": {"min_sources": 2, "min_claim_evidence_coverage": 0.75, "min_challenged_claim_ratio": 0.2, "min_primary_source_ratio": 0.1, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "cybersecurity-ransomware",
+      "category": "cybersecurity",
+      "inquiry": "Welche organisatorischen und technischen Kontrollen reduzieren Ransomware-Schäden messbar, und wie belastbar sind die Erfolgsdaten?",
+      "mode": "thorough",
+      "focus_terms": ["Ransomware", "Backup", "Kontrolle", "Schaden"],
+      "expectations": {"min_sources": 6, "min_claim_evidence_coverage": 0.85, "min_challenged_claim_ratio": 0.3, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "cybersecurity-sbom",
+      "category": "cybersecurity",
+      "inquiry": "Verbessern Software Bills of Materials die Reaktionsfähigkeit auf Lieferkettenlücken, und welche Umsetzungsprobleme begrenzen den Nutzen?",
+      "mode": "balanced",
+      "focus_terms": ["SBOM", "Lieferkette", "Schwachstelle", "Reaktion"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    },
+    {
+      "id": "cybersecurity-zero-trust",
+      "category": "cybersecurity",
+      "inquiry": "Welche Komponenten von Zero-Trust-Architekturen haben empirisch belegte Sicherheitswirkung und welche sind primär Best Practice?",
+      "mode": "balanced",
+      "focus_terms": ["Zero Trust", "Identität", "Segmentierung", "empirisch"],
+      "expectations": {"min_sources": 4, "min_claim_evidence_coverage": 0.8, "min_challenged_claim_ratio": 0.25, "min_primary_source_ratio": 0.2, "min_focus_term_coverage": 0.5}
+    }
+  ]
+}
