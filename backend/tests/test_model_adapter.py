@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from abundance_research.adapters.models import (
@@ -8,6 +10,37 @@ from abundance_research.adapters.models import (
 )
 from abundance_research.application.errors import ResearchFailure
 from abundance_research.domain import Confidence, EvidenceRecord, Inquiry
+
+
+@pytest.mark.asyncio
+async def test_model_adapter_requests_schema_output_without_tools() -> None:
+    captured: dict[str, object] = {}
+
+    async def parse_completion(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        parsed={
+                            "objective": "Test the central proposition",
+                            "research_questions": ["What evidence supports it?"],
+                            "falsification_questions": ["What evidence contradicts it?"],
+                        }
+                    )
+                )
+            ]
+        )
+
+    model = OpenRouterResearchModel("test-key", completion_parser=parse_completion)
+    inquiry = Inquiry(question="Does the proposition hold?")
+
+    plan = await model.create_plan(inquiry, model="mercury")
+
+    assert plan.inquiry_id == inquiry.id
+    assert captured["response_format"].__name__ == "PlanDraft"
+    assert "tools" not in captured
+    assert captured["model"] == "inception/mercury-2"
 
 
 def test_model_catalog_rejects_arbitrary_provider_identifiers() -> None:

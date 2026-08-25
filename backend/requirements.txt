@@ -6,6 +6,5 @@ pydantic>=2.0.0
 python-dotenv>=1.0.1
 
 # Constrained model and read-only evidence provider adapters
-langchain-core>=0.3.72
-langchain-openai>=0.3.28
+openai>=2.8.0,<4
 tavily-python>=0.5.0
