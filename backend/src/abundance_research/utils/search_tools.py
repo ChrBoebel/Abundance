@@ -10,17 +10,16 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import InjectedToolArg, tool
 from tavily import AsyncTavilyClient
 
-from abundance_research.settings import AbundanceSettings
 from abundance_research.prompts import source_summary_prompt
+from abundance_research.settings import AbundanceSettings
 from abundance_research.state import PageSummary
 from abundance_research.utils.model_utils import (
-    init_chat_model_wrapper,
+    create_cached_message,
     get_api_key_for_model,
     get_tavily_api_key,
     get_today_str,
-    create_cached_message,
+    init_chat_model_wrapper,
 )
-
 
 ##########################
 # Search Tools

@@ -1,7 +1,7 @@
 """Graph state and domain data structures for Abundance research runs."""
 
 import operator
-from typing import Annotated, Optional
+from typing import Annotated
 
 from langchain_core.messages import MessageLikeRepresentation
 from langgraph.graph import MessagesState
@@ -67,7 +67,7 @@ class ResearchRunState(MessagesState):
     """Main agent state containing messages and research data."""
     
     coordination_messages: Annotated[list[MessageLikeRepresentation], replace_or_append]
-    research_brief: Optional[str]
+    research_brief: str | None
     raw_evidence: Annotated[list[str], replace_or_append] = []
     notes: Annotated[list[str], replace_or_append] = []
     final_report: str

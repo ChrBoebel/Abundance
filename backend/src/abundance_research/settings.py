@@ -68,9 +68,8 @@ class AbundanceSettings(BaseModel):
     def from_runnable_config(
         cls,
         config: RunnableConfig | None = None,
-    ) -> "AbundanceSettings":
+    ) -> AbundanceSettings:
         """Merge graph configuration with optional environment overrides."""
-
         configurable = config.get("configurable", {}) if config else {}
         values: dict[str, Any] = {}
         for field_name in cls.model_fields:

@@ -45,9 +45,11 @@ class ResearchEventMapper:
     """Translate LangGraph runtime events into the public Abundance contract."""
 
     def __init__(self) -> None:
+        """Initialize event mapping state for one research run."""
         self._report_emitted = False
 
     def map(self, event: dict[str, Any]) -> list[ResearchEvent]:
+        """Map one serialized runtime event to public domain events."""
         event_name = event.get("event")
         data = event.get("data") or {}
         metadata = event.get("metadata") or data.get("metadata") or {}

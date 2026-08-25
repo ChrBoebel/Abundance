@@ -3,7 +3,7 @@
 import logging
 import warnings
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import aiohttp
 from langchain_core.runnables import RunnableConfig
@@ -14,7 +14,6 @@ from mcp import McpError
 
 from abundance_research.settings import AbundanceSettings
 
-
 ##########################
 # MCP Authentication
 ##########################
@@ -22,7 +21,7 @@ from abundance_research.settings import AbundanceSettings
 async def get_mcp_access_token(
     supabase_token: str,
     base_mcp_url: str,
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any] | None:
     """Exchange Supabase token for MCP access token using OAuth token exchange.
 
     Args:

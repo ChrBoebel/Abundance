@@ -104,7 +104,6 @@ RESEARCH_PROFILES = {
 
 def build_workflow_config(model: str, mode: ResearchMode = ResearchMode.BALANCED):
     """Build runtime configuration from a product-level research profile."""
-
     model_id = MODEL_MAP.get(model, MODEL_MAP["mercury"])
     return {
         "configurable": {
@@ -152,7 +151,6 @@ async def stream_graph_events(
 
 async def stream_abundance_events(request: ResearchRunRequest):
     """Stream framework-independent Abundance events as SSE."""
-
     mapper = ResearchEventMapper()
     try:
         config = build_workflow_config(request.model, request.mode)
@@ -181,8 +179,7 @@ async def stream_abundance_events(request: ResearchRunRequest):
 
 @app.post("/research/stream")
 async def research_stream(request: ResearchRequest):
-    """
-    Stream research events via Server-Sent Events.
+    """Stream research events via Server-Sent Events.
 
     Request Body:
     {
@@ -208,7 +205,6 @@ async def research_stream(request: ResearchRequest):
 @app.post("/api/v1/research-runs/stream")
 async def research_run_stream(request: ResearchRunRequest):
     """Create a research run and stream stable Abundance domain events."""
-
     if not request.inquiry.strip():
         raise HTTPException(status_code=400, detail="Inquiry is required")
 

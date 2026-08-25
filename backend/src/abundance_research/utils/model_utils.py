@@ -2,12 +2,10 @@
 
 import os
 from datetime import datetime
-from typing import Optional
 
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import MessageLikeRepresentation, AIMessage
+from langchain_core.messages import AIMessage, MessageLikeRepresentation
 from langchain_openai import ChatOpenAI
-
 
 ##########################
 # Model Initialization
@@ -20,7 +18,7 @@ def strip_openrouter_prefix(model_name: str) -> str:
     return model_name
 
 
-def prepare_model_config(config: dict, reasoning_config: Optional[dict] = None) -> dict:
+def prepare_model_config(config: dict, reasoning_config: dict | None = None) -> dict:
     """Prepare model config by stripping openrouter: prefix and adding reasoning.
 
     Args:
@@ -81,7 +79,7 @@ def build_reasoning_config(model_name: str, enable_reasoning: bool, reasoning_ef
 
 
 def init_chat_model_wrapper(configurable_fields=None, **kwargs):
-    """Wrapper that creates ChatOpenAI with OpenRouter support including reasoning.
+    """Create a ChatOpenAI wrapper with OpenRouter reasoning support.
 
     Args:
         configurable_fields: Tuple of field names that can be configured at runtime

@@ -8,7 +8,6 @@ import asyncio
 import logging
 from typing import Literal
 
-from abundance_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
@@ -19,12 +18,12 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from abundance_research.settings import AbundanceSettings
 from abundance_research.prompts import (
-    evidence_review_request,
     evidence_review_prompt,
+    evidence_review_request,
     investigation_prompt,
 )
+from abundance_research.settings import AbundanceSettings
 from abundance_research.state import (
     InvestigationOutput,
     InvestigationState,
@@ -36,8 +35,10 @@ from abundance_research.utils import (
     get_all_tools,
     get_api_key_for_model,
     get_today_str,
+    init_chat_model_wrapper,
     is_token_limit_exceeded,
     openai_websearch_called,
+    prepare_model_config,
     remove_up_to_last_ai_message,
 )
 

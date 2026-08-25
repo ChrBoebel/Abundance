@@ -6,7 +6,6 @@ user clarification and research brief generation.
 
 from typing import Literal
 
-from abundance_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -17,21 +16,23 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END
 from langgraph.types import Command
 
-from abundance_research.settings import AbundanceSettings
 from abundance_research.prompts import (
-    inquiry_scoping_prompt,
     coordination_prompt,
+    inquiry_scoping_prompt,
     research_brief_prompt,
 )
+from abundance_research.settings import AbundanceSettings
 from abundance_research.state import (
-    ResearchRunState,
     ClarificationDecision,
     ResearchBrief,
+    ResearchRunState,
 )
 from abundance_research.utils import (
     create_cached_message,
     get_api_key_for_model,
     get_today_str,
+    init_chat_model_wrapper,
+    prepare_model_config,
 )
 
 # Initialize a configurable model for clarification workflow

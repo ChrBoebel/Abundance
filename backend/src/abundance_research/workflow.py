@@ -8,22 +8,22 @@ import asyncio
 import logging
 import re
 
-from abundance_research.utils import init_chat_model_wrapper
 from langchain_core.messages import AIMessage, HumanMessage, get_buffer_string
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
-from abundance_research.planning import scope_inquiry, design_research_plan
-from abundance_research.settings import AbundanceSettings
-from abundance_research.prompts import synthesis_prompt
-from abundance_research.state import InquiryInputState, ResearchRunState
 from abundance_research.coordination import coordination_subgraph
+from abundance_research.planning import design_research_plan, scope_inquiry
+from abundance_research.prompts import synthesis_prompt
+from abundance_research.settings import AbundanceSettings
+from abundance_research.state import InquiryInputState, ResearchRunState
 from abundance_research.utils import (
     build_reasoning_config,
     calculate_backoff_delay,
     get_api_key_for_model,
     get_model_token_limit,
     get_today_str,
+    init_chat_model_wrapper,
     is_retryable_api_error,
     is_token_limit_exceeded,
     prepare_model_config,
@@ -121,8 +121,8 @@ async def synthesize_report(state: ResearchRunState, config: RunnableConfig):
                             model_token_limit = get_model_token_limit(configurable.final_report_model)
                             if not model_token_limit:
                                 error_msg = (
-                                    f"Token limit exceeded but could not determine model's maximum context length. "
-                                    f"Please update the model map in utils.py with this information."
+                                    "Token limit exceeded but could not determine model's maximum context length. "
+                                    "Please update the model map in utils.py with this information."
                                 )
                                 logger.error(f"{error_msg} Error: {e}")
                                 return {

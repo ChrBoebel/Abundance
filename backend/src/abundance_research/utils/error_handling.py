@@ -146,8 +146,6 @@ def is_retryable_api_error(exception: Exception) -> bool:
     """
     error_str = str(exception).lower()
     class_name = exception.__class__.__name__
-    exception_type = str(type(exception)).lower()
-
     # Check for rate limit errors (429)
     rate_limit_indicators = [
         'rate limit',

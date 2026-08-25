@@ -8,8 +8,11 @@ from abundance_research.settings import AbundanceSettings, SearchProvider
 from abundance_research.state import EvidenceReviewComplete
 from abundance_research.utils.mcp_tools import load_mcp_tools
 from abundance_research.utils.model_utils import get_config_value
-from abundance_research.utils.search_tools import tavily_search, arxiv_search, pubmed_search
-
+from abundance_research.utils.search_tools import (
+    arxiv_search,
+    pubmed_search,
+    tavily_search,
+)
 
 ##########################
 # Reflection Tool

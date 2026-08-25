@@ -75,6 +75,7 @@ lint.ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "UP"]
+"backend_server.py" = ["E402"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
