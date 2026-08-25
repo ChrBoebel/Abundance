@@ -15,19 +15,31 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Send, StreamWriter
 
 from abundance_research.application.contracts import (
+    EvidenceAssessmentModel,
     EvidenceSource,
     PlanningModel,
     ResearchCommand,
     SynthesisModel,
 )
 from abundance_research.application.errors import FailureCode, ResearchFailure
+from abundance_research.application.evidence_assessment import (
+    summarize_evidence_assessments,
+    unavailable_assessment_summary,
+)
 from abundance_research.application.policy import ResearchCapabilityPolicy
 from abundance_research.application.rendering import (
     enforce_report_contract,
     finalize_report,
     public_report_payload,
 )
-from abundance_research.domain import EvidenceRecord, ResearchPlan, ResearchUnit
+from abundance_research.domain import (
+    AssessmentStatus,
+    EvidenceAssessment,
+    EvidenceAssessmentSummary,
+    EvidenceRecord,
+    ResearchPlan,
+    ResearchUnit,
+)
 from abundance_research.evaluation import evaluate_report
 from abundance_research.events import ResearchEvent, ResearchStage
 from abundance_research.observability import (
@@ -37,7 +49,7 @@ from abundance_research.observability import (
     operation_signal_payload,
 )
 
-RESEARCH_GRAPH_VERSION = "research-graph-v2"
+RESEARCH_GRAPH_VERSION = "research-graph-v3"
 OperationResult = TypeVar("OperationResult")
 
 
@@ -51,6 +63,8 @@ class ResearchGraphState(TypedDict, total=False):
     max_results: int
     unit_results: Annotated[list[dict[str, Any]], operator.add]
     evidence: list[dict[str, Any]]
+    evidence_assessments: list[dict[str, Any]]
+    evidence_assessment_summary: dict[str, Any]
     report: dict[str, Any]
     evaluation: dict[str, Any]
 
@@ -75,6 +89,7 @@ class AbundanceResearchGraph:
         evidence_sources: Sequence[EvidenceSource],
         synthesizer: SynthesisModel,
         *,
+        assessor: EvidenceAssessmentModel | None = None,
         checkpointer: BaseCheckpointSaver[Any] | None = None,
     ) -> None:
         """Bind model and read-only evidence adapters to graph nodes."""
@@ -83,6 +98,7 @@ class AbundanceResearchGraph:
         self._planner = planner
         self._evidence_sources = tuple(evidence_sources)
         self._synthesizer = synthesizer
+        self._assessor = assessor
         self._run_semaphores: dict[str, asyncio.Semaphore] = {}
         self.compiled = self._compile(checkpointer)
 
@@ -176,6 +192,7 @@ class AbundanceResearchGraph:
         builder.add_node("create_plan", self._create_plan)
         builder.add_node("collect_evidence", self._collect_evidence)
         builder.add_node("review_evidence", self._review_evidence)
+        builder.add_node("assess_evidence", self._assess_evidence)
         builder.add_node("synthesize_report", self._synthesize_report)
         builder.add_edge(START, "scope_inquiry")
         builder.add_edge("scope_inquiry", "create_plan")
@@ -185,7 +202,8 @@ class AbundanceResearchGraph:
             ["collect_evidence"],
         )
         builder.add_edge("collect_evidence", "review_evidence")
-        builder.add_edge("review_evidence", "synthesize_report")
+        builder.add_edge("review_evidence", "assess_evidence")
+        builder.add_edge("assess_evidence", "synthesize_report")
         builder.add_edge("synthesize_report", END)
         return builder.compile(checkpointer=checkpointer, name="abundance-research")
 
@@ -395,6 +413,86 @@ class AbundanceResearchGraph:
         )
         return {"evidence": [record.model_dump(mode="json") for record in evidence]}
 
+    async def _assess_evidence(
+        self,
+        state: ResearchGraphState,
+        writer: StreamWriter,
+    ) -> dict[str, Any]:
+        """Measure semantic evidence quality without changing admitted evidence."""
+        command = ResearchCommand.from_payload(state["command"])
+        evidence = [EvidenceRecord.model_validate(item) for item in state["evidence"]]
+        assessor = self._assessor
+        if assessor is None:
+            summary = unavailable_assessment_summary(
+                len(evidence),
+                status=AssessmentStatus.DISABLED,
+            )
+            return {"evidence_assessment_summary": summary.model_dump(mode="json")}
+
+        _emit(
+            writer,
+            ResearchEvent(
+                type="evidence.assessment.started",
+                stage=ResearchStage.REVIEW,
+                message="Prüfe Evidenz im Shadow-Modus",
+                data={"run_id": command.run_id, "evidence_count": len(evidence)},
+            ),
+        )
+        try:
+            async def assess_records() -> Sequence[EvidenceAssessment]:
+                return await assessor.assess_evidence(
+                    command.inquiry,
+                    evidence,
+                    model=command.model,
+                )
+
+            assessment_result = await self._observe_operation(
+                writer,
+                kind=OperationKind.MODEL,
+                operation="evidence.assess",
+                stage=ResearchStage.REVIEW,
+                component=_component_name(assessor, "assessment-model"),
+                model=command.model,
+                invoke=assess_records,
+                count_results=lambda result: len(result),
+            )
+            assessments = list(assessment_result)
+        except ResearchFailure as exc:
+            summary = unavailable_assessment_summary(
+                len(evidence),
+                status=AssessmentStatus.UNAVAILABLE,
+                failure_code=exc.code.value,
+            )
+            assessments = []
+        except Exception:
+            summary = unavailable_assessment_summary(
+                len(evidence),
+                status=AssessmentStatus.UNAVAILABLE,
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE.value,
+            )
+            assessments = []
+        else:
+            summary = summarize_evidence_assessments(evidence, assessments)
+
+        _emit(
+            writer,
+            ResearchEvent(
+                type="evidence.assessment.completed",
+                stage=ResearchStage.REVIEW,
+                message="Shadow-Evidenzprüfung abgeschlossen",
+                data={
+                    "run_id": command.run_id,
+                    "summary": summary.model_dump(mode="json"),
+                },
+            ),
+        )
+        return {
+            "evidence_assessments": [
+                assessment.model_dump(mode="json") for assessment in assessments
+            ],
+            "evidence_assessment_summary": summary.model_dump(mode="json"),
+        }
+
     async def _synthesize_report(
         self,
         state: ResearchGraphState,
@@ -403,6 +501,9 @@ class AbundanceResearchGraph:
         command = ResearchCommand.from_payload(state["command"])
         plan = ResearchPlan.model_validate(state["plan"])
         evidence = [EvidenceRecord.model_validate(item) for item in state["evidence"]]
+        assessment_summary = EvidenceAssessmentSummary.model_validate(
+            state["evidence_assessment_summary"]
+        )
         _emit(
             writer,
             ResearchEvent(
@@ -434,7 +535,9 @@ class AbundanceResearchGraph:
                 evidence=evidence,
             )
         )
-        evaluation = evaluate_report(report)
+        evaluation = evaluate_report(report).model_copy(
+            update={"evidence_assessment": assessment_summary}
+        )
         _emit(
             writer,
             ResearchEvent(

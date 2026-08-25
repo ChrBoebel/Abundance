@@ -5,9 +5,10 @@ FastAPI service for the typed Abundance LangGraph workflow.
 ## Responsibilities
 
 - validate research commands and reviewed model aliases;
-- execute the bounded LangGraph plan/evidence/review/synthesis topology;
+- execute the bounded LangGraph plan/evidence/assessment/review/synthesis topology;
 - use LangChain's OpenRouter integration for structured model output;
 - normalize read-only Tavily results and enforce evidence admission;
+- measure semantic evidence quality in a non-blocking shadow stage;
 - stream stable Abundance events with cancellation and heartbeats;
 - expose liveness and configuration readiness separately.
 
@@ -77,6 +78,24 @@ Validate the source-controlled dataset without provider calls:
 
 ```bash
 python -m abundance_research.eval_harness --validate-only
+python -m abundance_research.assessment_eval_harness --validate-only
+```
+
+The assessment fixture also has a source-controlled legacy baseline that
+captures inherited retrieval relations, hostname-based source classification,
+and missing quote binding:
+
+```bash
+python -m abundance_research.assessment_eval_harness --legacy-baseline
+```
+
+With provider credentials exported, score the configured assessor against the
+same golden fixture:
+
+```bash
+python -m abundance_research.assessment_eval_harness \
+  --model mercury \
+  --output evals/results/evidence-assessment-candidate.json
 ```
 
 Create a live candidate artifact and compare it with an accepted, like-for-like

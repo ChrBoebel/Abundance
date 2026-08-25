@@ -55,7 +55,8 @@ flowchart LR
     Q["Inquiry"] --> P["Plan and falsification questions"]
     P --> F["Parallel evidence units"]
     F --> A["Admission and deduplication"]
-    A --> R["Counterevidence review"]
+    A --> Q["Shadow evidence assessment"]
+    Q --> R["Counterevidence review"]
     R --> S["Structured synthesis"]
     S --> E["Deterministic report and evaluation"]
 ```
@@ -99,6 +100,7 @@ Key modules:
 | `backend/src/abundance_research/domain.py` | Inquiry, evidence, claim, and report models |
 | `backend/src/abundance_research/application/graph.py` | Typed LangGraph topology and nodes |
 | `backend/src/abundance_research/application/policy.py` | Code-enforced budgets and source admission |
+| `backend/src/abundance_research/application/evidence_assessment.py` | Quote binding, content fingerprints, and shadow quality summaries |
 | `backend/src/abundance_research/adapters/` | LangChain/OpenRouter and Tavily integrations |
 | `backend/src/abundance_research/events.py` | Stable streaming event contract |
 | `backend/src/abundance_research/persistence.py` | Run, feedback, and capability-share persistence |
@@ -196,7 +198,8 @@ npm run build
 npm audit --audit-level=high
 ```
 
-The test suite covers graph topology, real PostgreSQL state checkpointing,
+The test suite covers graph topology, evidence-assessment golden fixtures,
+shadow-stage failure isolation, real PostgreSQL state checkpointing,
 concurrency budgets, cancellation, provider-error redaction, evidence admission,
 citation integrity, SSE chunk boundaries, origin checks, rate limiting, public
 share minimization, persisted feedback, and research-record parsing.

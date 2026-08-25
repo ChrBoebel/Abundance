@@ -123,11 +123,20 @@ report pass rate, variance, latency, and cost.
 
 ## Phase 3: Evidence verification
 
-Add a typed `assess_evidence` node after retrieval. It must infer a source's
+Status: evidence-assessment shadow foundation complete.
+
+The typed `assess_evidence` node now runs after admission. It infers a source's
 actual relationship to the research question instead of inheriting the planned
-search relation. The assessment records relevance, source class, primary-source
-status, publication date, supporting excerpt location, limitations, and a
-content hash.
+search relation. Assessments include relevance, source class, primary-source
+status, an exact bound quote, limitations, confidence, and a private content
+hash. Invented IDs and quotes not present verbatim in admitted evidence are
+discarded deterministically.
+
+The stage is cost-bounded by evidence count, batch size, excerpt length, and
+tokens. It is deliberately non-blocking: results and disagreements are measured
+and persisted, but admitted evidence and synthesis inputs are not rewritten.
+The source-controlled component dataset covers ten golden cases and preserves
+the legacy failure baseline for future comparison.
 
 After synthesis, add a `verify_claims` node. It checks whether cited excerpts
 support, contradict, or do not establish each claim. Deterministic citation

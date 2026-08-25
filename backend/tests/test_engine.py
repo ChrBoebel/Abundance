@@ -7,15 +7,19 @@ from langgraph.checkpoint.memory import InMemorySaver
 from abundance_research.application.contracts import ResearchCommand
 from abundance_research.application.engine import AbundanceResearchEngine
 from abundance_research.application.errors import FailureCode, ResearchFailure
+from abundance_research.application.evidence_assessment import evidence_content_sha256
 from abundance_research.domain import (
+    AssessedEvidenceRelation,
     Claim,
     Confidence,
+    EvidenceAssessment,
     EvidenceRecord,
     Inquiry,
     ResearchMode,
     ResearchPlan,
     ResearchReport,
     ResearchUnit,
+    SourceKind,
 )
 
 
@@ -124,7 +128,7 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
     assert events[-2].data["metrics"]["evidence_count"] == 4
     manifest = events[-2].data["metrics"]["manifest"]
     assert manifest["schema_version"] == "1.0"
-    assert manifest["graph_version"] == "research-graph-v2"
+    assert manifest["graph_version"] == "research-graph-v3"
     assert manifest["outcome"] == "completed"
     assert manifest["requested_model"] == "mercury"
     assert events[-2].data["metrics"]["operation_count"] == 6
@@ -141,10 +145,109 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
         "create_plan",
         "collect_evidence",
         "review_evidence",
+        "assess_evidence",
         "synthesize_report",
         "__end__",
     }
     assert "langgraph" not in "".join(event.model_dump_json() for event in events).casefold()
+
+
+class ShadowAssessor:
+    name = "shadow-assessor"
+
+    async def assess_evidence(
+        self,
+        inquiry: Inquiry,
+        evidence: list[EvidenceRecord],
+        *,
+        model: str,
+    ) -> list[EvidenceAssessment]:
+        return [
+            EvidenceAssessment(
+                evidence_id=record.id,
+                relation=AssessedEvidenceRelation.IRRELEVANT,
+                relevance=Confidence.LOW,
+                source_kind=SourceKind.OTHER,
+                is_primary=False,
+                quote=record.excerpt,
+                confidence=Confidence.MEDIUM,
+                content_sha256=evidence_content_sha256(record),
+                assessor_version="test-assessor-v1",
+            )
+            for record in evidence
+        ]
+
+
+@pytest.mark.asyncio
+async def test_shadow_assessment_is_measured_without_rewriting_evidence() -> None:
+    engine = AbundanceResearchEngine(
+        FakePlanner(),
+        [TrackingEvidenceSource()],
+        InventingSynthesizer(),
+        assessor=ShadowAssessor(),
+    )
+
+    events = [event async for event in engine.stream(command())]
+
+    completed = next(event for event in events if event.type == "report.completed")
+    summary = completed.data["evaluation"]["evidence_assessment"]
+    assert summary["status"] == "complete"
+    assert summary["assessed_count"] == 4
+    assert summary["irrelevant_count"] == 4
+    assert summary["relation_disagreement_count"] == 4
+    assert all(
+        record["relation"] != "irrelevant"
+        for record in completed.data["report"]["evidence"]
+    )
+    assert [event.type for event in events].count("evidence.assessment.completed") == 1
+    metrics = next(event.data["metrics"] for event in events if event.type == "run.metrics")
+    assert metrics["operation_count"] == 7
+    assert any(
+        operation["operation"] == "evidence.assess"
+        for operation in metrics["operations"]
+    )
+
+
+class FailingShadowAssessor:
+    name = "failing-shadow-assessor"
+
+    async def assess_evidence(
+        self,
+        inquiry: Inquiry,
+        evidence: list[EvidenceRecord],
+        *,
+        model: str,
+    ) -> list[EvidenceAssessment]:
+        raise ResearchFailure(
+            FailureCode.PROVIDER_UNAVAILABLE,
+            "Die Shadow-Prüfung ist nicht verfügbar.",
+            retryable=True,
+            cause=RuntimeError("private assessment provider details"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_shadow_assessment_failure_never_blocks_or_leaks_into_report() -> None:
+    engine = AbundanceResearchEngine(
+        FakePlanner(),
+        [TrackingEvidenceSource()],
+        InventingSynthesizer(),
+        assessor=FailingShadowAssessor(),
+    )
+
+    events = [event async for event in engine.stream(command())]
+
+    assert events[-1].type == "run.completed"
+    completed = next(event for event in events if event.type == "report.completed")
+    summary = completed.data["evaluation"]["evidence_assessment"]
+    assert summary["status"] == "unavailable"
+    assert summary["failure_code"] == "provider_unavailable"
+    metrics = next(event.data["metrics"] for event in events if event.type == "run.metrics")
+    assert metrics["failed_operation_count"] == 1
+    assert metrics["manifest"]["outcome"] == "completed"
+    assert "private assessment provider details" not in "".join(
+        event.model_dump_json() for event in events
+    )
 
 
 class FailingEvidenceSource:

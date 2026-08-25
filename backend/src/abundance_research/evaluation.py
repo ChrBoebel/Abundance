@@ -7,7 +7,11 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field
 
-from abundance_research.domain import Confidence, ResearchReport
+from abundance_research.domain import (
+    Confidence,
+    EvidenceAssessmentSummary,
+    ResearchReport,
+)
 
 EVALUATION_SCHEMA_VERSION = "1.0"
 
@@ -46,6 +50,7 @@ class ReportEvaluation(BaseModel):
     broken_evidence_links: int = 0
     unsupported_high_confidence_claims: int = 0
     open_question_count: int = 0
+    evidence_assessment: EvidenceAssessmentSummary | None = None
 
 
 def _ratio(numerator: int, denominator: int) -> float:

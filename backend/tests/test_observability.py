@@ -30,7 +30,7 @@ def test_run_telemetry_builds_privacy_safe_reproducibility_manifest() -> None:
         inquiry_id="inq-1",
         requested_model="mercury",
         mode="balanced",
-        graph_version="research-graph-v2",
+        graph_version="research-graph-v3",
         artifacts=[
             ArtifactRevision(
                 kind=ArtifactKind.PROMPT,
@@ -93,7 +93,7 @@ def test_run_telemetry_rejects_events_after_finish() -> None:
         inquiry_id="inq-1",
         requested_model="mercury",
         mode="quick",
-        graph_version="research-graph-v2",
+        graph_version="research-graph-v3",
     )
     telemetry.finish(RunOutcome.FAILED, failure_code="provider_unavailable")
 

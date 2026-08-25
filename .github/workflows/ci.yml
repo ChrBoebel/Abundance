@@ -98,7 +98,9 @@ jobs:
         run: python -m pytest -q
 
       - name: Validate research evaluation dataset
-        run: python -m abundance_research.eval_harness --dataset evals/reference-cases.json --validate-only
+        run: |
+          python -m abundance_research.eval_harness --dataset evals/reference-cases.json --validate-only
+          python -m abundance_research.assessment_eval_harness --dataset evals/evidence-assessment-cases.json --validate-only
 
       - name: Audit Python dependencies
         run: python -m pip_audit

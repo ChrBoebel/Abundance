@@ -17,6 +17,22 @@ def test_settings_load_only_prefixed_environment_values() -> None:
     assert settings.cors_origins == ["https://app.example.org", "http://localhost:4290"]
 
 
+def test_settings_bound_shadow_assessment_cost_and_context() -> None:
+    settings = AbundanceSettings.from_environment(
+        {
+            "ABUNDANCE_EVIDENCE_ASSESSMENT_MODE": "off",
+            "ABUNDANCE_ASSESSMENT_BATCH_SIZE": "6",
+            "ABUNDANCE_ASSESSMENT_MAX_EVIDENCE": "18",
+            "ABUNDANCE_ASSESSMENT_EXCERPT_CHARS": "1800",
+        }
+    )
+
+    assert settings.evidence_assessment_mode == "off"
+    assert settings.assessment_batch_size == 6
+    assert settings.assessment_max_evidence == 18
+    assert settings.assessment_excerpt_chars == 1800
+
+
 def test_settings_reject_wildcard_cors_origin() -> None:
     with pytest.raises(ValidationError):
         AbundanceSettings(cors_origins=["*"])
