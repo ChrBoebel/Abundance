@@ -8,7 +8,14 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const BACKEND_URL = process.env.RESEARCH_BACKEND_URL || 'http://localhost:8000'
-const ALLOWED_MODELS = new Set(['mercury', 'gemini-flash', 'gemini', 'deepseek', 'glm'])
+const ALLOWED_MODELS = new Set([
+  'mercury',
+  'gemini-flash',
+  'gemini',
+  'deepseek',
+  'deepseek-v4-flash',
+  'glm',
+])
 const ALLOWED_MODES = new Set(['quick', 'balanced', 'thorough'])
 
 export async function POST(request: NextRequest) {
