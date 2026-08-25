@@ -5,6 +5,7 @@ from pydantic import SecretStr
 
 from abundance_research.application.contracts import ResearchCommand
 from abundance_research.events import ResearchEvent
+from abundance_research.persistence import InMemoryResearchRunRepository
 from abundance_research.settings import AbundanceSettings
 from backend_server import create_app
 
@@ -13,13 +14,23 @@ class FakeEngine:
     async def stream(self, command: ResearchCommand) -> AsyncIterator[ResearchEvent]:
         yield ResearchEvent(
             type="report.completed",
-            data={"run_id": command.run_id, "content": "# Safe report"},
+            data={
+                "run_id": command.run_id,
+                "content": "# Safe report",
+                "report": {"title": "Safe report", "markdown": "# Safe report", "claims": []},
+                "evaluation": {"claim_evidence_coverage": 1.0},
+            },
+        )
+        yield ResearchEvent(
+            type="run.metrics",
+            data={"run_id": command.run_id, "metrics": {"duration_ms": 12}},
         )
         yield ResearchEvent(type="run.completed", data={"run_id": command.run_id})
 
 
 def test_stream_api_uses_domain_contract_and_monotonic_event_ids() -> None:
-    client = TestClient(create_app(lambda: FakeEngine()))
+    repository = InMemoryResearchRunRepository()
+    client = TestClient(create_app(lambda: FakeEngine(), repository=repository))
 
     response = client.post(
         "/api/v1/research-runs/stream",
@@ -33,6 +44,22 @@ def test_stream_api_uses_domain_contract_and_monotonic_event_ids() -> None:
     assert "id: 2\ndata:" in response.text
     assert '"type":"run.accepted"' in response.text
     assert '"type":"report.completed"' in response.text
+    run_id = response.headers["x-run-id"]
+    stored = client.get(f"/api/v1/research-runs/{run_id}")
+    assert stored.json()["status"] == "completed"
+    assert stored.json()["metrics"]["duration_ms"] == 12
+
+    shared = client.post(f"/api/v1/research-runs/{run_id}/shares")
+    public = client.get(f"/api/v1/shared/{shared.json()['token']}")
+    assert shared.status_code == 200
+    assert public.status_code == 200
+    assert public.json()["report"]["title"] == "Safe report"
+
+    feedback = client.post(
+        f"/api/v1/research-runs/{run_id}/feedback",
+        json={"run_id": run_id, "claim_id": "claim-1", "rating": 1},
+    )
+    assert feedback.status_code == 200
 
 
 def test_stream_api_rejects_unknown_model_before_engine_execution() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
@@ -23,6 +24,7 @@ from abundance_research.application.graph import (
 )
 from abundance_research.application.policy import ResearchCapabilityPolicy
 from abundance_research.events import ResearchEvent
+from abundance_research.observability import ModelUsage, RunMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,13 @@ class AbundanceResearchEngine:
             synthesizer,
             checkpointer=checkpointer,
         )
+        usage_reporters: list[Any] = []
+        for reporter in (planner, synthesizer):
+            if callable(getattr(reporter, "drain_usage", None)) and not any(
+                existing is reporter for existing in usage_reporters
+            ):
+                usage_reporters.append(reporter)
+        self._usage_reporters = tuple(usage_reporters)
 
     async def stream(self, command: ResearchCommand) -> AsyncGenerator[ResearchEvent, None]:
         """Execute one graph run and translate only custom product events."""
@@ -60,6 +69,13 @@ class AbundanceResearchEngine:
             "metadata": {"run_id": command.run_id},
         }
         self.workflow.begin_run(command.run_id, policy.limits.max_concurrency)
+        started = time.perf_counter()
+        stage_started = started
+        current_stage: str | None = None
+        stage_durations: dict[str, int] = {}
+        event_count = 0
+        evidence_count = 0
+        claim_count = 0
         try:
             async for chunk in self.workflow.compiled.astream(
                 initial_state,
@@ -69,7 +85,51 @@ class AbundanceResearchEngine:
             ):
                 if chunk.get("type") != "custom":
                     continue
-                yield ResearchEvent.model_validate(chunk["data"])
+                event = ResearchEvent.model_validate(chunk["data"])
+                event_count += 1
+                next_stage = event.stage.value if event.stage is not None else current_stage
+                now = time.perf_counter()
+                if next_stage != current_stage:
+                    if current_stage is not None:
+                        stage_durations[current_stage] = stage_durations.get(current_stage, 0) + int(
+                            (now - stage_started) * 1000
+                        )
+                    current_stage = next_stage
+                    stage_started = now
+                if event.type == "run.completed":
+                    if current_stage is not None:
+                        stage_durations[current_stage] = stage_durations.get(current_stage, 0) + int(
+                            (now - stage_started) * 1000
+                        )
+                        current_stage = None
+                    evidence_count = int(event.data.get("evidence_count", 0))
+                    claim_count = int(event.data.get("claim_count", 0))
+                    usage = ModelUsage()
+                    for reporter in self._usage_reporters:
+                        usage = usage.add(reporter.drain_usage(command.inquiry.id))
+                    metrics = RunMetrics(
+                        duration_ms=int((now - started) * 1000),
+                        stage_duration_ms=stage_durations,
+                        event_count=event_count,
+                        evidence_count=evidence_count,
+                        claim_count=claim_count,
+                        model=command.model,
+                        mode=command.mode.value,
+                        usage=usage,
+                    )
+                    logger.info(
+                        "Research run completed",
+                        extra={"run_id": command.run_id, "duration_ms": metrics.duration_ms},
+                    )
+                    yield ResearchEvent(
+                        type="run.metrics",
+                        message="Laufmetriken erfasst",
+                        data={
+                            "run_id": command.run_id,
+                            "metrics": metrics.model_dump(mode="json"),
+                        },
+                    )
+                yield event
         except asyncio.CancelledError:
             logger.info("Research run cancelled", extra={"run_id": command.run_id})
             raise

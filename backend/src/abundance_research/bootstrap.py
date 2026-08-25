@@ -5,6 +5,9 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from functools import lru_cache
+from typing import Any
+
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from abundance_research.adapters import OpenRouterResearchModel, TavilyEvidenceSource
 from abundance_research.application.engine import AbundanceResearchEngine
@@ -15,6 +18,7 @@ def build_research_engine(
     *,
     settings: AbundanceSettings | None = None,
     environment: Mapping[str, str] | None = None,
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
 ) -> AbundanceResearchEngine:
     """Bind application ports to explicitly configured provider adapters."""
     runtime = settings or AbundanceSettings.from_environment(environment)
@@ -32,7 +36,7 @@ def build_research_engine(
         timeout_seconds=runtime.search_timeout_seconds,
         max_excerpt_chars=runtime.max_evidence_excerpt_chars,
     )
-    return AbundanceResearchEngine(model, [evidence], model)
+    return AbundanceResearchEngine(model, [evidence], model, checkpointer=checkpointer)
 
 
 @lru_cache(maxsize=1)

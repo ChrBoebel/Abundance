@@ -16,6 +16,8 @@ dependencies = [
     "langchain-core>=1.5.0,<2",
     "langchain-openrouter>=0.2.8,<0.3",
     "langgraph>=1.2.11,<2",
+    "langgraph-checkpoint-postgres>=3.1.2,<4",
+    "psycopg[binary,pool]>=3.3.4,<4",
     "tavily-python>=0.5.0",
 ]
 
@@ -43,7 +45,7 @@ where = ["src"]
 include = ["abundance_research*"]
 
 [tool.setuptools.package-data]
-"*" = ["py.typed"]
+"*" = ["py.typed", "*.sql"]
 
 [tool.ruff]
 lint.select = [
@@ -66,6 +68,8 @@ lint.ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "UP"]
 "backend_server.py" = ["E402"]
+"src/abundance_research/persistence.py" = ["D102", "D107"]
+"src/abundance_research/migrations/__main__.py" = ["T201"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -74,6 +78,9 @@ convention = "google"
 addopts = "--strict-config --strict-markers"
 asyncio_mode = "auto"
 pythonpath = ["."]
+markers = [
+    "integration: requires an external service such as PostgreSQL",
+]
 
 [tool.mypy]
 python_version = "3.11"

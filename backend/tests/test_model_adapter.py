@@ -1,5 +1,5 @@
 import pytest
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from abundance_research.adapters.models import (
     ClaimDraft,
@@ -45,6 +45,7 @@ async def test_model_adapter_requests_schema_output_without_tools() -> None:
     assert captured["structured_output_options"] == {
         "method": "json_schema",
         "strict": True,
+        "include_raw": True,
     }
     assert captured["model"] == "inception/mercury-2"
     assert captured["max_tokens"] == 3000
@@ -57,6 +58,45 @@ def test_model_catalog_rejects_arbitrary_provider_identifiers() -> None:
         ModelCatalog.resolve("attacker/provider-model")
 
     assert caught.value.code.value == "invalid_input"
+
+
+@pytest.mark.asyncio
+async def test_model_adapter_aggregates_usage_without_message_content() -> None:
+    class FakeStructuredModel:
+        async def ainvoke(self, messages):
+            return {
+                "parsed": {
+                    "objective": "Measure the proposition",
+                    "research_questions": ["What supports it?"],
+                    "falsification_questions": ["What contradicts it?"],
+                },
+                "raw": AIMessage(
+                    content="private completion",
+                    usage_metadata={
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                    response_metadata={"token_usage": {"cost": 0.001}},
+                ),
+            }
+
+    class FakeChatModel:
+        def with_structured_output(self, schema, **kwargs):
+            return FakeStructuredModel()
+
+    model = OpenRouterResearchModel(
+        "test-key",
+        chat_model_factory=lambda model_id, max_tokens: FakeChatModel(),
+    )
+    inquiry = Inquiry(question="How costly is this research?")
+
+    await model.create_plan(inquiry, model="mercury")
+    usage = model.drain_usage(inquiry.id)
+
+    assert usage.total_tokens == 15
+    assert usage.cost_usd == pytest.approx(0.001)
+    assert "private completion" not in usage.model_dump_json()
 
 
 def test_synthesis_binding_removes_invented_evidence_ids() -> None:
