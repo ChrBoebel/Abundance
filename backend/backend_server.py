@@ -1,231 +1,179 @@
 #!/usr/bin/env python3
 """FastAPI and SSE entrypoint for Abundance research runs."""
 
-import json
+from __future__ import annotations
+
+import asyncio
 import os
+import re
 import sys
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
+from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Support direct local execution without requiring an editable install.
 backend_root = Path(__file__).parent
+load_dotenv(backend_root / ".env")
 sys.path.insert(0, str(backend_root / "src"))
 
 from abundance_research import __version__
-from abundance_research.domain import ResearchMode
-from abundance_research.events import ResearchEvent, ResearchEventMapper
-from abundance_research.workflow import abundance_workflow
+from abundance_research.adapters import ModelCatalog
+from abundance_research.application.contracts import ResearchCommand
+from abundance_research.application.engine import AbundanceResearchEngine
+from abundance_research.application.errors import FailureCode, ResearchFailure
+from abundance_research.bootstrap import get_research_engine
+from abundance_research.domain import Inquiry, ResearchMode
+from abundance_research.events import ResearchEvent
+from abundance_research.settings import AbundanceSettings
 
-app = FastAPI(
-    title="Abundance Research API",
-    description="Evidence-oriented research orchestration for Abundance.",
-    version=__version__,
-)
-
-# CORS middleware for Next.js frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:4290", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-class ResearchRequest(BaseModel):
-    """Legacy research request payload."""
-    message: str
-    model: str = "mercury"
+EngineFactory = Callable[[], AbundanceResearchEngine]
+_REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,100}$")
 
 
 class ResearchRunRequest(BaseModel):
     """Public request contract for a new Abundance research run."""
 
-    inquiry: str
+    inquiry: str = Field(min_length=3, max_length=8000)
     model: str = "mercury"
     mode: ResearchMode = ResearchMode.BALANCED
 
+    @field_validator("inquiry")
+    @classmethod
+    def normalize_inquiry(cls, value: str) -> str:
+        """Reject whitespace-only inquiries and normalize surrounding space."""
+        normalized = value.strip()
+        if len(normalized) < 3:
+            raise ValueError("inquiry must contain at least three characters")
+        return normalized
 
-# Mapping from frontend model keys to OpenRouter model IDs
-MODEL_MAP = {
-    "mercury": "openrouter:inception/mercury-2",
-    "gemini-flash": "openrouter:google/gemini-2.5-flash",
-    "gemini": "openrouter:google/gemini-2.5-flash-lite",
-    "deepseek": "openrouter:deepseek/deepseek-v3.2",
-    "glm": "openrouter:z-ai/glm-4.5-air:free",
-}
-
-
-def serialize_event(event):
-    """Serialize event to JSON-compatible format."""
-    def convert(obj):
-        if isinstance(obj, dict):
-            return {k: convert(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
-            return [convert(item) for item in obj]
-        elif hasattr(obj, 'content'):
-            # Extract clean text content from LangChain message objects
-            return obj.content
-        elif hasattr(obj, '__dict__'):
-            # Convert objects to string representation
-            return str(obj)
-        else:
-            return obj
-
-    return convert(event)
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, value: str) -> str:
+        """Reject arbitrary provider model IDs at the HTTP boundary."""
+        try:
+            ModelCatalog.resolve(value)
+        except ResearchFailure as exc:
+            raise ValueError(exc.public_message) from exc
+        return value
 
 
-RESEARCH_PROFILES = {
-    ResearchMode.QUICK: {
-        "max_concurrent_research_units": 1,
-        "max_coordination_iterations": 2,
-        "max_search_iterations": 3,
-    },
-    ResearchMode.BALANCED: {
-        "max_concurrent_research_units": 3,
-        "max_coordination_iterations": 3,
-        "max_search_iterations": 4,
-    },
-    ResearchMode.THOROUGH: {
-        "max_concurrent_research_units": 5,
-        "max_coordination_iterations": 5,
-        "max_search_iterations": 8,
-    },
-}
+def encode_sse(event: ResearchEvent, sequence: int) -> bytes:
+    """Encode one JSON event with a monotonic SSE identifier."""
+    payload = event.model_dump_json(exclude_none=True)
+    return f"id: {sequence}\ndata: {payload}\n\n".encode()
 
 
-def build_workflow_config(model: str, mode: ResearchMode = ResearchMode.BALANCED):
-    """Build runtime configuration from a product-level research profile."""
-    model_id = MODEL_MAP.get(model, MODEL_MAP["mercury"])
-    return {
-        "configurable": {
-            "research_model": model_id,
-            "summarization_model": model_id,
-            "evidence_review_model": model_id,
-            "final_report_model": model_id,
-            "search_provider": "tavily",
-            "allow_clarification": False,
-            **RESEARCH_PROFILES[mode],
-        }
-    }
+async def stream_research_run(
+    engine: AbundanceResearchEngine,
+    command: ResearchCommand,
+    request: Request,
+) -> AsyncIterator[bytes]:
+    """Bridge application events to cancellable HTTP streaming."""
+    accepted = ResearchEvent(
+        type="run.accepted",
+        message="Recherche angenommen",
+        data={"run_id": command.run_id},
+    )
+    sequence = 1
+    yield encode_sse(accepted, sequence)
+    await asyncio.sleep(0)
+
+    async for event in engine.stream(command):
+        if await request.is_disconnected():
+            return
+        sequence += 1
+        yield encode_sse(event, sequence)
+        await asyncio.sleep(0)
 
 
-async def stream_graph_events(
-    message: str,
-    model: str = "mercury",
-    mode: ResearchMode = ResearchMode.BALANCED,
-):
-    """Stream legacy graph events for backwards compatibility."""
-    try:
-        config = build_workflow_config(model, mode)
-
-        # Stream events from abundance_workflow
-        async for event in abundance_workflow.astream_events(
-            {"messages": [{"role": "user", "content": message}]},
-            config=config,
-            version="v2"
-        ):
-            # Serialize and yield as SSE
-            serialized = serialize_event(event)
-            yield f"data: {json.dumps(serialized)}\n\n"
-
-        # Signal completion
-        yield f"data: {json.dumps({'event': 'done'})}\n\n"
-
-    except Exception as e:
-        # Output error as SSE event
-        error_event = {
-            "event": "error",
-            "error": str(e)
-        }
-        yield f"data: {json.dumps(error_event)}\n\n"
-
-
-async def stream_abundance_events(request: ResearchRunRequest):
-    """Stream framework-independent Abundance events as SSE."""
-    mapper = ResearchEventMapper()
-    try:
-        config = build_workflow_config(request.model, request.mode)
-        async for raw_event in abundance_workflow.astream_events(
-            {"messages": [{"role": "user", "content": request.inquiry}]},
-            config=config,
-            version="v2",
-        ):
-            serialized = serialize_event(raw_event)
-            for event in mapper.map(serialized):
-                yield f"data: {event.model_dump_json(exclude_none=True)}\n\n"
-
-        completed = ResearchEvent(
-            type="run.completed",
-            message="Recherche abgeschlossen",
-        )
-        yield f"data: {completed.model_dump_json(exclude_none=True)}\n\n"
-    except Exception as exc:
-        failed = ResearchEvent(
-            type="run.failed",
-            message="Recherche fehlgeschlagen",
-            data={"error": str(exc)},
-        )
-        yield f"data: {failed.model_dump_json(exclude_none=True)}\n\n"
-
-
-@app.post("/research/stream")
-async def research_stream(request: ResearchRequest):
-    """Stream research events via Server-Sent Events.
-
-    Request Body:
-    {
-        "message": "Your research question"
-    }
-
-    Response: SSE stream with JSON events
-    """
-    if not request.message:
-        raise HTTPException(status_code=400, detail="Message is required")
-
-    return StreamingResponse(
-        stream_graph_events(request.message, request.model),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        }
+def create_app(
+    engine_factory: EngineFactory = get_research_engine,
+    *,
+    settings: AbundanceSettings | None = None,
+) -> FastAPI:
+    """Create an API instance with an injectable application composition root."""
+    runtime = settings or AbundanceSettings.from_environment()
+    application = FastAPI(
+        title="Abundance Research API",
+        description="Evidence-oriented research orchestration for Abundance.",
+        version=__version__,
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=runtime.cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Request-ID", "Last-Event-ID"],
+        expose_headers=["X-Request-ID", "X-Run-ID"],
     )
 
+    @application.middleware("http")
+    async def correlation_header(request: Request, call_next):
+        supplied = request.headers.get("x-request-id", "")
+        request_id = supplied if _REQUEST_ID.fullmatch(supplied) else f"req-{uuid4().hex}"
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
 
-@app.post("/api/v1/research-runs/stream")
-async def research_run_stream(request: ResearchRunRequest):
-    """Create a research run and stream stable Abundance domain events."""
-    if not request.inquiry.strip():
-        raise HTTPException(status_code=400, detail="Inquiry is required")
+    @application.post("/api/v1/research-runs/stream")
+    async def research_run_stream(payload: ResearchRunRequest, request: Request):
+        run_id = f"run-{uuid4().hex}"
+        inquiry = Inquiry(question=payload.inquiry, mode=payload.mode)
+        command = ResearchCommand(
+            run_id=run_id,
+            inquiry=inquiry,
+            model=payload.model,
+            mode=payload.mode,
+        )
+        try:
+            engine = engine_factory()
+        except ResearchFailure as exc:
+            status = 503 if exc.code is FailureCode.CONFIGURATION else 500
+            raise HTTPException(
+                status_code=status,
+                detail={"code": exc.code.value, "message": exc.public_message},
+            ) from exc
 
-    return StreamingResponse(
-        stream_abundance_events(request),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+        return StreamingResponse(
+            stream_research_run(engine, command, request),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+                "X-Run-ID": run_id,
+            },
+        )
+
+    @application.get("/health")
+    async def health():
+        return {"status": "healthy", "version": __version__}
+
+    @application.get("/ready")
+    async def readiness():
+        try:
+            engine_factory()
+        except ResearchFailure as exc:
+            raise HTTPException(
+                status_code=503,
+                detail={"code": exc.code.value, "message": exc.public_message},
+            ) from exc
+        return {"status": "ready", "version": __version__}
+
+    return application
 
 
-@app.get("/health")
-async def health():
-    """Health check endpoint."""
-    return {"status": "healthy", "version": __version__}
+app = create_app()
 
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.getenv("PORT", "8000"))
     uvicorn.run(app, host="0.0.0.0", port=port)
