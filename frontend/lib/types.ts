@@ -1,20 +1,22 @@
-/**
- * TypeScript type definitions for Abundance Frontend
- */
+/** Shared Abundance research-domain types. */
 
-export interface Message {
+export interface ResearchMessageRecord {
   role: 'user' | 'agent'
   content: string
 }
 
-export interface Thread {
+export interface ResearchSession {
   id: string
-  messages: Message[]
+  messages: ResearchMessageRecord[]
   created_at: string
 }
 
+export type ResearchStage = 'inquiry' | 'planning' | 'evidence' | 'review' | 'synthesis'
+export type ResearchMode = 'quick' | 'balanced' | 'thorough'
+
 export interface ResearchPhase {
   id: number
+  stage: ResearchStage
   name: string
   icon: string
   status: 'pending' | 'running' | 'completed'
@@ -25,34 +27,59 @@ export interface Source {
   url: string
 }
 
-export enum JobStatus {
+export enum ResearchRunStatus {
   PENDING = 'pending',
   RUNNING = 'running',
   COMPLETED = 'completed',
   FAILED = 'failed',
 }
 
-export interface Job {
+export interface ResearchRunJob {
   id: string
-  status: JobStatus
-  result: any
+  status: ResearchRunStatus
+  result: unknown
   error: string | null
   created_at: string
   updated_at: string
-  process?: any
   controller?: AbortController
 }
 
-export interface SSEEvent {
-  type: 'job_started' | 'thinking' | 'step_start' | 'step_complete' | 'current_activity' | 'tool_call_start' | 'tool_call_complete' | 'report_stream' | 'agent_message' | 'done' | 'error'
-  [key: string]: any
+export interface ResearchEventData {
+  run_id?: string
+  runtime_node?: string
+  tool?: string
+  query?: unknown
+  result?: unknown
+  chunk?: string
+  content?: string
+  error?: string
+}
+
+export interface ResearchEvent {
+  type:
+    | 'run.accepted'
+    | 'run.completed'
+    | 'run.failed'
+    | 'inquiry.scoping'
+    | 'plan.created'
+    | 'evidence.collection.started'
+    | 'evidence.search.started'
+    | 'evidence.discovered'
+    | 'evidence.review.started'
+    | 'synthesis.started'
+    | 'report.delta'
+    | 'report.completed'
+  stage?: ResearchStage
+  message?: string
+  data?: ResearchEventData
+  timestamp?: string
 }
 
 export interface SessionData {
   authenticated: boolean
 }
 
-export interface HistoryEntry {
+export interface ResearchArchiveEntry {
   id: string
   query: string
   report: string
@@ -62,9 +89,9 @@ export interface HistoryEntry {
 }
 
 export const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  'mercury': 'Mercury 2',
-  'gemini': 'Gemini 2.5 Flash Lite',
-  'deepseek': 'DeepSeek V3.2',
-  'glm': 'GLM-4.5-Air',
+  mercury: 'Mercury 2',
+  gemini: 'Gemini 2.5 Flash Lite',
+  deepseek: 'DeepSeek V3.2',
+  glm: 'GLM-4.5-Air',
   'gemini-flash': 'Gemini 2.5 Flash',
 }

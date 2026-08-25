@@ -2,12 +2,12 @@
  * localStorage-based history CRUD for research entries.
  */
 
-import type { HistoryEntry } from './types'
+import type { ResearchArchiveEntry } from './types'
 
 const STORAGE_KEY = 'abundance_history'
 const MAX_ENTRIES = 50
 
-export function getHistory(): HistoryEntry[] {
+export function getHistory(): ResearchArchiveEntry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return []
@@ -19,7 +19,7 @@ export function getHistory(): HistoryEntry[] {
   }
 }
 
-export function saveEntry(entry: HistoryEntry): void {
+export function saveEntry(entry: ResearchArchiveEntry): void {
   try {
     const entries = getHistory()
     entries.unshift(entry)

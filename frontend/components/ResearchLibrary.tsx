@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, Clock, X, Sun, Moon, ChevronUp, PanelLeftClose, Check, Sparkles } from 'lucide-react'
 import Image from 'next/image'
-import type { HistoryEntry } from '@/lib/types'
+import type { ResearchArchiveEntry, ResearchMode } from '@/lib/types'
 import { MODEL_DISPLAY_NAMES } from '@/lib/types'
 
 const MODEL_OPTIONS: { key: string; name: string; desc: string; icon: string }[] = [
@@ -18,11 +18,17 @@ const MODEL_OPTIONS: { key: string; name: string; desc: string; icon: string }[]
   { key: 'gemini-flash', name: 'Gemini 2.5 Flash', desc: 'Schnell & leistungsstark', icon: '/model-icons/gemini-flash.svg' },
 ]
 
-interface HistorySidebarProps {
+const RESEARCH_MODE_OPTIONS: { key: ResearchMode; name: string; desc: string }[] = [
+  { key: 'quick', name: 'Schnell', desc: 'Kompakte Evidenzprüfung' },
+  { key: 'balanced', name: 'Ausgewogen', desc: 'Tiefe und Laufzeit im Gleichgewicht' },
+  { key: 'thorough', name: 'Gründlich', desc: 'Mehr Gegenbelege und Recherchepfade' },
+]
+
+interface ResearchLibraryProps {
   isOpen: boolean
-  entries: HistoryEntry[]
+  entries: ResearchArchiveEntry[]
   activeEntryId: string | null
-  onSelectEntry: (entry: HistoryEntry) => void
+  onSelectEntry: (entry: ResearchArchiveEntry) => void
   onDeleteEntry: (id: string) => void
   onNewResearch: () => void
   onClose: () => void
@@ -31,6 +37,9 @@ interface HistorySidebarProps {
   onToggleTheme: () => void
   selectedModel: string
   onSelectModel: (model: string) => void
+  selectedMode: ResearchMode
+  onSelectMode: (mode: ResearchMode) => void
+  backendConnected: boolean | null
 }
 
 function formatDate(iso: string): string {
@@ -56,7 +65,7 @@ function truncateQuery(query: string, max = 50): string {
   return query.substring(0, max) + '...'
 }
 
-export default function HistorySidebar({
+export default function ResearchLibrary({
   isOpen,
   entries,
   activeEntryId,
@@ -69,7 +78,10 @@ export default function HistorySidebar({
   onToggleTheme,
   selectedModel,
   onSelectModel,
-}: HistorySidebarProps) {
+  selectedMode,
+  onSelectMode,
+  backendConnected,
+}: ResearchLibraryProps) {
   const [showModelMenu, setShowModelMenu] = useState(false)
 
   return (
@@ -104,7 +116,7 @@ export default function HistorySidebar({
                 className="w-9 h-9 rounded-lg flex items-center justify-center overflow-visible flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 2px 12px hsl(var(--primary) / 0.4)' }}
               >
-                <Image src="/bergbild2.svg" alt="Abundance Logo" width={40} height={40} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
+                <Image src="/abundance-mark.svg" alt="Abundance Logo" width={40} height={40} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
               </div>
               <h1 className="text-lg font-bold abundance-title">Abundance</h1>
             </div>
@@ -198,6 +210,29 @@ export default function HistorySidebar({
 
         {/* Footer: Model Selector + Theme Toggle */}
         <div className="border-t p-3 space-y-3" style={{ borderColor: 'hsl(var(--border))' }}>
+          <div>
+            <div className="px-1 pb-2 text-xs font-semibold tracking-wider" style={{ color: 'hsl(var(--foreground) / 0.45)' }}>
+              RECHERCHEMODUS
+            </div>
+            <div className="grid grid-cols-3 gap-1 rounded-xl p-1" style={{ background: 'hsl(var(--foreground) / 0.04)' }}>
+              {RESEARCH_MODE_OPTIONS.map(mode => (
+                <button
+                  key={mode.key}
+                  type="button"
+                  onClick={() => onSelectMode(mode.key)}
+                  className="rounded-lg px-2 py-2 text-xs font-medium transition"
+                  style={{
+                    background: selectedMode === mode.key ? 'hsl(var(--primary) / 0.18)' : 'transparent',
+                    color: selectedMode === mode.key ? 'hsl(var(--primary))' : 'hsl(var(--foreground) / 0.55)',
+                  }}
+                  title={mode.desc}
+                >
+                  {mode.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Model Selector */}
           <div className="relative">
             {/* Model menu (expands upward) */}
@@ -304,7 +339,7 @@ export default function HistorySidebar({
                 />
               </div>
               <div className="flex-1 text-left min-w-0">
-                <div className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>Modell</div>
+                <div className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>Erweitertes Modell</div>
                 <div className="text-sm font-medium truncate">
                   {MODEL_DISPLAY_NAMES[selectedModel] || selectedModel}
                 </div>
@@ -334,8 +369,13 @@ export default function HistorySidebar({
               </button>
             )}
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Verbunden"></div>
-              <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.35)' }}>Verbunden</span>
+              <div
+                className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-green-500' : backendConnected === false ? 'bg-amber-500' : 'bg-zinc-500'}`}
+                title={backendConnected ? 'Backend verbunden' : 'Backend nicht erreichbar'}
+              />
+              <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.35)' }}>
+                {backendConnected ? 'Bereit' : backendConnected === false ? 'Offline' : 'Prüfe…'}
+              </span>
             </div>
           </div>
         </div>

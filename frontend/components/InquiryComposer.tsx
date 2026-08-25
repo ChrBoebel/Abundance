@@ -1,16 +1,14 @@
-/**
- * Chat Input Component
- */
+/** Composer for a new research inquiry. */
 'use client'
 
 import { Send, Loader2 } from 'lucide-react'
 
-interface ChatInputProps {
+interface InquiryComposerProps {
   onSubmit: (message: string) => void
   isStreaming: boolean
 }
 
-export default function ChatInput({ onSubmit, isStreaming }: ChatInputProps) {
+export default function InquiryComposer({ onSubmit, isStreaming }: InquiryComposerProps) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
@@ -28,7 +26,7 @@ export default function ChatInput({ onSubmit, isStreaming }: ChatInputProps) {
         <input
           type="text"
           name="message"
-          placeholder="Stell mir eine Frage..."
+          placeholder="Welche Frage sollen wir anhand von Evidenz prüfen?"
           className="flex-1 px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 transition"
           style={{ background: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
           disabled={isStreaming}
@@ -47,7 +45,7 @@ export default function ChatInput({ onSubmit, isStreaming }: ChatInputProps) {
           ) : (
             <>
               <Send className="w-4 h-4" />
-              <span className="hidden sm:inline">Senden</span>
+              <span className="hidden sm:inline">Untersuchen</span>
             </>
           )}
         </button>

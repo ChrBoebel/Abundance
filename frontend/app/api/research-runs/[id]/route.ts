@@ -1,9 +1,7 @@
-/**
- * Thread Management API Route
- */
+/** Reset the in-memory conversation attached to a research session. */
 import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticated } from '@/lib/auth'
-import { clearThread } from '@/lib/research'
+import { clearResearchSession } from '@/lib/research'
 
 export async function POST(
   request: NextRequest,
@@ -19,11 +17,11 @@ export async function POST(
     }
 
     const { id } = await params
-    clearThread(id)
+    clearResearchSession(id)
 
     return NextResponse.json({ status: 'cleared' })
   } catch (error) {
-    console.error('Clear thread error:', error)
+    console.error('Clear research session error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -1,13 +1,11 @@
-/**
- * Research Status Component
- */
+/** Visible trail of Abundance research stages and collected sources. */
 'use client'
 
 import { useState } from 'react'
 import { Loader2, CheckCircle, BookOpen, Clipboard, Search, Lightbulb, FileText, Circle, ExternalLink } from 'lucide-react'
 import type { ResearchPhase, Source } from '@/lib/types'
 
-interface ResearchStatusProps {
+interface ResearchTrailProps {
   phases: ResearchPhase[]
   sourceCount: number
   sources: Source[]
@@ -16,7 +14,7 @@ interface ResearchStatusProps {
   isCompleted: boolean
 }
 
-export default function ResearchStatus({ phases, sourceCount, sources, citedSources, currentActivity, isCompleted }: ResearchStatusProps) {
+export default function ResearchTrail({ phases, sourceCount, sources, citedSources, currentActivity, isCompleted }: ResearchTrailProps) {
   const [expanded, setExpanded] = useState(false)
 
   const currentPhase = phases.find(p => p.status === 'running') || (isCompleted ? phases[phases.length - 1] : null)
@@ -39,13 +37,13 @@ export default function ResearchStatus({ phases, sourceCount, sources, citedSour
             <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'hsl(var(--primary))' }} />
           )}
           <h3 className="text-lg font-semibold" style={{ color: isCompleted ? '#10b981' : 'hsl(var(--primary))' }}>
-            {isCompleted ? 'Recherche abgeschlossen' : 'Tiefenrecherche läuft...'}
+            {isCompleted ? 'Evidenzprüfung abgeschlossen' : 'Evidenzprüfung läuft…'}
           </h3>
         </div>
 
         <div className="text-sm mb-1 flex items-center gap-2" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>
           {PhaseIcon && <PhaseIcon className="w-4 h-4" />}
-          <span>{isCompleted ? 'Bericht erstellt' : (currentPhase ? currentPhase.name : 'Plane Recherche-Strategie...')}</span>
+          <span>{isCompleted ? 'Synthese erstellt' : (currentPhase ? currentPhase.name : 'Schärfe die Forschungsfrage…')}</span>
         </div>
 
         {currentActivity && (
@@ -70,7 +68,7 @@ export default function ResearchStatus({ phases, sourceCount, sources, citedSour
         {expanded && (
           <div className="mt-3 pt-3 space-y-3" style={{ borderTop: '1px solid hsl(var(--border))' }}>
             <div>
-              <div className="text-sm font-semibold mb-2">Recherche-Fortschritt:</div>
+              <div className="text-sm font-semibold mb-2">Research Trail:</div>
               <div className="space-y-1">
                 {phases.map((phase) => {
                   const Icon = phase.status === 'completed' ? CheckCircle :

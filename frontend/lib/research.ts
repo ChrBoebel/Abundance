@@ -1,285 +1,154 @@
-/**
- * Research Job Management and HTTP Backend Integration
- */
-import { JobStatus, type Job, type Thread, type Message } from './types'
+/** Server-side research-run management and Abundance API integration. */
 
-// In-memory storage
-const jobs = new Map<string, Job & { events: string[], controller?: AbortController }>()
-const threads = new Map<string, Thread>()
+import {
+  ResearchRunStatus,
+  type ResearchEvent,
+  type ResearchMessageRecord,
+  type ResearchRunJob,
+  type ResearchSession,
+} from './types'
 
-// Backend URL from environment
+type ActiveResearchRun = ResearchRunJob & {
+  events: string[]
+  controller?: AbortController
+}
+
+const researchRuns = new Map<string, ActiveResearchRun>()
+const researchSessions = new Map<string, ResearchSession>()
 const BACKEND_URL = process.env.RESEARCH_BACKEND_URL || 'http://localhost:8000'
 
-// Cleanup old jobs (every hour)
 setInterval(() => {
   const oneHourAgo = Date.now() - 60 * 60 * 1000
-  for (const [id, job] of jobs.entries()) {
-    const updatedTime = new Date(job.updated_at).getTime()
-    if (updatedTime < oneHourAgo && job.status !== JobStatus.RUNNING) {
-      jobs.delete(id)
+  for (const [id, run] of researchRuns.entries()) {
+    const updatedTime = new Date(run.updated_at).getTime()
+    if (updatedTime < oneHourAgo && run.status !== ResearchRunStatus.RUNNING) {
+      researchRuns.delete(id)
     }
   }
 }, 60 * 60 * 1000)
 
-export function createJob(jobId: string): Job {
-  const job: Job & { events: string[], controller?: AbortController } = {
-    id: jobId,
-    status: JobStatus.PENDING,
+export function createResearchRun(runId: string): ResearchRunJob {
+  const run: ActiveResearchRun = {
+    id: runId,
+    status: ResearchRunStatus.PENDING,
     result: null,
     error: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     events: [],
   }
-  jobs.set(jobId, job)
-  return job
+  researchRuns.set(runId, run)
+  return run
 }
 
-export function getJob(jobId: string): (Job & { events: string[] }) | undefined {
-  return jobs.get(jobId)
+export function getResearchRun(runId: string): ActiveResearchRun | undefined {
+  return researchRuns.get(runId)
 }
 
-export function updateJobStatus(jobId: string, status: JobStatus, error?: string) {
-  const job = jobs.get(jobId)
-  if (job) {
-    job.status = status
-    job.updated_at = new Date().toISOString()
-    if (error) {
-      job.error = error
-    }
-  }
+export function updateResearchRunStatus(
+  runId: string,
+  status: ResearchRunStatus,
+  error?: string,
+) {
+  const run = researchRuns.get(runId)
+  if (!run) return
+  run.status = status
+  run.updated_at = new Date().toISOString()
+  if (error) run.error = error
 }
 
-export function pushJobEvent(jobId: string, event: string) {
-  const job = jobs.get(jobId)
-  if (job) {
-    job.events.push(event)
-  }
+export function pushResearchRunEvent(runId: string, event: ResearchEvent) {
+  const run = researchRuns.get(runId)
+  if (!run) return
+  run.events.push(`data: ${JSON.stringify(event)}\n\n`)
+  run.updated_at = new Date().toISOString()
 }
 
-export function getThread(threadId: string): Thread {
-  if (!threads.has(threadId)) {
-    threads.set(threadId, {
-      id: threadId,
+export function getResearchSession(sessionId: string): ResearchSession {
+  if (!researchSessions.has(sessionId)) {
+    researchSessions.set(sessionId, {
+      id: sessionId,
       messages: [],
       created_at: new Date().toISOString(),
     })
   }
-  return threads.get(threadId)!
+  return researchSessions.get(sessionId)!
 }
 
-export function clearThread(threadId: string) {
-  const thread = threads.get(threadId)
-  if (thread) {
-    thread.messages = []
-  }
+export function clearResearchSession(sessionId: string) {
+  const session = researchSessions.get(sessionId)
+  if (session) session.messages = []
 }
 
-export function addMessage(threadId: string, message: Message) {
-  const thread = getThread(threadId)
-  thread.messages.push(message)
+export function addResearchMessage(sessionId: string, message: ResearchMessageRecord) {
+  getResearchSession(sessionId).messages.push(message)
 }
 
-/**
- * Start research job in background using HTTP backend
- */
 export async function startResearch(
-  jobId: string,
-  message: string,
-  threadId: string,
-  model: string = 'mercury'
+  runId: string,
+  inquiry: string,
+  sessionId: string,
+  model: string = 'mercury',
+  mode: 'quick' | 'balanced' | 'thorough' = 'balanced',
 ): Promise<void> {
-  const job = getJob(jobId)
-  if (!job) {
-    throw new Error('Job not found')
-  }
+  const run = getResearchRun(runId)
+  if (!run) throw new Error('Research run not found')
 
-  updateJobStatus(jobId, JobStatus.RUNNING)
+  updateResearchRunStatus(runId, ResearchRunStatus.RUNNING)
+  addResearchMessage(sessionId, { role: 'user', content: inquiry })
 
-  // Add user message to thread
-  addMessage(threadId, { role: 'user', content: message })
-
-  // Create abort controller for cancellation
   const controller = new AbortController()
-  job.controller = controller
-
-  // Track if we've already sent the final report
-  let finalReportSent = false
-
-  // Track if we're streaming the final report
-  let isStreamingReport = false
-
-  // Helper function to map LangGraph events to frontend events
-  function mapEventToFrontend(event: any) {
-    const mapped: any[] = []
-
-    // Map LangGraph events to frontend-compatible events
-    if (event.event === 'on_chain_start') {
-      const name = event.name || event.data?.name
-      const nodeName = event.metadata?.langgraph_node || event.data?.metadata?.langgraph_node
-      if (name) {
-        mapped.push({ type: 'step_start', step_name: name, name })
-        // Start streaming when final report generation begins
-        if (nodeName === 'final_report_generation') {
-          isStreamingReport = true
-        }
-      }
-
-      // Map node names to user-friendly status messages
-      if (nodeName) {
-        let activityMessage = ''
-
-        if (nodeName === 'clarify_with_user') {
-          activityMessage = 'Kläre Recherchefrage...'
-        } else if (nodeName === 'write_research_brief') {
-          activityMessage = 'Erstelle Recherchestrategie...'
-        } else if (nodeName === 'supervisor' || nodeName === 'research_supervisor') {
-          activityMessage = 'Plane Recherche-Aufgaben...'
-        } else if (nodeName === 'researcher') {
-          // Try to extract research topic from input
-          const input = event.data?.input
-          if (input?.researcher_messages?.[0]?.content) {
-            const topic = input.researcher_messages[0].content
-            const shortTopic = topic.length > 60 ? topic.substring(0, 60) + '...' : topic
-            activityMessage = `Recherchiere zu: ${shortTopic}`
-          } else {
-            activityMessage = 'Recherchiere...'
-          }
-        } else if (nodeName === 'compress_research') {
-          activityMessage = 'Komprimiere Ergebnisse...'
-        } else if (nodeName === 'final_report_generation') {
-          activityMessage = 'Generiere finalen Bericht...'
-        }
-
-        if (activityMessage) {
-          mapped.push({ type: 'current_activity', activity: activityMessage })
-        }
-      }
-    } else if (event.event === 'on_chain_end') {
-      const name = event.name || event.data?.name
-      const nodeName = event.metadata?.langgraph_node || event.data?.metadata?.langgraph_node
-      if (name) {
-        mapped.push({ type: 'step_complete', step_name: name, name })
-      }
-
-      // Stop streaming when final report node ends
-      if (nodeName === 'final_report_generation') {
-        isStreamingReport = false
-      }
-
-      // Check for final report (only send once)
-      if (event.data?.output?.final_report && !finalReportSent) {
-        const finalReport = event.data.output.final_report
-        mapped.push({ type: 'agent_message', content: finalReport })
-        finalReportSent = true
-      }
-    } else if (event.event === 'on_tool_start') {
-      const name = event.name || event.data?.name
-      const args = event.data?.input
-      if (name) {
-        mapped.push({ type: 'tool_call_start', name, args })
-      }
-    } else if (event.event === 'on_chat_model_stream') {
-      // Stream final report chunks
-      if (isStreamingReport && event.data?.chunk) {
-        // chunk is now directly the string content (cleaned by Python bridge)
-        const content = typeof event.data.chunk === 'string'
-          ? event.data.chunk
-          : event.data.chunk?.content || ''
-        if (content) {
-          mapped.push({ type: 'report_stream', chunk: content })
-        }
-      }
-    } else if (event.event === 'on_tool_end') {
-      const name = event.name || event.data?.name
-      const result = event.data?.output
-      if (name) {
-        mapped.push({ type: 'tool_call_complete', name, result })
-      }
-    } else if (event.event === 'done') {
-      mapped.push({ type: 'done' })
-      updateJobStatus(jobId, JobStatus.COMPLETED)
-    } else if (event.event === 'error') {
-      mapped.push({ type: 'error', error: event.error })
-      updateJobStatus(jobId, JobStatus.FAILED, event.error)
-    }
-
-    return mapped
-  }
+  run.controller = controller
 
   try {
-    // Make HTTP request to backend
-    const response = await fetch(`${BACKEND_URL}/research/stream`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/research-runs/stream`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message,
-        model,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inquiry, model, mode }),
       signal: controller.signal,
     })
 
     if (!response.ok) {
       throw new Error(`Backend error: ${response.status} ${response.statusText}`)
     }
+    if (!response.body) throw new Error('Research stream has no response body')
 
-    if (!response.body) {
-      throw new Error('No response body')
-    }
-
-    // Read SSE stream
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
 
     while (true) {
       const { done, value } = await reader.read()
-
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
-
-      // Keep the last incomplete line in buffer
       buffer = lines.pop() || ''
 
       for (const line of lines) {
-        if (!line.trim() || line.startsWith(':')) continue
-
-        // Parse SSE data
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6)
-
-          try {
-            const event = JSON.parse(data)
-
-            // Map to frontend events
-            const frontendEvents = mapEventToFrontend(event)
-
-            // Send each mapped event
-            for (const fe of frontendEvents) {
-              const sseEvent = `data: ${JSON.stringify(fe)}\n\n`
-              pushJobEvent(jobId, sseEvent)
-            }
-          } catch (parseError) {
-            // Silently ignore parse errors for incomplete chunks
+        if (!line.startsWith('data: ')) continue
+        try {
+          const event = JSON.parse(line.slice(6)) as ResearchEvent
+          pushResearchRunEvent(runId, event)
+          if (event.type === 'run.completed') {
+            updateResearchRunStatus(runId, ResearchRunStatus.COMPLETED)
+          } else if (event.type === 'run.failed') {
+            const error = event.data?.error || event.message || 'Research failed'
+            updateResearchRunStatus(runId, ResearchRunStatus.FAILED, error)
           }
+        } catch {
+          // Ignore malformed or incomplete event lines; the SSE reader keeps its buffer.
         }
       }
     }
-
-    // Signal completion
-    pushJobEvent(jobId, `data: ${JSON.stringify({ type: 'done' })}\n\n`)
-
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      console.log('Research request aborted')
-    } else {
-      console.error('Research error:', error)
-      updateJobStatus(jobId, JobStatus.FAILED, error.message)
-      pushJobEvent(jobId, `data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`)
-    }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return
+    const message = error instanceof Error ? error.message : 'Unknown research error'
+    updateResearchRunStatus(runId, ResearchRunStatus.FAILED, message)
+    pushResearchRunEvent(runId, {
+      type: 'run.failed',
+      message: 'Recherche fehlgeschlagen',
+      data: { error: message },
+    })
   }
 }

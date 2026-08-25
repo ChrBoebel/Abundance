@@ -8,8 +8,8 @@ import './globals.css'
 const playfairDisplay = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair', weight: ['400', '500', '600', '700'] })
 
 export const metadata = {
-  title: 'Abundance - Deep Research',
-  description: 'Automated deep research powered by Gemini and Tavily',
+  title: 'Abundance — Evidenzbasierte Recherche',
+  description: 'Komplexe Fragen mit Evidenz, Gegenbelegen und transparenter Unsicherheit untersuchen.',
 }
 
 export default function RootLayout({

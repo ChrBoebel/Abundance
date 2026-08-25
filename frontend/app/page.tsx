@@ -1,44 +1,47 @@
-/**
- * Main Chat Page
- */
+/** Main Abundance research workspace. */
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import { Menu } from 'lucide-react'
 import Image from 'next/image'
-import ChatMessage from '@/components/ChatMessage'
-import ResearchStatus from '@/components/ResearchStatus'
-import ChatInput from '@/components/ChatInput'
-import HistorySidebar from '@/components/HistorySidebar'
+import ResearchMessage from '@/components/ResearchMessage'
+import ResearchTrail from '@/components/ResearchTrail'
+import InquiryComposer from '@/components/InquiryComposer'
+import ResearchLibrary from '@/components/ResearchLibrary'
 import { getHistory, saveEntry, deleteEntry } from '@/lib/history'
-import type { Message, ResearchPhase, Source, SSEEvent, HistoryEntry } from '@/lib/types'
+import type {
+  ResearchArchiveEntry,
+  ResearchEvent,
+  ResearchMessageRecord,
+  ResearchMode,
+  ResearchPhase,
+  ResearchStage,
+  Source,
+} from '@/lib/types'
 
 const INITIAL_PHASES: ResearchPhase[] = [
-  { id: 1, name: 'Recherche vorbereiten', icon: 'clipboard', status: 'pending' },
-  { id: 2, name: 'Quellen durchsuchen', icon: 'search', status: 'pending' },
-  { id: 3, name: 'Informationen zusammenführen', icon: 'lightbulb', status: 'pending' },
-  { id: 4, name: 'Bericht schreiben', icon: 'file-text', status: 'pending' },
+  { id: 1, stage: 'inquiry', name: 'Frage schärfen', icon: 'clipboard', status: 'pending' },
+  { id: 2, stage: 'planning', name: 'Rechercheplan entwickeln', icon: 'lightbulb', status: 'pending' },
+  { id: 3, stage: 'evidence', name: 'Evidenz sammeln', icon: 'search', status: 'pending' },
+  { id: 4, stage: 'review', name: 'Gegenbelege prüfen', icon: 'lightbulb', status: 'pending' },
+  { id: 5, stage: 'synthesis', name: 'Synthese erstellen', icon: 'file-text', status: 'pending' },
 ]
 
-const STEP_TO_PHASE: Record<string, number> = {
-  'clarify_with_user': 1,
-  'write_research_brief': 1,
-  'research_supervisor': 2,
-  'supervisor': 2,
-  'supervisor_tools': 2,
-  'researcher': 2,
-  'researcher_tools': 2,
-  'compress_research': 3,
-  'final_report_generation': 4,
+const STAGE_TO_PHASE: Record<ResearchStage, number> = {
+  inquiry: 1,
+  planning: 2,
+  evidence: 3,
+  review: 4,
+  synthesis: 5,
 }
 
-export default function ChatPage() {
+export default function ResearchWorkspace() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<ResearchMessageRecord[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
-  const [showResearchStatus, setShowResearchStatus] = useState(false)
+  const [showResearchTrail, setShowResearchTrail] = useState(false)
   const [phases, setPhases] = useState<ResearchPhase[]>(INITIAL_PHASES)
   const [sourceCount, setSourceCount] = useState(0)
   const [sources, setSources] = useState<Source[]>([])
@@ -46,12 +49,13 @@ export default function ChatPage() {
   const [currentActivity, setCurrentActivity] = useState('')
   const [isCompleted, setIsCompleted] = useState(false)
   const [sessionId, setSessionId] = useState(`s-${Date.now().toString(36)}`)
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null)
   const [eventSource, setEventSource] = useState<EventSource | null>(null)
   const [streamingReport, setStreamingReport] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('mercury')
+  const [selectedMode, setSelectedMode] = useState<ResearchMode>('balanced')
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
+  const [historyEntries, setHistoryEntries] = useState<ResearchArchiveEntry[]>([])
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -62,10 +66,33 @@ export default function ChatPage() {
     if (savedModel) {
       setSelectedModel(savedModel)
     }
+    const savedMode = localStorage.getItem('selectedResearchMode') as ResearchMode | null
+    if (savedMode && ['quick', 'balanced', 'thorough'].includes(savedMode)) {
+      setSelectedMode(savedMode)
+    }
     setHistoryEntries(getHistory())
     // Open sidebar by default on desktop
     if (window.innerWidth >= 1024) {
       setSidebarOpen(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const checkBackend = async () => {
+      try {
+        const response = await fetch('/api/health', { cache: 'no-store' })
+        const health = await response.json()
+        if (active) setBackendConnected(health.backend === 'healthy')
+      } catch {
+        if (active) setBackendConnected(false)
+      }
+    }
+    void checkBackend()
+    const interval = window.setInterval(checkBackend, 30000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
     }
   }, [])
 
@@ -84,12 +111,20 @@ export default function ChatPage() {
     setCitedSources([])
     setCurrentActivity('')
     setIsCompleted(false)
-    setShowResearchStatus(false)
+    setShowResearchTrail(false)
     setStreamingReport('')
   }
 
-  const updatePhase = (phaseId: number, status: 'pending' | 'running' | 'completed') => {
-    setPhases(prev => prev.map(p => p.id === phaseId ? { ...p, status } : p))
+  const activateStage = (stage: ResearchStage) => {
+    const activePhase = STAGE_TO_PHASE[stage]
+    setPhases(prev => prev.map(phase => ({
+      ...phase,
+      status: phase.id < activePhase
+        ? 'completed'
+        : phase.id === activePhase
+          ? 'running'
+          : phase.status,
+    })))
   }
 
   // Auto-save completed research to history
@@ -98,7 +133,7 @@ export default function ChatPage() {
       const agentMsg = messages.find(m => m.role === 'agent')
       const userMsg = messages.find(m => m.role === 'user')
       if (agentMsg && userMsg) {
-        const entry: HistoryEntry = {
+        const entry: ResearchArchiveEntry = {
           id: `h-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
           query: userMsg.content,
           report: agentMsg.content,
@@ -113,7 +148,7 @@ export default function ChatPage() {
     }
   }, [isCompleted, isStreaming]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelectEntry = useCallback((entry: HistoryEntry) => {
+  const handleSelectEntry = useCallback((entry: ResearchArchiveEntry) => {
     if (isStreaming) return
     setActiveEntryId(entry.id)
     setMessages([
@@ -124,7 +159,7 @@ export default function ChatPage() {
     setCitedSources(entry.sources)
     setSourceCount(entry.sources.length)
     setIsCompleted(true)
-    setShowResearchStatus(false)
+    setShowResearchTrail(false)
     setStreamingReport('')
     setPhases(INITIAL_PHASES.map(p => ({ ...p, status: 'completed' as const })))
     setCurrentActivity('')
@@ -192,45 +227,32 @@ export default function ChatPage() {
 
   const handleSSEMessage = (event: MessageEvent) => {
     try {
-      const data: SSEEvent = JSON.parse(event.data)
+      const data: ResearchEvent = JSON.parse(event.data)
 
-      if (data.type === 'job_started') {
-        setCurrentJobId(data.job_id)
-      } else if (data.type === 'thinking') {
-        setShowResearchStatus(true)
-      } else if (data.type === 'step_start') {
-        setShowResearchStatus(true)
-        const stepName = data.step_name || data.name
-        const phaseId = STEP_TO_PHASE[stepName]
-        if (phaseId) {
-          updatePhase(phaseId, 'running')
-        }
-      } else if (data.type === 'step_complete') {
-        const stepName = data.step_name || data.name
-        const phaseId = STEP_TO_PHASE[stepName]
-        if (phaseId) {
-          updatePhase(phaseId, 'completed')
-        }
-      } else if (data.type === 'tool_call_start') {
-        setShowResearchStatus(true)
-        if (['tavily_search', 'web_search', 'tavily_search_results_json'].includes(data.name)) {
-          let query = ''
-          if (data.args && typeof data.args === 'object') {
-            if (Array.isArray(data.args.queries) && data.args.queries.length > 0) {
-              query = data.args.queries[0]
-            } else if (data.args.query) {
-              query = data.args.query
-            }
-          }
-          if (query) {
-            const shortQuery = query.length > 60 ? query.substring(0, 60) + '...' : query
-            setCurrentActivity(`"${shortQuery}"`)
+      if (data.type === 'run.accepted') {
+        setShowResearchTrail(true)
+      } else if (data.stage) {
+        setShowResearchTrail(true)
+        activateStage(data.stage)
+        if (data.message) setCurrentActivity(data.message)
+      }
+
+      if (data.type === 'evidence.search.started') {
+        const queryPayload = data.data?.query
+        if (queryPayload && typeof queryPayload === 'object') {
+          const queryObject = queryPayload as { queries?: unknown[]; query?: unknown }
+          const query = Array.isArray(queryObject.queries)
+            ? queryObject.queries[0]
+            : queryObject.query
+          if (typeof query === 'string') {
+            const shortQuery = query.length > 60 ? `${query.substring(0, 60)}...` : query
+            setCurrentActivity(`Suche nach „${shortQuery}“`)
           }
         }
-      } else if (data.type === 'tool_call_complete') {
-        if (['tavily_search', 'web_search', 'tavily_search_results_json'].includes(data.name)) {
-          if (data.result && typeof data.result === 'string') {
-            const sourceMatches = data.result.match(/--- SOURCE \d+:/g)
+      } else if (data.type === 'evidence.discovered') {
+        const result = data.data?.result
+        if (typeof result === 'string') {
+            const sourceMatches = result.match(/--- SOURCE \d+:/g)
             if (sourceMatches && sourceMatches.length > 0) {
               const newSourceCount = sourceMatches.length
               setSourceCount(prev => prev + newSourceCount)
@@ -241,10 +263,10 @@ export default function ChatPage() {
               const urls: string[] = []
 
               let match
-              while ((match = titleRegex.exec(data.result)) !== null) {
+              while ((match = titleRegex.exec(result)) !== null) {
                 titles.push(match[1].trim())
               }
-              while ((match = urlRegex.exec(data.result)) !== null) {
+              while ((match = urlRegex.exec(result)) !== null) {
                 urls.push(match[1].trim())
               }
 
@@ -260,28 +282,26 @@ export default function ChatPage() {
               setSourceCount(prev => prev + 1)
               setSources(prev => [...prev, { title: 'Unbekannte Quelle', url: '#' }])
             }
-          }
         }
-      } else if (data.type === 'report_stream') {
-        setStreamingReport(prev => prev + data.chunk)
-      } else if (data.type === 'agent_message') {
-        setMessages(prev => [...prev, { role: 'agent', content: data.content }])
+      } else if (data.type === 'report.delta' && data.data?.chunk) {
+        setStreamingReport(prev => prev + data.data!.chunk)
+      } else if (data.type === 'report.completed' && data.data?.content) {
+        const report = data.data.content
+        setMessages(prev => [...prev, { role: 'agent', content: report }])
         setStreamingReport('')
         setIsCompleted(true)
-        phases.forEach(phase => updatePhase(phase.id, 'completed'))
+        setPhases(prev => prev.map(phase => ({ ...phase, status: 'completed' })))
 
-        // Extract cited sources from the final report
-        const cited = extractCitedSources(data.content, sources)
+        const cited = extractCitedSources(report, sources)
         setCitedSources(cited)
-      } else if (data.type === 'done') {
+      } else if (data.type === 'run.completed') {
         setIsCompleted(true)
         setIsStreaming(false)
-        setCurrentJobId(null)
         eventSource?.close()
-      } else if (data.type === 'error') {
-        setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${data.error}` }])
+      } else if (data.type === 'run.failed') {
+        const error = data.data?.error || data.message || 'Unbekannter Fehler'
+        setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${error}` }])
         setIsStreaming(false)
-        setCurrentJobId(null)
         eventSource?.close()
       }
     } catch (err) {
@@ -295,7 +315,7 @@ export default function ChatPage() {
     resetResearchState()
     setIsStreaming(true)
 
-    const url = `/api/chat/stream?thread_id=${sessionId}&message=${encodeURIComponent(message)}&model=${selectedModel}`
+    const url = `/api/research-runs/stream?session_id=${sessionId}&inquiry=${encodeURIComponent(message)}&model=${selectedModel}&mode=${selectedMode}`
     const es = new EventSource(url)
 
     es.onmessage = handleSSEMessage
@@ -310,7 +330,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <HistorySidebar
+      <ResearchLibrary
         isOpen={sidebarOpen}
         entries={historyEntries}
         activeEntryId={activeEntryId}
@@ -326,6 +346,12 @@ export default function ChatPage() {
           setSelectedModel(model)
           localStorage.setItem('selectedModel', model)
         }}
+        selectedMode={selectedMode}
+        onSelectMode={(mode) => {
+          setSelectedMode(mode)
+          localStorage.setItem('selectedResearchMode', mode)
+        }}
+        backendConnected={backendConnected}
       />
 
       <div className="flex flex-col flex-1 min-w-0 relative">
@@ -341,7 +367,7 @@ export default function ChatPage() {
         </button>
       )}
 
-      {/* Main Chat Area */}
+      {/* Research workspace */}
       <div className="flex-1 overflow-hidden max-w-6xl mx-auto w-full">
         <div className="h-full overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
@@ -351,12 +377,19 @@ export default function ChatPage() {
                   className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-0 overflow-visible"
                   style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)' }}
                 >
-                  <Image src="/bergbild2.svg" alt="Abundance Logo" width={80} height={80} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
+                  <Image src="/abundance-mark.svg" alt="Abundance Logo" width={80} height={80} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
                 </div>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold abundance-title">Abundance</h2>
                 <p className="text-base md:text-lg" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
-                  Deine KI-Tiefenrecherche: Stell eine komplexe Frage und erhalte einen fundierten Bericht mit verifizierten Quellen.
+                  Verwandle komplexe Fragen in prüfbare Erkenntnisse – mit Evidenz, Gegenargumenten und nachvollziehbaren Quellen.
                 </p>
+                <div className="grid grid-cols-2 gap-2 pt-2 text-xs" style={{ color: 'hsl(var(--foreground) / 0.55)' }}>
+                  {['Frage schärfen', 'Evidenz sammeln', 'Gegenbelege prüfen', 'Synthese erstellen'].map(step => (
+                    <div key={step} className="rounded-lg border px-3 py-2" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card) / 0.7)' }}>
+                      {step}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -364,13 +397,13 @@ export default function ChatPage() {
               {messages.map((msg, idx) => {
                 // Show user messages and agent messages before research status
                 if (msg.role === 'user') {
-                  return <ChatMessage key={idx} message={msg} />
+                  return <ResearchMessage key={idx} message={msg} />
                 }
                 // Don't show agent message yet if research is still showing
                 return null
               })}
-              {showResearchStatus && (
-                <ResearchStatus
+              {showResearchTrail && (
+                <ResearchTrail
                   phases={phases}
                   sourceCount={sourceCount}
                   sources={sources}
@@ -380,12 +413,12 @@ export default function ChatPage() {
                 />
               )}
               {streamingReport && (
-                <ChatMessage message={{ role: 'agent', content: streamingReport }} />
+                <ResearchMessage message={{ role: 'agent', content: streamingReport }} />
               )}
               {messages.map((msg, idx) => {
                 // Show agent messages after research status
                 if (msg.role === 'agent') {
-                  return <ChatMessage key={`agent-${idx}`} message={msg} />
+                  return <ResearchMessage key={`agent-${idx}`} message={msg} />
                 }
                 return null
               })}
@@ -396,7 +429,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input Area */}
-      <ChatInput onSubmit={handleSendMessage} isStreaming={isStreaming} />
+      <InquiryComposer onSubmit={handleSendMessage} isStreaming={isStreaming} />
       </div>
     </div>
   )

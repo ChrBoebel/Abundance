@@ -1,19 +1,17 @@
-/**
- * Chat Message Component
- */
+/** Render an inquiry or completed research report. */
 'use client'
 
 import { useLayoutEffect, useRef } from 'react'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
-import type { Message } from '@/lib/types'
+import type { ResearchMessageRecord } from '@/lib/types'
 
-interface ChatMessageProps {
-  message: Message
+interface ResearchMessageProps {
+  message: ResearchMessageRecord
   isStreaming?: boolean
 }
 
-export default function ChatMessage({ message, isStreaming = false }: ChatMessageProps) {
+export default function ResearchMessage({ message, isStreaming = false }: ResearchMessageProps) {
   const contentRef = useRef<HTMLDivElement>(null)
   const parsedContent = marked.parse(message.content, { async: false }) as string
 

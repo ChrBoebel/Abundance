@@ -1,9 +1,7 @@
-/**
- * SSE Streaming API Route for Research
- */
+/** Browser-facing SSE route for Abundance research runs. */
 import { NextRequest } from 'next/server'
 import { isAuthenticated } from '@/lib/auth'
-import { createJob, getJob, startResearch } from '@/lib/research'
+import { createResearchRun, getResearchRun, startResearch } from '@/lib/research'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,31 +17,29 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const message = searchParams.get('message')
-    const threadId = searchParams.get('thread_id') || 'default'
+    const inquiry = searchParams.get('inquiry')
+    const sessionId = searchParams.get('session_id') || 'default'
     const model = searchParams.get('model') || 'mercury'
-    let jobId = searchParams.get('job_id')
+    const mode = searchParams.get('mode') as 'quick' | 'balanced' | 'thorough' | null
+    let runId = searchParams.get('run_id')
 
-    // If no job_id, create new job and start research
-    if (!jobId) {
-      if (!message) {
+    if (!runId) {
+      if (!inquiry) {
         return new Response(
-          JSON.stringify({ error: 'No message provided' }),
+          JSON.stringify({ error: 'No inquiry provided' }),
           { status: 400, headers: { 'Content-Type': 'application/json' } }
         )
       }
 
-      // Generate job ID
-      jobId = `${threadId}-${Date.now()}`
-      createJob(jobId)
-      startResearch(jobId, message, threadId, model)
+      runId = `${sessionId}-${Date.now()}`
+      createResearchRun(runId)
+      void startResearch(runId, inquiry, sessionId, model, mode || 'balanced')
     }
 
-    // Get job
-    const job = getJob(jobId)
-    if (!job) {
+    const run = getResearchRun(runId)
+    if (!run) {
       return new Response(
-        JSON.stringify({ error: 'Job not found' }),
+        JSON.stringify({ error: 'Research run not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       )
     }
@@ -55,9 +51,8 @@ export async function GET(request: NextRequest) {
 
     const stream = new ReadableStream({
       start(controller) {
-        // Send job_id to client
-        const jobStartEvent = `data: ${JSON.stringify({ type: 'job_started', job_id: jobId })}\n\n`
-        controller.enqueue(encoder.encode(jobStartEvent))
+        const acceptedEvent = `data: ${JSON.stringify({ type: 'run.accepted', data: { run_id: runId } })}\n\n`
+        controller.enqueue(encoder.encode(acceptedEvent))
 
         // Setup heartbeat
         heartbeatInterval = setInterval(() => {
@@ -71,7 +66,7 @@ export async function GET(request: NextRequest) {
 
         // Stream events
         const streamInterval = setInterval(() => {
-          if (!job) {
+          if (!run) {
             clearInterval(streamInterval)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
             controller.close()
@@ -79,14 +74,14 @@ export async function GET(request: NextRequest) {
           }
 
           // Send new events
-          while (eventIndex < job.events.length) {
-            const event = job.events[eventIndex]
+          while (eventIndex < run.events.length) {
+            const event = run.events[eventIndex]
             controller.enqueue(encoder.encode(event))
             eventIndex++
           }
 
           // Check if job is done
-          if (job.status === 'completed' || job.status === 'failed') {
+          if (run.status === 'completed' || run.status === 'failed') {
             clearInterval(streamInterval)
             if (heartbeatInterval) clearInterval(heartbeatInterval)
             controller.close()

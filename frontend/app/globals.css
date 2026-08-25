@@ -9,12 +9,6 @@
   --primary: 38 55% 48%;
   --muted: 0 0% 12%;
   --border: 0 0% 20%;
-  --agent-bubble-from: 38 55% 25%;
-  --agent-bubble-via: 38 60% 28%;
-  --agent-bubble-to: 38 55% 25%;
-  --agent-bubble-border: 38 55% 45% / 0.6;
-  --agent-avatar-from: 38 64% 60% / 0.8;
-  --agent-avatar-to: 38 70% 65% / 0.9;
 }
 
 .light {
@@ -24,12 +18,6 @@
   --primary: 38 55% 52%;
   --muted: 30 20% 88%;
   --border: 30 15% 80%;
-  --agent-bubble-from: 30 15% 88%;
-  --agent-bubble-via: 30 15% 86%;
-  --agent-bubble-to: 30 15% 88%;
-  --agent-bubble-border: 38 55% 52% / 0.15;
-  --agent-avatar-from: 38 55% 52% / 0.15;
-  --agent-avatar-to: 38 55% 52% / 0.25;
 }
 
 body {
@@ -179,17 +167,6 @@ body {
 .highlight-source {
   background: hsl(var(--primary) / 0.1) !important;
   transition: background 0.3s;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Sources Section Styling */
