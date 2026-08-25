@@ -8,7 +8,8 @@ import time
 from collections.abc import Callable, Sequence
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -16,6 +17,7 @@ from abundance_research import __version__
 from abundance_research.events import ResearchEvent
 
 OBSERVABILITY_SCHEMA_VERSION = "1.0"
+OPERATION_SIGNAL_TYPE = "observability.operation"
 
 
 class RunOutcome(str, Enum):
@@ -41,6 +43,45 @@ class ArtifactRevision(BaseModel):
     kind: ArtifactKind
     name: str = Field(min_length=1, max_length=120)
     version: str = Field(min_length=1, max_length=200)
+
+
+class OperationKind(str, Enum):
+    """External operation categories measured by the research graph."""
+
+    MODEL = "model"
+    SEARCH = "search"
+
+
+class OperationOutcome(str, Enum):
+    """Outcome of one logical provider invocation."""
+
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class OperationSpan(BaseModel):
+    """Privacy-safe measurement for one model or search invocation."""
+
+    schema_version: str = OBSERVABILITY_SCHEMA_VERSION
+    span_id: str = Field(default_factory=lambda: f"span-{uuid4().hex}")
+    kind: OperationKind
+    operation: str = Field(min_length=1, max_length=120)
+    stage: str = Field(min_length=1, max_length=80)
+    component: str = Field(min_length=1, max_length=120)
+    model: str | None = Field(default=None, max_length=120)
+    started_at: datetime
+    duration_ms: int = Field(ge=0)
+    outcome: OperationOutcome
+    result_count: int | None = Field(default=None, ge=0)
+    failure_code: str | None = Field(default=None, max_length=120)
+    retryable: bool | None = None
+
+
+class OperationSignal(BaseModel):
+    """Internal LangGraph custom-stream envelope never forwarded to clients."""
+
+    type: Literal["observability.operation"] = "observability.operation"
+    span: OperationSpan
 
 
 class RunManifest(BaseModel):
@@ -92,6 +133,9 @@ class RunMetrics(BaseModel):
     model: str
     mode: str
     usage: ModelUsage = Field(default_factory=ModelUsage)
+    operation_count: int = Field(default=0, ge=0)
+    failed_operation_count: int = Field(default=0, ge=0)
+    operations: list[OperationSpan] = Field(default_factory=list, max_length=200)
     manifest: RunManifest | None = None
 
 
@@ -127,6 +171,7 @@ class RunTelemetry:
         self._event_count = 0
         self._evidence_count = 0
         self._claim_count = 0
+        self._operations: list[OperationSpan] = []
         self._finished = False
 
     @property
@@ -148,6 +193,14 @@ class RunTelemetry:
         if event.type == "run.completed":
             self._evidence_count = _public_count(event.data, "evidence_count")
             self._claim_count = _public_count(event.data, "claim_count")
+
+    def record_operation(self, span: OperationSpan) -> None:
+        """Retain one bounded privacy-safe operation measurement."""
+        if self._finished:
+            raise RuntimeError("Cannot record operations after run telemetry is finished")
+        if len(self._operations) >= 200:
+            raise RuntimeError("Run telemetry operation limit exceeded")
+        self._operations.append(span)
 
     def finish(
         self,
@@ -185,6 +238,11 @@ class RunTelemetry:
             model=self._requested_model,
             mode=self._mode,
             usage=usage or ModelUsage(),
+            operation_count=len(self._operations),
+            failed_operation_count=sum(
+                span.outcome is OperationOutcome.FAILED for span in self._operations
+            ),
+            operations=list(self._operations),
             manifest=manifest,
         )
 
@@ -200,6 +258,18 @@ class RunTelemetry:
 def _public_count(data: dict[str, Any], field: str) -> int:
     value = data.get(field, 0)
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+def operation_signal_payload(span: OperationSpan) -> dict[str, Any]:
+    """Serialize an internal operation span for LangGraph's custom stream."""
+    return OperationSignal(span=span).model_dump(mode="json")
+
+
+def parse_operation_signal(payload: Any) -> OperationSpan | None:
+    """Return a validated internal span or ``None`` for a product event."""
+    if not isinstance(payload, dict) or payload.get("type") != OPERATION_SIGNAL_TYPE:
+        return None
+    return OperationSignal.model_validate(payload).span
 
 
 class JsonLogFormatter(logging.Formatter):

@@ -31,6 +31,7 @@ from abundance_research.observability import (
     RunMetrics,
     RunOutcome,
     RunTelemetry,
+    parse_operation_signal,
 )
 
 logger = logging.getLogger(__name__)
@@ -136,7 +137,12 @@ class AbundanceResearchEngine:
             ):
                 if chunk.get("type") != "custom":
                     continue
-                event = ResearchEvent.model_validate(chunk["data"])
+                payload = chunk["data"]
+                operation_span = parse_operation_signal(payload)
+                if operation_span is not None:
+                    telemetry.record_operation(operation_span)
+                    continue
+                event = ResearchEvent.model_validate(payload)
                 telemetry.record_event(event)
                 if event.type == "run.completed":
                     metrics = finish_metrics(RunOutcome.COMPLETED)

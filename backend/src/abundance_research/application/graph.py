@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import operator
-from collections.abc import Sequence
-from typing import Annotated, Any, TypedDict
+import time
+from collections.abc import Awaitable, Callable, Sequence
+from datetime import datetime, timezone
+from typing import Annotated, Any, TypedDict, TypeVar
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
@@ -28,8 +30,15 @@ from abundance_research.application.rendering import (
 from abundance_research.domain import EvidenceRecord, ResearchPlan, ResearchUnit
 from abundance_research.evaluation import evaluate_report
 from abundance_research.events import ResearchEvent, ResearchStage
+from abundance_research.observability import (
+    OperationKind,
+    OperationOutcome,
+    OperationSpan,
+    operation_signal_payload,
+)
 
-RESEARCH_GRAPH_VERSION = "research-graph-v1"
+RESEARCH_GRAPH_VERSION = "research-graph-v2"
+OperationResult = TypeVar("OperationResult")
 
 
 class ResearchGraphState(TypedDict, total=False):
@@ -49,6 +58,12 @@ class ResearchGraphState(TypedDict, total=False):
 def _emit(writer: StreamWriter, event: ResearchEvent) -> None:
     """Write one framework-independent product event to the custom stream."""
     writer(event.model_dump(mode="json", exclude_none=True))
+
+
+def _component_name(component: Any, fallback: str) -> str:
+    """Return a stable adapter name without leaking its concrete class."""
+    name = getattr(component, "name", None)
+    return name if isinstance(name, str) and name else fallback
 
 
 class AbundanceResearchGraph:
@@ -80,6 +95,77 @@ class AbundanceResearchGraph:
     def finish_run(self, run_id: str) -> None:
         """Release ephemeral run resources after success, failure, or cancellation."""
         self._run_semaphores.pop(run_id, None)
+
+    async def _observe_operation(
+        self,
+        writer: StreamWriter,
+        *,
+        kind: OperationKind,
+        operation: str,
+        stage: ResearchStage,
+        component: str,
+        invoke: Callable[[], Awaitable[OperationResult]],
+        model: str | None = None,
+        count_results: Callable[[OperationResult], int] | None = None,
+    ) -> OperationResult:
+        """Measure one logical external call and emit only privacy-safe metadata."""
+        started_at = datetime.now(timezone.utc)
+        started = time.perf_counter()
+        try:
+            result = await invoke()
+        except ResearchFailure as exc:
+            writer(
+                operation_signal_payload(
+                    OperationSpan(
+                        kind=kind,
+                        operation=operation,
+                        stage=stage.value,
+                        component=component,
+                        model=model,
+                        started_at=started_at,
+                        duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
+                        outcome=OperationOutcome.FAILED,
+                        failure_code=exc.code.value,
+                        retryable=exc.retryable,
+                    )
+                )
+            )
+            raise
+        except Exception:
+            writer(
+                operation_signal_payload(
+                    OperationSpan(
+                        kind=kind,
+                        operation=operation,
+                        stage=stage.value,
+                        component=component,
+                        model=model,
+                        started_at=started_at,
+                        duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
+                        outcome=OperationOutcome.FAILED,
+                        failure_code=FailureCode.PROVIDER_UNAVAILABLE.value,
+                        retryable=True,
+                    )
+                )
+            )
+            raise
+        result_count = count_results(result) if count_results is not None else None
+        writer(
+            operation_signal_payload(
+                OperationSpan(
+                    kind=kind,
+                    operation=operation,
+                    stage=stage.value,
+                    component=component,
+                    model=model,
+                    started_at=started_at,
+                    duration_ms=max(0, int((time.perf_counter() - started) * 1000)),
+                    outcome=OperationOutcome.SUCCEEDED,
+                    result_count=result_count,
+                )
+            )
+        )
+        return result
 
     def _compile(
         self,
@@ -127,7 +213,18 @@ class AbundanceResearchGraph:
     ) -> dict[str, Any]:
         command = ResearchCommand.from_payload(state["command"])
         policy = ResearchCapabilityPolicy(command.mode)
-        plan = await self._planner.create_plan(command.inquiry, model=command.model)
+        plan = await self._observe_operation(
+            writer,
+            kind=OperationKind.MODEL,
+            operation="plan.create",
+            stage=ResearchStage.PLANNING,
+            component=_component_name(self._planner, "planning-model"),
+            model=command.model,
+            invoke=lambda: self._planner.create_plan(command.inquiry, model=command.model),
+            count_results=lambda result: (
+                len(result.research_questions) + len(result.falsification_questions)
+            ),
+        )
         units = policy.authorize_plan(plan)
         run_data = {"run_id": command.run_id}
         _emit(
@@ -199,7 +296,19 @@ class AbundanceResearchGraph:
             records: list[EvidenceRecord] = []
             for source in self._evidence_sources:
                 try:
-                    records.extend(await source.search(unit, max_results=max_results))
+                    async def search_source() -> Sequence[EvidenceRecord]:
+                        return await source.search(unit, max_results=max_results)
+
+                    source_records = await self._observe_operation(
+                        writer,
+                        kind=OperationKind.SEARCH,
+                        operation="evidence.search",
+                        stage=ResearchStage.EVIDENCE,
+                        component=source.name,
+                        invoke=search_source,
+                        count_results=len,
+                    )
+                    records.extend(source_records)
                 except ResearchFailure as exc:
                     _emit(
                         writer,
@@ -303,11 +412,20 @@ class AbundanceResearchGraph:
                 data={"run_id": command.run_id},
             ),
         )
-        draft = await self._synthesizer.synthesize(
-            command.inquiry,
-            plan,
-            evidence,
+        draft = await self._observe_operation(
+            writer,
+            kind=OperationKind.MODEL,
+            operation="report.synthesize",
+            stage=ResearchStage.SYNTHESIS,
+            component=_component_name(self._synthesizer, "synthesis-model"),
             model=command.model,
+            invoke=lambda: self._synthesizer.synthesize(
+                command.inquiry,
+                plan,
+                evidence,
+                model=command.model,
+            ),
+            count_results=lambda result: len(result.claims),
         )
         report = finalize_report(
             enforce_report_contract(

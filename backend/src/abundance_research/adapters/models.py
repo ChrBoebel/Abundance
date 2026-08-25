@@ -108,6 +108,8 @@ class SynthesisDraft(BaseModel):
 class OpenRouterResearchModel:
     """Use one constrained OpenRouter client for planning and synthesis."""
 
+    name = "openrouter"
+
     def __init__(
         self,
         api_key: str,

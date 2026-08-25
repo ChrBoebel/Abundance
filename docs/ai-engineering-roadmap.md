@@ -23,7 +23,7 @@ without violating reliability, latency, or cost budgets.
 
 ## Phase 1: Abundance observability foundation
 
-Status: in progress on `feat/ai-engineering-v2`.
+Status: foundation complete on `feat/ai-engineering-v2`.
 
 ### Run manifest
 
@@ -50,8 +50,15 @@ The internal collector owns:
 - model token and known provider-cost totals;
 - terminal outcome and failure classification.
 
-Next increments add provider attempts, retry counts, search latency and yield,
-actual fallback provider/model, queue time, and search-credit consumption.
+Logical model and search operations now produce bounded internal spans with the
+operation kind, stage, component, requested model, duration, outcome, result
+count, public failure code, and retryability. These signals travel through the
+LangGraph custom stream but are consumed by the engine and never forwarded as
+product events.
+
+Next increments add provider-level retry attempts, actual fallback
+provider/model, queue time, token usage by operation, and search-credit
+consumption.
 
 ### Privacy boundary
 
@@ -88,6 +95,15 @@ Each threshold produces a structured check containing the metric, comparator,
 observed value, threshold, pass/fail result, and stable failure code. Evaluation
 runs persist all checks, not only a final score. This makes regressions suitable
 for CI and release review.
+
+### Baseline comparison
+
+Candidate reports can now be compared with a like-for-like accepted baseline.
+The comparison rejects different dataset versions, model profiles, or case
+sets, then evaluates explicit budgets for pass-rate drop, average latency
+increase, and known cost increase. It also records p95 latency and aggregated
+failure signatures. Both the candidate and comparison remain machine-readable
+JSON artifacts suitable for a release gate.
 
 ### Reference datasets
 
@@ -156,10 +172,11 @@ and claim verification, followed by end-to-end suites. Add deterministic chaos
 fixtures for timeouts, rate limits, malformed schemas, duplicate sources,
 contradictions, cancellation, and restart during fan-out.
 
-CI should remain deterministic and credential-free. A scheduled, budget-capped
-live canary compares the candidate against the last accepted baseline and
-publishes a machine-readable report. Promotion requires explicit quality,
-reliability, latency, and cost thresholds.
+CI should remain deterministic and credential-free. The baseline comparison
+contract is implemented; the next delivery step is a scheduled, budget-capped
+live canary that supplies its candidate artifact and accepted baseline to that
+gate. Promotion requires explicit quality, reliability, latency, and cost
+thresholds.
 
 ## Initial delivery criteria
 
@@ -171,6 +188,11 @@ The first increment is complete when:
 4. every quality-gate decision includes an explainable structured check;
 5. unit, type, lint, and existing regression tests pass;
 6. the public event sequence and stored metrics remain backward compatible.
+
+The initial delivery criteria are complete. The operation-span increment is
+also complete; provider retry/fallback details remain pending because the
+current adapters expose only one logical invocation around their internal retry
+behavior.
 
 ## Later integration options
 
