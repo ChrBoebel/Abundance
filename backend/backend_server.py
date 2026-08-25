@@ -73,7 +73,7 @@ async def stream_research_run(
     command: ResearchCommand,
     request: Request,
 ) -> AsyncIterator[bytes]:
-    """Bridge application events to cancellable HTTP streaming."""
+    """Bridge application events to cancellable HTTP streaming with heartbeats."""
     accepted = ResearchEvent(
         type="run.accepted",
         message="Recherche angenommen",
@@ -83,12 +83,32 @@ async def stream_research_run(
     yield encode_sse(accepted, sequence)
     await asyncio.sleep(0)
 
-    async for event in engine.stream(command):
-        if await request.is_disconnected():
-            return
-        sequence += 1
-        yield encode_sse(event, sequence)
-        await asyncio.sleep(0)
+    event_stream = engine.stream(command)
+    pending_event: asyncio.Task[ResearchEvent] | None = None
+    try:
+        while True:
+            if pending_event is None:
+                pending_event = asyncio.create_task(anext(event_stream))
+            done, _ = await asyncio.wait({pending_event}, timeout=15)
+            if await request.is_disconnected():
+                return
+            if not done:
+                yield b": heartbeat\n\n"
+                await asyncio.sleep(0)
+                continue
+            try:
+                event = pending_event.result()
+            except StopAsyncIteration:
+                return
+            pending_event = None
+            sequence += 1
+            yield encode_sse(event, sequence)
+            await asyncio.sleep(0)
+    finally:
+        if pending_event is not None and not pending_event.done():
+            pending_event.cancel()
+            await asyncio.gather(pending_event, return_exceptions=True)
+        await event_stream.aclose()
 
 
 def create_app(
