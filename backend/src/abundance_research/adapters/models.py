@@ -22,6 +22,7 @@ from abundance_research.domain import (
     ResearchPlan,
     ResearchReport,
 )
+from abundance_research.observability import ModelUsage
 
 StructuredOutput = TypeVar("StructuredOutput", bound=BaseModel)
 ChatModelFactory = Callable[[str, int], Any]
@@ -112,6 +113,7 @@ class OpenRouterResearchModel:
         self._chat_model_factory = chat_model_factory or self._build_chat_model
         self._planning_tokens = planning_tokens
         self._synthesis_tokens = synthesis_tokens
+        self._usage_by_inquiry: dict[str, ModelUsage] = {}
 
     def _build_chat_model(self, model_id: str, max_tokens: int) -> ChatOpenRouter:
         """Build the official LangChain OpenRouter integration without tools."""
@@ -134,6 +136,7 @@ class OpenRouterResearchModel:
         max_tokens: int,
         system: str,
         payload: dict[str, Any],
+        usage_key: str,
     ) -> StructuredOutput:
         """Request one schema-constrained completion without tool capabilities."""
         try:
@@ -145,6 +148,7 @@ class OpenRouterResearchModel:
                 output_type,
                 method="json_schema",
                 strict=True,
+                include_raw=True,
             )
             response = await structured_model.ainvoke(
                 [
@@ -152,7 +156,12 @@ class OpenRouterResearchModel:
                     HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
                 ]
             )
-            return output_type.model_validate(response)
+            if isinstance(response, dict) and "parsed" in response:
+                parsed = response["parsed"]
+                self._record_usage(usage_key, response.get("raw"))
+            else:
+                parsed = response
+            return output_type.model_validate(parsed)
         except ResearchFailure:
             raise
         except Exception as exc:
@@ -180,6 +189,7 @@ class OpenRouterResearchModel:
             max_tokens=self._planning_tokens,
             system=system,
             payload=payload,
+            usage_key=inquiry.id,
         )
 
         return ResearchPlan(
@@ -218,9 +228,29 @@ class OpenRouterResearchModel:
             max_tokens=self._synthesis_tokens,
             system=system,
             payload=payload,
+            usage_key=inquiry.id,
         )
 
         return self.bind_evidence(inquiry, evidence, draft)
+
+    def _record_usage(self, inquiry_id: str, raw_message: Any) -> None:
+        """Aggregate token and cost metadata without retaining message content."""
+        raw_usage = getattr(raw_message, "usage_metadata", None) or {}
+        response_metadata = getattr(raw_message, "response_metadata", None) or {}
+        token_usage = response_metadata.get("token_usage", {})
+        cost = token_usage.get("cost")
+        usage = ModelUsage(
+            input_tokens=int(raw_usage.get("input_tokens", 0) or 0),
+            output_tokens=int(raw_usage.get("output_tokens", 0) or 0),
+            total_tokens=int(raw_usage.get("total_tokens", 0) or 0),
+            cost_usd=float(cost) if isinstance(cost, int | float) and cost >= 0 else None,
+        )
+        current = self._usage_by_inquiry.get(inquiry_id, ModelUsage())
+        self._usage_by_inquiry[inquiry_id] = current.add(usage)
+
+    def drain_usage(self, inquiry_id: str) -> ModelUsage:
+        """Return and clear usage for a completed inquiry."""
+        return self._usage_by_inquiry.pop(inquiry_id, ModelUsage())
 
     @staticmethod
     def bind_evidence(

@@ -5,7 +5,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Trash2, Clock, X, Sun, Moon, ChevronUp, PanelLeftClose, Check, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Clock, X, Sun, Moon, ChevronUp, PanelLeftClose, Check, Sparkles, GitCompareArrows } from 'lucide-react'
 import Image from 'next/image'
 import type { ResearchArchiveEntry, ResearchMode } from '@/lib/types'
 import { MODEL_DISPLAY_NAMES } from '@/lib/types'
@@ -40,6 +40,8 @@ interface ResearchLibraryProps {
   selectedMode: ResearchMode
   onSelectMode: (mode: ResearchMode) => void
   backendConnected: boolean | null
+  onCompare: () => void
+  canCompare: boolean
 }
 
 function formatDate(iso: string): string {
@@ -81,6 +83,8 @@ export default function ResearchLibrary({
   selectedMode,
   onSelectMode,
   backendConnected,
+  onCompare,
+  canCompare,
 }: ResearchLibraryProps) {
   const [showModelMenu, setShowModelMenu] = useState(false)
 
@@ -155,6 +159,15 @@ export default function ResearchLibrary({
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">Neue Recherche</span>
           </button>
+          <button
+            type="button"
+            onClick={onCompare}
+            disabled={!canCompare}
+            className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ background: 'hsl(var(--foreground) / 0.05)' }}
+          >
+            <GitCompareArrows className="h-4 w-4" /> Synthesen vergleichen
+          </button>
         </div>
 
         {/* Entries List */}
@@ -208,7 +221,7 @@ export default function ResearchLibrary({
                       e.stopPropagation()
                       onDeleteEntry(entry.id)
                     }}
-                    className="absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 transition-opacity hover:bg-red-500/20"
+                    className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 transition-opacity hover:bg-red-500/20"
                     aria-label={`Recherche „${truncateQuery(entry.query)}“ löschen`}
                     style={{ color: 'hsl(var(--foreground) / 0.4)' }}
                     title="Löschen"

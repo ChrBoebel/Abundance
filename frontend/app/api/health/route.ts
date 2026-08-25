@@ -5,7 +5,7 @@ const BACKEND_URL = process.env.RESEARCH_BACKEND_URL || 'http://localhost:8000'
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/health`, {
+    const response = await fetch(`${BACKEND_URL}/ready`, {
       cache: 'no-store',
       signal: AbortSignal.timeout(3000),
     })

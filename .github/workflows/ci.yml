@@ -22,10 +22,10 @@ jobs:
         working-directory: frontend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -52,15 +52,31 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: abundance_test
+          POSTGRES_USER: abundance
+          POSTGRES_PASSWORD: abundance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U abundance -d abundance_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://abundance:abundance_test@localhost:5432/abundance_test
     defaults:
       run:
         working-directory: backend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -80,6 +96,9 @@ jobs:
 
       - name: Run backend tests
         run: python -m pytest -q
+
+      - name: Validate research evaluation dataset
+        run: python -m abundance_research.eval_harness --dataset evals/reference-cases.json --validate-only
 
       - name: Audit Python dependencies
         run: python -m pip_audit

@@ -40,7 +40,10 @@ export async function proxy(request: NextRequest) {
   })
 
   const publicPaths = new Set(['/login', '/api/auth/login', '/api/health'])
-  const isPublicPath = publicPaths.has(request.nextUrl.pathname)
+  const isSharedCapability =
+    request.nextUrl.pathname.startsWith('/shared/') ||
+    request.nextUrl.pathname.startsWith('/api/shared/')
+  const isPublicPath = publicPaths.has(request.nextUrl.pathname) || isSharedCapability
 
   if (isPublicPath) {
     return secureResponse(response, policy)

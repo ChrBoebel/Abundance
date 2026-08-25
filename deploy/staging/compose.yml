@@ -1,0 +1,100 @@
+name: abundance-staging
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: abundance
+      POSTGRES_USER: abundance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abundance -d abundance"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+  migrate:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+    command: ["python", "-m", "abundance_research.migrations"]
+    environment:
+      ABUNDANCE_DATABASE_URL: postgresql://abundance:${POSTGRES_PASSWORD}@postgres:5432/abundance
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+    environment:
+      PORT: "8000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:?TAVILY_API_KEY is required}
+      ABUNDANCE_INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?INTERNAL_API_TOKEN is required}
+      ABUNDANCE_DATABASE_URL: postgresql://abundance:${POSTGRES_PASSWORD}@postgres:5432/abundance
+      ABUNDANCE_CORS_ORIGINS: ${STAGING_BASE_URL:?STAGING_BASE_URL is required}
+      ABUNDANCE_SHARE_BASE_URL: ${STAGING_BASE_URL}/shared
+      ABUNDANCE_LOG_LEVEL: INFO
+      ABUNDANCE_DEPLOYMENT_ENVIRONMENT: staging
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
+    environment:
+      NODE_ENV: production
+      PORT: "4290"
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      APP_PASSWORD: ${APP_PASSWORD:?APP_PASSWORD is required}
+      RATE_LIMIT_KEY_SECRET: ${RATE_LIMIT_KEY_SECRET:?RATE_LIMIT_KEY_SECRET is required}
+      RESEARCH_BACKEND_URL: http://backend:8000
+      RESEARCH_BACKEND_TOKEN: ${INTERNAL_API_TOKEN}
+      UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:?UPSTASH_REDIS_REST_URL is required}
+      UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?UPSTASH_REDIS_REST_TOKEN is required}
+    ports:
+      - "127.0.0.1:${STAGING_PORT:-4290}:4290"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4290/api/health').then(r=>{if(r.status>=500)process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+
+volumes:
+  postgres-data:

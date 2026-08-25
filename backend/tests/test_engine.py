@@ -108,11 +108,11 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
 
     event_types = [event.type for event in events]
     assert event_types[0] == "inquiry.scoping"
-    assert event_types[-2:] == ["report.completed", "run.completed"]
+    assert event_types[-3:] == ["report.completed", "run.metrics", "run.completed"]
     assert event_types.count("evidence.discovered") == 4
     assert source.max_active <= 3
 
-    completed = events[-2]
+    completed = events[-3]
     report = completed.data["report"]
     assert report["inquiry_id"] != "wrong-inquiry"
     assert [item["id"] for item in report["evidence"]] != ["ev-invented"]
@@ -120,6 +120,8 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
     assert report["claims"][0]["evidence_ids"] == [report["evidence"][0]["id"]]
     assert "<script>" not in completed.data["content"]
     assert completed.data["evaluation"]["broken_evidence_links"] == 0
+    assert events[-2].data["metrics"]["duration_ms"] >= 0
+    assert events[-2].data["metrics"]["evidence_count"] == 4
 
     graph_nodes = set(engine.workflow.compiled.get_graph().nodes)
     assert graph_nodes == {
@@ -153,6 +155,8 @@ async def test_engine_never_streams_private_provider_errors() -> None:
     events = [event async for event in engine.stream(command(ResearchMode.QUICK))]
 
     assert events[-1].type == "run.failed"
+    assert events[-2].type == "run.metrics"
+    assert events[-2].data["metrics"]["duration_ms"] >= 0
     payload = events[-1].model_dump_json()
     assert "private provider details" not in payload
     assert events[-1].data["code"] == "provider_unavailable"

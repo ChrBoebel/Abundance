@@ -17,7 +17,9 @@ export function clientRateLimitKey(request: NextRequest): string {
     forwarded ||
     'unknown'
   const normalized = candidate.trim().slice(0, 100)
-  const secret = process.env.SESSION_SECRET
-  if (!secret) throw new Error('SESSION_SECRET environment variable is required')
+  const secret = process.env.RATE_LIMIT_KEY_SECRET || (
+    process.env.NODE_ENV !== 'production' ? process.env.SESSION_SECRET : undefined
+  )
+  if (!secret) throw new Error('RATE_LIMIT_KEY_SECRET environment variable is required')
   return createHmac('sha256', secret).update(normalized).digest('hex')
 }

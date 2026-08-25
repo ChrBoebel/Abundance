@@ -1,4 +1,44 @@
 services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: abundance
+      POSTGRES_USER: abundance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - abundance-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abundance -d abundance"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+  migrate:
+    build:
+      context: .
+    command: ["python", "-m", "abundance_research.migrations"]
+    environment:
+      ABUNDANCE_DATABASE_URL: postgresql://abundance:${POSTGRES_PASSWORD}@postgres:5432/abundance
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   research-backend:
     build:
       context: .
@@ -11,8 +51,19 @@ services:
       TAVILY_API_KEY: ${TAVILY_API_KEY:?TAVILY_API_KEY is required}
       ABUNDANCE_INTERNAL_API_TOKEN: ${ABUNDANCE_INTERNAL_API_TOKEN:-}
       ABUNDANCE_CORS_ORIGINS: ${ABUNDANCE_CORS_ORIGINS:-http://localhost:4290}
+      ABUNDANCE_DATABASE_URL: postgresql://abundance:${POSTGRES_PASSWORD}@postgres:5432/abundance
+      ABUNDANCE_DATABASE_POOL_MIN_SIZE: ${ABUNDANCE_DATABASE_POOL_MIN_SIZE:-1}
+      ABUNDANCE_DATABASE_POOL_MAX_SIZE: ${ABUNDANCE_DATABASE_POOL_MAX_SIZE:-10}
+      ABUNDANCE_SHARE_BASE_URL: ${ABUNDANCE_SHARE_BASE_URL:-http://localhost:4290/shared}
+      ABUNDANCE_LOG_LEVEL: ${ABUNDANCE_LOG_LEVEL:-INFO}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+
+volumes:
+  abundance-postgres:

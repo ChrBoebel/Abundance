@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { Loader2, CheckCircle, BookOpen, Clipboard, Search, Lightbulb, FileText, Circle, ExternalLink } from 'lucide-react'
+import { filterSources, type SourceFilter } from '@/lib/research-records'
 import type { ResearchPhase, Source } from '@/lib/types'
 
 interface ResearchTrailProps {
@@ -15,6 +16,8 @@ interface ResearchTrailProps {
 
 export default function ResearchTrail({ phases, sourceCount, sources, currentActivity, isCompleted }: ResearchTrailProps) {
   const [expanded, setExpanded] = useState(false)
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all')
+  const visibleSources = filterSources(sources, sourceFilter)
 
   const currentPhase = phases.find(p => p.status === 'running') || (isCompleted ? phases[phases.length - 1] : null)
   const phaseIcons = {
@@ -27,7 +30,7 @@ export default function ResearchTrail({ phases, sourceCount, sources, currentAct
   const PhaseIcon = currentPhase ? phaseIcons[currentPhase.icon as keyof typeof phaseIcons] : Clipboard
 
   return (
-    <div className="message-bubble flex justify-start mb-4">
+    <div className="message-bubble flex justify-start mb-4" aria-live={isCompleted ? 'off' : 'polite'}>
       <div className="rounded-2xl px-4 py-3 max-w-5xl mr-4" style={{ background: 'hsl(var(--card))', border: '2px solid hsl(var(--border))' }}>
         <div className="flex items-center gap-3 mb-2">
           {isCompleted ? (
@@ -99,9 +102,31 @@ export default function ResearchTrail({ phases, sourceCount, sources, currentAct
                 {/* All Found Sources */}
                 <div>
                   <div className="text-sm font-semibold mb-2">Gefundene Quellen ({sources.length}):</div>
+                  <div className="mb-3 flex flex-wrap gap-2" aria-label="Quellen filtern">
+                    {([
+                      ['all', 'Alle'],
+                      ['supports', 'Unterstützend'],
+                      ['challenges', 'Gegenbelege'],
+                      ['primary', 'Primärquellen'],
+                    ] as const).map(([value, label]) => {
+                      const count = filterSources(sources, value).length
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setSourceFilter(value)}
+                          aria-pressed={sourceFilter === value}
+                          className="action-button"
+                          style={sourceFilter === value ? { borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))' } : undefined}
+                        >
+                          {label} ({count})
+                        </button>
+                      )
+                    })}
+                  </div>
                   <div className="space-y-1 text-xs max-h-48 overflow-y-auto">
-                    {sources.map((source, idx) => (
-                      <div key={idx} className="flex items-start gap-2" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
+                    {visibleSources.map((source) => (
+                      <div key={source.id || source.url} className="flex items-start gap-2 rounded-md p-1" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
                         <ExternalLink className="w-4 h-4 mt-0.5 flex-shrink-0" />
                         <a
                           href={source.url}
@@ -112,8 +137,11 @@ export default function ResearchTrail({ phases, sourceCount, sources, currentAct
                         >
                           {source.title}
                         </a>
+                        <span className="sr-only"> (öffnet in einem neuen Tab)</span>
+                        {source.is_primary && <span className="rounded px-1.5 py-0.5" style={{ background: 'hsl(var(--primary) / 0.12)' }}>Primär</span>}
                       </div>
                     ))}
+                    {visibleSources.length === 0 && <p>Für diesen Filter wurden keine Quellen gefunden.</p>}
                   </div>
                 </div>
 
