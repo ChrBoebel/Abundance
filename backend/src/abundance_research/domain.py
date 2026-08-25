@@ -36,11 +36,19 @@ class SourceKind(str, Enum):
     OTHER = "other"
 
 
+class EvidenceRelation(str, Enum):
+    """How an evidence record relates to the question being investigated."""
+
+    SUPPORTS = "supports"
+    CHALLENGES = "challenges"
+    CONTEXT = "context"
+
+
 class Inquiry(BaseModel):
     """A research question together with explicit scope constraints."""
 
     id: str = Field(default_factory=lambda: f"inq-{uuid4().hex}")
-    question: str = Field(min_length=1)
+    question: str = Field(min_length=3, max_length=8000)
     language: str | None = None
     timeframe: str | None = None
     geography: str | None = None
@@ -59,6 +67,16 @@ class ResearchPlan(BaseModel):
     completion_criteria: list[str] = Field(default_factory=list)
 
 
+class ResearchUnit(BaseModel):
+    """A bounded, policy-approved evidence question."""
+
+    id: str = Field(default_factory=lambda: f"unit-{uuid4().hex}")
+    question: str = Field(min_length=3, max_length=500)
+    purpose: str = Field(min_length=3, max_length=500)
+    relation: EvidenceRelation = EvidenceRelation.CONTEXT
+    priority: int = Field(default=0, ge=0, le=100)
+
+
 class SourceAssessment(BaseModel):
     """Quality signals associated with a source."""
 
@@ -73,9 +91,11 @@ class EvidenceRecord(BaseModel):
     """A normalized source excerpt that can support or challenge claims."""
 
     id: str = Field(default_factory=lambda: f"ev-{uuid4().hex}")
-    title: str
-    url: str
-    excerpt: str
+    title: str = Field(min_length=1, max_length=500)
+    url: str = Field(min_length=8, max_length=4000)
+    excerpt: str = Field(min_length=1, max_length=50000)
+    relation: EvidenceRelation = EvidenceRelation.CONTEXT
+    research_unit_id: str | None = None
     published_at: datetime | None = None
     assessment: SourceAssessment = Field(default_factory=SourceAssessment)
     metadata: dict[str, Any] = Field(default_factory=dict)

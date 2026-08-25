@@ -29,23 +29,18 @@ const nextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
           },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-origin',
+          },
           // Strict-Transport-Security (HSTS)
           {
             key: 'Strict-Transport-Security',
             value: 'max-age=31536000; includeSubDomains',
-          },
-          // Content Security Policy
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval & unsafe-inline
-              "style-src 'self' 'unsafe-inline'", // Required for styled components
-              "img-src 'self' data: https:",
-              "font-src 'self' data:",
-              "connect-src 'self'",
-              "frame-ancestors 'none'",
-            ].join('; '),
           },
         ],
       },

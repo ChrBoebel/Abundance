@@ -9,12 +9,11 @@ interface ResearchTrailProps {
   phases: ResearchPhase[]
   sourceCount: number
   sources: Source[]
-  citedSources: Source[]
   currentActivity: string
   isCompleted: boolean
 }
 
-export default function ResearchTrail({ phases, sourceCount, sources, citedSources, currentActivity, isCompleted }: ResearchTrailProps) {
+export default function ResearchTrail({ phases, sourceCount, sources, currentActivity, isCompleted }: ResearchTrailProps) {
   const [expanded, setExpanded] = useState(false)
 
   const currentPhase = phases.find(p => p.status === 'running') || (isCompleted ? phases[phases.length - 1] : null)

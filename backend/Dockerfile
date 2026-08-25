@@ -1,37 +1,27 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+FROM python:3.13-slim
 
-# Set working directory
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+RUN addgroup --system abundance \
+    && adduser --system --ingroup abundance --home /nonexistent abundance
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+COPY requirements.txt ./
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy the entire project source
+COPY pyproject.toml README.md ./
 COPY src ./src
-COPY pyproject.toml .
+RUN python -m pip install --no-cache-dir --no-deps .
 
-# Install the package in editable mode
-RUN pip install -e .
+COPY backend_server.py ./
 
-# Copy backend server
-COPY backend_server.py .
-
-# Expose port
+USER abundance
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
 
-# Run the server
 CMD ["python", "backend_server.py"]

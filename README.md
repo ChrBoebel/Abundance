@@ -2,133 +2,116 @@
   <img src="assets/readme-banner.svg" alt="Abundance — evidence-led research" width="100%" />
 </p>
 
-<p align="center">
-  <img src="assets/readme-logo-card.svg" alt="Abundance logo" width="112" />
-</p>
-
 <h1 align="center">Abundance</h1>
 
 <p align="center">
-  Turn complex questions into inspectable conclusions with evidence,
-  counterevidence, calibrated confidence, and traceable sources.
-</p>
-
-<p align="center">
-  <a href="#how-abundance-researches">Method</a> ·
-  <a href="#interface">Interface</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#open-source-foundation">Acknowledgements</a>
+  Evidence-led research with explicit counterevidence, calibrated confidence,
+  traceable sources, and an inspectable workflow.
 </p>
 
 <p align="center">
   <a href="https://github.com/ChrBoebel/Abundance/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/ChrBoebel/Abundance/actions/workflows/ci.yml/badge.svg" /></a>
-  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-111111?logo=nextdotjs&logoColor=white" />
-  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Research_API-009688?logo=fastapi&logoColor=white" />
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111111?logo=nextdotjs&logoColor=white" />
+  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-1.x-1C3C3C" />
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" />
   <img alt="License" src="https://img.shields.io/badge/License-MIT-C79647" />
 </p>
 
-Abundance is an evidence-oriented research workspace. Instead of treating search
-results as a finished answer, it exposes a deliberate path from a scoped inquiry
-to supporting evidence, credible challenges, limitations, and a final synthesis.
+Abundance turns a complex inquiry into a bounded research run. It plans
+falsifiable evidence questions, collects read-only web evidence in parallel,
+admits only policy-compliant sources, and produces a structured report whose
+citations can reference only admitted evidence.
 
-## How Abundance researches
+## Why this architecture
 
-```mermaid
-flowchart LR
-    Inquiry["Scope inquiry"] --> Plan["Design research plan"]
-    Plan --> Evidence["Collect evidence"]
-    Evidence --> Review["Challenge claims"]
-    Review --> Confidence["Calibrate uncertainty"]
-    Confidence --> Report["Synthesize report"]
-```
+- **Deterministic workflow:** LangGraph controls known stages and concurrency;
+  the model does not decide which external capability may run.
+- **Evidence boundary:** retrieved text is untrusted data. URL admission,
+  deduplication, citation binding, and report rendering are enforced in code.
+- **Stable product protocol:** clients receive Abundance events, never internal
+  LangGraph node events or provider exceptions.
+- **Provider abstraction:** LangChain's `ChatOpenRouter` integration supplies
+  schema-constrained planning and synthesis without tool binding.
+- **Cancellation end to end:** browser disconnects propagate through Next.js,
+  FastAPI, LangGraph, and active provider calls.
 
-The method is built around five product-level stages:
-
-1. **Inquiry** — identify scope and material assumptions.
-2. **Planning** — define evidence questions and falsification paths.
-3. **Evidence** — prioritize primary, current, and independent sources.
-4. **Review** — connect claims to support, counterevidence, and limitations.
-5. **Synthesis** — report what the evidence warrants and what remains open.
-
-Abundance streams these stages through a stable domain event contract. The web
-application never depends on internal graph node names.
-
-## Interface
-
-<p align="center">
-  <img src="assets/abundance-ui-screenshot-v2.png" alt="Abundance research workspace" width="100%" />
-</p>
-
-The workspace includes:
-
-- a visible research trail from inquiry to synthesis;
-- quick, balanced, and thorough research modes;
-- persistent local research history;
-- source-aware Markdown reports and citation navigation;
-- optional advanced model selection;
-- an authenticated interface and live backend health status.
-
-## Architecture
+## Research flow
 
 ```mermaid
 flowchart LR
-    Browser["Research workspace"] --> WebAPI["Next.js research-run API"]
-    WebAPI --> DomainAPI["Abundance Research API"]
-    DomainAPI --> Workflow["Inquiry and evidence workflow"]
-    Workflow --> Providers["Search and model adapters"]
-    Workflow --> Events["Abundance domain events"]
-    Events --> Browser
+    Q["Inquiry"] --> P["Plan and falsification questions"]
+    P --> F["Parallel evidence units"]
+    F --> A["Admission and deduplication"]
+    A --> R["Counterevidence review"]
+    R --> S["Structured synthesis"]
+    S --> E["Deterministic report and evaluation"]
 ```
 
-The Python package is organized under `abundance_research`. LangGraph is a
-workflow runtime behind the application boundary; the public API uses Abundance
-concepts such as inquiries, evidence, review stages, and reports.
+The user-facing modes select hard budgets:
 
-| Area | Responsibility |
+| Mode | Evidence units | Results per unit | Search concurrency | Total evidence |
+| --- | ---: | ---: | ---: | ---: |
+| Quick | 3 | 3 | 1 | 9 |
+| Balanced | 6 | 5 | 3 | 30 |
+| Thorough | 10 | 8 | 5 | 60 |
+
+## System overview
+
+```mermaid
+flowchart TB
+    Browser["Next.js research workspace"]
+    BFF["Authenticated stream proxy"]
+    API["FastAPI research API"]
+    Graph["Abundance LangGraph workflow"]
+    Policy["Capability and evidence policy"]
+    Model["LangChain + OpenRouter"]
+    Search["Read-only Tavily adapter"]
+
+    Browser -->|"POST + SSE"| BFF
+    BFF -->|"Internal bearer token"| API
+    API --> Graph
+    Graph --> Policy
+    Graph --> Model
+    Graph --> Search
+    Graph -->|"Abundance events"| API
+```
+
+Key modules:
+
+| Path | Responsibility |
 | --- | --- |
-| `backend/src/abundance_research/domain.py` | Inquiry, evidence, claims, uncertainty, reports |
+| `backend/src/abundance_research/domain.py` | Inquiry, evidence, claim, and report models |
+| `backend/src/abundance_research/application/graph.py` | Typed LangGraph topology and nodes |
+| `backend/src/abundance_research/application/policy.py` | Code-enforced budgets and source admission |
+| `backend/src/abundance_research/adapters/` | LangChain/OpenRouter and Tavily integrations |
 | `backend/src/abundance_research/events.py` | Stable streaming event contract |
-| `backend/src/abundance_research/planning.py` | Inquiry scoping and research planning |
-| `backend/src/abundance_research/investigation.py` | Focused evidence collection and review |
-| `backend/src/abundance_research/coordination.py` | Parallel evidence-question coordination |
-| `backend/src/abundance_research/evaluation.py` | Deterministic report-quality metrics |
-| `frontend/app/` | Research workspace and authenticated routes |
-| `frontend/lib/research.ts` | Research-run lifecycle and API integration |
+| `frontend/app/api/research-runs/stream/` | Authenticated, cancellation-aware BFF proxy |
+| `frontend/lib/sse.ts` | Chunk-safe browser SSE decoder |
 
-See [docs/architecture.md](docs/architecture.md) for the internal contracts.
+See [Architecture](docs/architecture.md) and the
+[architecture decisions](docs/adr/) for the detailed contracts.
 
-## Quick Start
+## Quick start
 
-### Backend
+### 1. Backend
 
 ```bash
 cd backend
 cp .env.example .env
-pip install -e ".[dev]"
-python3 backend_server.py
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python backend_server.py
 ```
 
-Set at least:
+Set at least `OPENROUTER_API_KEY` and `TAVILY_API_KEY`. The API listens on
+`http://localhost:8000` and exposes:
 
-- `OPENROUTER_API_KEY`
-- `TAVILY_API_KEY`
+- `GET /health` — process liveness;
+- `GET /ready` — provider configuration readiness;
+- `POST /api/v1/research-runs/stream` — the SSE research contract.
 
-Alternatively:
-
-```bash
-cd backend
-docker compose up --build
-```
-
-The API runs at `http://localhost:8000`. Its primary streaming endpoint is:
-
-```text
-POST /api/v1/research-runs/stream
-```
-
-### Frontend
+### 2. Frontend
 
 ```bash
 cd frontend
@@ -137,57 +120,68 @@ npm ci
 npm run dev
 ```
 
-Set:
+For local development, set a session secret of at least 32 characters and an
+application password of at least 12 characters. The workspace listens on
+`http://localhost:4290`.
 
-- `RESEARCH_BACKEND_URL=http://localhost:8000`
-- `SESSION_SECRET=<random secret>`
-- `APP_PASSWORD=<local password>`
+Generate secrets without committing them:
 
-The workspace runs at `http://localhost:4290`.
+```bash
+openssl rand -hex 32
+```
 
-## Quality checks
+Use the same random service token for `RESEARCH_BACKEND_TOKEN` in the frontend
+and `ABUNDANCE_INTERNAL_API_TOKEN` in the backend.
+
+## Production requirements
+
+Production intentionally fails closed unless these boundaries are configured:
+
+- HTTPS in front of the Next.js service;
+- matching frontend/backend service token;
+- Upstash Redis REST credentials for distributed login and research limits;
+- explicit `ABUNDANCE_CORS_ORIGINS`;
+- provider quotas and network isolation for the FastAPI service;
+- a durable LangGraph checkpointer before enabling resumable or multi-instance
+  research runs.
+
+Both `backend/Dockerfile` and `frontend/Dockerfile` run as non-root users. The
+backend Compose file binds to loopback by default.
+
+## Quality gates
 
 ```bash
 cd backend
 python -m ruff check backend_server.py src tests
+python -m mypy src backend_server.py
 python -m pytest -q
+python -m pip_audit
 
 cd ../frontend
+npm test
 npm run lint
 npm run typecheck
 npm run build
+npm audit --audit-level=high
 ```
 
-Backend evaluation covers claim-to-evidence links, challenged-claim coverage,
-primary-source share, broken evidence references, and open questions.
+The test suite covers graph topology, structured state checkpointing,
+concurrency budgets, cancellation, provider-error redaction, evidence admission,
+citation integrity, SSE chunk boundaries, origin checks, and rate limiting.
 
-## Configuration
+## Security model
 
-Research modes select bounded coordination and search budgets. Runtime fields can
-also be overridden using `ABUNDANCE_*` environment variables, for example:
-
-```bash
-ABUNDANCE_MAX_SEARCH_ITERATIONS=6
-ABUNDANCE_MAX_COORDINATION_ITERATIONS=4
-```
-
-Model and search provider credentials retain their standard provider-specific
-environment variable names.
-
-## Security
-
-- Never commit `.env` files or real provider keys.
-- Rotate a key immediately if it appears in Git history or logs.
-- The password gate is intended for private demos, not multi-user authorization.
-- Review [SECURITY.md](SECURITY.md) before exposing the application publicly.
+Abundance treats model output and retrieved content as untrusted. It does not
+render arbitrary HTML, expose raw provider errors, accept arbitrary model IDs,
+or grant write-capable tools. Review [SECURITY.md](SECURITY.md) before deployment.
 
 ## Open-source foundation
 
 The original backend was based on
 [`langchain-ai/open_deep_research`](https://github.com/langchain-ai/open_deep_research)
-under the MIT License. Abundance preserves that provenance while maintaining its
-own namespace, product API, evidence domain, prompts, workspace, evaluation, and
-runtime integrations.
+under the MIT License. Abundance preserves that provenance and repository
+history while maintaining its own domain model, controlled LangGraph topology,
+product event protocol, evidence policy, security boundary, and web workspace.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the source baseline and
 copyright notice.

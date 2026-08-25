@@ -88,7 +88,9 @@ export default function ResearchLibrary({
     <>
       {/* Mobile backdrop */}
       {isOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Verlauf schließen"
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={onClose}
         />
@@ -96,6 +98,9 @@ export default function ResearchLibrary({
 
       {/* Sidebar */}
       <aside
+        aria-label="Rechercheverlauf und Einstellungen"
+        aria-hidden={!isOpen}
+        inert={!isOpen}
         className={`
           fixed lg:relative z-40 top-0 left-0 h-full
           w-72 flex-shrink-0 flex flex-col
@@ -116,12 +121,13 @@ export default function ResearchLibrary({
                 className="w-9 h-9 rounded-lg flex items-center justify-center overflow-visible flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 2px 12px hsl(var(--primary) / 0.4)' }}
               >
-                <Image src="/abundance-mark.svg" alt="Abundance Logo" width={40} height={40} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
+                <Image src="/abundance-mark.svg" alt="" width={65} height={65} style={{ width: '180%', height: '180%', maxWidth: 'none', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
               </div>
               <h1 className="text-lg font-bold abundance-title">Abundance</h1>
             </div>
             <button
               onClick={onClose}
+              aria-label="Verlauf schließen"
               className="p-1.5 rounded-md hover:bg-white/10 transition"
               title="Sidebar schließen"
             >
@@ -163,12 +169,11 @@ export default function ResearchLibrary({
               {entries.map(entry => (
                 <div
                   key={entry.id}
-                  className="group relative rounded-lg px-3 py-2.5 cursor-pointer transition-all"
+                  className="group relative rounded-lg px-3 py-2.5 transition-all"
                   style={{
                     background: activeEntryId === entry.id ? 'hsl(var(--primary) / 0.12)' : 'transparent',
                     borderLeft: activeEntryId === entry.id ? '3px solid hsl(var(--primary))' : '3px solid transparent',
                   }}
-                  onClick={() => onSelectEntry(entry)}
                   onMouseEnter={e => {
                     if (activeEntryId !== entry.id) {
                       (e.currentTarget as HTMLElement).style.background = 'hsl(var(--foreground) / 0.05)'
@@ -180,23 +185,31 @@ export default function ResearchLibrary({
                     }
                   }}
                 >
-                  <div className="text-sm font-medium truncate pr-6" style={{ color: 'hsl(var(--foreground) / 0.9)' }}>
-                    {truncateQuery(entry.query)}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>
-                      {formatDate(entry.createdAt)}
+                  <button
+                    type="button"
+                    className="block w-full text-left pr-6"
+                    aria-current={activeEntryId === entry.id ? 'page' : undefined}
+                    onClick={() => onSelectEntry(entry)}
+                  >
+                    <span className="block text-sm font-medium truncate" style={{ color: 'hsl(var(--foreground) / 0.9)' }}>
+                      {truncateQuery(entry.query)}
                     </span>
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary) / 0.8)' }}>
-                      {MODEL_DISPLAY_NAMES[entry.model] || entry.model}
+                    <span className="flex items-center gap-2 mt-1">
+                      <span className="text-xs" style={{ color: 'hsl(var(--foreground) / 0.4)' }}>
+                        {formatDate(entry.createdAt)}
+                      </span>
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'hsl(var(--primary) / 0.1)', color: 'hsl(var(--primary) / 0.8)' }}>
+                        {MODEL_DISPLAY_NAMES[entry.model] || entry.model}
+                      </span>
                     </span>
-                  </div>
+                  </button>
                   <button
                     onClick={e => {
                       e.stopPropagation()
                       onDeleteEntry(entry.id)
                     }}
-                    className="absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20"
+                    className="absolute right-2 top-2.5 p-1 rounded-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 transition-opacity hover:bg-red-500/20"
+                    aria-label={`Recherche „${truncateQuery(entry.query)}“ löschen`}
                     style={{ color: 'hsl(var(--foreground) / 0.4)' }}
                     title="Löschen"
                   >
@@ -226,6 +239,7 @@ export default function ResearchLibrary({
                     color: selectedMode === mode.key ? 'hsl(var(--primary))' : 'hsl(var(--foreground) / 0.55)',
                   }}
                   title={mode.desc}
+                  aria-pressed={selectedMode === mode.key}
                 >
                   {mode.name}
                 </button>
@@ -303,6 +317,8 @@ export default function ResearchLibrary({
             {/* Current model trigger button */}
             <button
               onClick={() => setShowModelMenu(!showModelMenu)}
+              aria-expanded={showModelMenu}
+              aria-haspopup="menu"
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200"
               style={{
                 background: showModelMenu
@@ -359,6 +375,7 @@ export default function ResearchLibrary({
             {mounted && (
               <button
                 onClick={onToggleTheme}
+                aria-label={theme === 'dark' ? 'Helles Farbschema aktivieren' : 'Dunkles Farbschema aktivieren'}
                 className="p-2 rounded-lg transition"
                 style={{ color: 'hsl(var(--foreground) / 0.5)' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'hsl(var(--foreground) / 0.07)'}
@@ -368,7 +385,7 @@ export default function ResearchLibrary({
                 {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
             )}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5" role="status" aria-live="polite">
               <div
                 className={`w-2 h-2 rounded-full ${backendConnected ? 'bg-green-500' : backendConnected === false ? 'bg-amber-500' : 'bg-zinc-500'}`}
                 title={backendConnected ? 'Backend verbunden' : 'Backend nicht erreichbar'}

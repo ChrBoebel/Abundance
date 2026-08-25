@@ -10,6 +10,7 @@ import ResearchTrail from '@/components/ResearchTrail'
 import InquiryComposer from '@/components/InquiryComposer'
 import ResearchLibrary from '@/components/ResearchLibrary'
 import { getHistory, saveEntry, deleteEntry } from '@/lib/history'
+import { consumeServerSentStream } from '@/lib/sse'
 import type {
   ResearchArchiveEntry,
   ResearchEvent,
@@ -43,14 +44,9 @@ export default function ResearchWorkspace() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [showResearchTrail, setShowResearchTrail] = useState(false)
   const [phases, setPhases] = useState<ResearchPhase[]>(INITIAL_PHASES)
-  const [sourceCount, setSourceCount] = useState(0)
   const [sources, setSources] = useState<Source[]>([])
-  const [citedSources, setCitedSources] = useState<Source[]>([])
   const [currentActivity, setCurrentActivity] = useState('')
   const [isCompleted, setIsCompleted] = useState(false)
-  const [sessionId, setSessionId] = useState(`s-${Date.now().toString(36)}`)
-  const [eventSource, setEventSource] = useState<EventSource | null>(null)
-  const [streamingReport, setStreamingReport] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('mercury')
   const [selectedMode, setSelectedMode] = useState<ResearchMode>('balanced')
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null)
@@ -59,23 +55,29 @@ export default function ResearchWorkspace() {
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const runSettledRef = useRef(false)
+  const pendingInquiryRef = useRef('')
+  const sourcesRef = useRef<Source[]>([])
 
   useEffect(() => {
-    setMounted(true)
-    const savedModel = localStorage.getItem('selectedModel')
-    if (savedModel) {
-      setSelectedModel(savedModel)
-    }
-    const savedMode = localStorage.getItem('selectedResearchMode') as ResearchMode | null
-    if (savedMode && ['quick', 'balanced', 'thorough'].includes(savedMode)) {
-      setSelectedMode(savedMode)
-    }
-    setHistoryEntries(getHistory())
-    // Open sidebar by default on desktop
-    if (window.innerWidth >= 1024) {
-      setSidebarOpen(true)
-    }
+    const frame = window.requestAnimationFrame(() => {
+      setMounted(true)
+      const savedModel = localStorage.getItem('selectedModel')
+      if (savedModel) {
+        setSelectedModel(savedModel)
+      }
+      const savedMode = localStorage.getItem('selectedResearchMode') as ResearchMode | null
+      if (savedMode && ['quick', 'balanced', 'thorough'].includes(savedMode)) {
+        setSelectedMode(savedMode)
+      }
+      setHistoryEntries(getHistory())
+      setSidebarOpen(window.innerWidth >= 1024)
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [])
+
+  useEffect(() => () => abortControllerRef.current?.abort(), [])
 
   useEffect(() => {
     let active = true
@@ -106,13 +108,11 @@ export default function ResearchWorkspace() {
 
   const resetResearchState = () => {
     setPhases(INITIAL_PHASES)
-    setSourceCount(0)
     setSources([])
-    setCitedSources([])
+    sourcesRef.current = []
     setCurrentActivity('')
     setIsCompleted(false)
     setShowResearchTrail(false)
-    setStreamingReport('')
   }
 
   const activateStage = (stage: ResearchStage) => {
@@ -127,27 +127,6 @@ export default function ResearchWorkspace() {
     })))
   }
 
-  // Auto-save completed research to history
-  useEffect(() => {
-    if (isCompleted && !isStreaming && !activeEntryId) {
-      const agentMsg = messages.find(m => m.role === 'agent')
-      const userMsg = messages.find(m => m.role === 'user')
-      if (agentMsg && userMsg) {
-        const entry: ResearchArchiveEntry = {
-          id: `h-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-          query: userMsg.content,
-          report: agentMsg.content,
-          sources: citedSources.length > 0 ? citedSources : sources,
-          model: selectedModel,
-          createdAt: new Date().toISOString(),
-        }
-        saveEntry(entry)
-        setActiveEntryId(entry.id)
-        setHistoryEntries(getHistory())
-      }
-    }
-  }, [isCompleted, isStreaming]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleSelectEntry = useCallback((entry: ResearchArchiveEntry) => {
     if (isStreaming) return
     setActiveEntryId(entry.id)
@@ -156,11 +135,9 @@ export default function ResearchWorkspace() {
       { role: 'agent', content: entry.report },
     ])
     setSources(entry.sources)
-    setCitedSources(entry.sources)
-    setSourceCount(entry.sources.length)
+    sourcesRef.current = entry.sources
     setIsCompleted(true)
     setShowResearchTrail(false)
-    setStreamingReport('')
     setPhases(INITIAL_PHASES.map(p => ({ ...p, status: 'completed' as const })))
     setCurrentActivity('')
     // Close sidebar on mobile
@@ -184,7 +161,6 @@ export default function ResearchWorkspace() {
     setActiveEntryId(null)
     setMessages([])
     resetResearchState()
-    setSessionId(`s-${Date.now().toString(36)}`)
     // Close sidebar on mobile
     if (window.innerWidth < 1024) {
       setSidebarOpen(false)
@@ -194,7 +170,7 @@ export default function ResearchWorkspace() {
   const extractCitedSources = (reportContent: string, allSources: Source[]): Source[] => {
     try {
       // Extract the Sources section from the report
-      const sourcesMatch = reportContent.match(/###\s+(Sources|Quellen)\s*\n([\s\S]+?)(\n###|$)/i)
+      const sourcesMatch = reportContent.match(/#{2,3}\s+(Sources|Quellen)\s*\n([\s\S]+?)(\n#{2,3}|$)/i)
       if (!sourcesMatch) return []
 
       const sourcesSection = sourcesMatch[2]
@@ -225,10 +201,7 @@ export default function ResearchWorkspace() {
     }
   }
 
-  const handleSSEMessage = (event: MessageEvent) => {
-    try {
-      const data: ResearchEvent = JSON.parse(event.data)
-
+  const handleResearchEvent = (data: ResearchEvent) => {
       if (data.type === 'run.accepted') {
         setShowResearchTrail(true)
       } else if (data.stage) {
@@ -239,93 +212,115 @@ export default function ResearchWorkspace() {
 
       if (data.type === 'evidence.search.started') {
         const queryPayload = data.data?.query
-        if (queryPayload && typeof queryPayload === 'object') {
-          const queryObject = queryPayload as { queries?: unknown[]; query?: unknown }
-          const query = Array.isArray(queryObject.queries)
-            ? queryObject.queries[0]
-            : queryObject.query
-          if (typeof query === 'string') {
-            const shortQuery = query.length > 60 ? `${query.substring(0, 60)}...` : query
-            setCurrentActivity(`Suche nach „${shortQuery}“`)
-          }
+        if (typeof queryPayload === 'string') {
+          const shortQuery = queryPayload.length > 60
+            ? `${queryPayload.substring(0, 60)}...`
+            : queryPayload
+          setCurrentActivity(`Suche nach „${shortQuery}“`)
         }
       } else if (data.type === 'evidence.discovered') {
-        const result = data.data?.result
-        if (typeof result === 'string') {
-            const sourceMatches = result.match(/--- SOURCE \d+:/g)
-            if (sourceMatches && sourceMatches.length > 0) {
-              const newSourceCount = sourceMatches.length
-              setSourceCount(prev => prev + newSourceCount)
-
-              const titleRegex = /--- SOURCE \d+: (.+?) ---/g
-              const urlRegex = /URL: (.+?)$/gm
-              const titles: string[] = []
-              const urls: string[] = []
-
-              let match
-              while ((match = titleRegex.exec(result)) !== null) {
-                titles.push(match[1].trim())
-              }
-              while ((match = urlRegex.exec(result)) !== null) {
-                urls.push(match[1].trim())
-              }
-
-              const newSources: Source[] = []
-              for (let i = 0; i < Math.min(titles.length, urls.length); i++) {
-                const title = titles[i]
-                const url = urls[i]
-                const shortTitle = title.length > 80 ? title.substring(0, 80) + '...' : title
-                newSources.push({ title: shortTitle, url })
-              }
-              setSources(prev => [...prev, ...newSources])
-            } else {
-              setSourceCount(prev => prev + 1)
-              setSources(prev => [...prev, { title: 'Unbekannte Quelle', url: '#' }])
-            }
+        const evidence = data.data?.evidence
+        if (evidence) {
+          try {
+            const url = new URL(evidence.url)
+            if (!['http:', 'https:'].includes(url.protocol)) return
+            const title = evidence.title.length > 80
+              ? `${evidence.title.substring(0, 80)}...`
+              : evidence.title
+            const source = { title, url: url.toString() }
+            setSources(prev => {
+              if (prev.some(item => item.url === source.url)) return prev
+              const next = [...prev, source]
+              sourcesRef.current = next
+              return next
+            })
+          } catch {
+            // The backend applies the same URL policy; ignore malformed transport data.
+          }
         }
-      } else if (data.type === 'report.delta' && data.data?.chunk) {
-        setStreamingReport(prev => prev + data.data!.chunk)
       } else if (data.type === 'report.completed' && data.data?.content) {
         const report = data.data.content
         setMessages(prev => [...prev, { role: 'agent', content: report }])
-        setStreamingReport('')
         setIsCompleted(true)
         setPhases(prev => prev.map(phase => ({ ...phase, status: 'completed' })))
 
-        const cited = extractCitedSources(report, sources)
-        setCitedSources(cited)
+        const cited = extractCitedSources(report, sourcesRef.current)
+
+        if (pendingInquiryRef.current) {
+          const entry: ResearchArchiveEntry = {
+            id: `h-${crypto.randomUUID()}`,
+            query: pendingInquiryRef.current,
+            report,
+            sources: cited.length > 0 ? cited : sourcesRef.current,
+            model: selectedModel,
+            createdAt: new Date().toISOString(),
+          }
+          saveEntry(entry)
+          setActiveEntryId(entry.id)
+          setHistoryEntries(getHistory())
+        }
       } else if (data.type === 'run.completed') {
+        runSettledRef.current = true
         setIsCompleted(true)
         setIsStreaming(false)
-        eventSource?.close()
       } else if (data.type === 'run.failed') {
-        const error = data.data?.error || data.message || 'Unbekannter Fehler'
+        runSettledRef.current = true
+        const error = data.message || 'Die Recherche konnte nicht abgeschlossen werden.'
         setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${error}` }])
         setIsStreaming(false)
-        eventSource?.close()
       }
-    } catch (err) {
-      console.error('Parse error:', err)
-    }
   }
 
   const handleSendMessage = async (message: string) => {
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    runSettledRef.current = false
+    pendingInquiryRef.current = message
     setActiveEntryId(null)
     setMessages(prev => [...prev, { role: 'user', content: message }])
     resetResearchState()
     setIsStreaming(true)
 
-    const url = `/api/research-runs/stream?session_id=${sessionId}&inquiry=${encodeURIComponent(message)}&model=${selectedModel}&mode=${selectedMode}`
-    const es = new EventSource(url)
+    try {
+      const response = await fetch('/api/research-runs/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inquiry: message, model: selectedModel, mode: selectedMode }),
+        signal: controller.signal,
+      })
+      if (!response.ok || !response.body) {
+        throw new Error(
+          response.status === 401
+            ? 'Die Sitzung ist abgelaufen. Bitte melde dich erneut an.'
+            : 'Der Recherchedienst ist momentan nicht erreichbar.',
+        )
+      }
 
-    es.onmessage = handleSSEMessage
-    es.onerror = () => {
-      console.error('EventSource error')
-      setIsStreaming(false)
-      es.close()
+      await consumeServerSentStream(response.body, (messageEvent) => {
+        try {
+          handleResearchEvent(JSON.parse(messageEvent.data) as ResearchEvent)
+        } catch {
+          console.error('Invalid research event received')
+        }
+      })
+      if (!runSettledRef.current) {
+        throw new Error('Der Recherchestream wurde unerwartet beendet.')
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return
+      if (!runSettledRef.current) {
+        const message = error instanceof Error
+          ? error.message
+          : 'Die Recherche konnte nicht gestartet werden.'
+        setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${message}` }])
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null
+        setIsStreaming(false)
+      }
     }
-
-    setEventSource(es)
   }
 
   return (
@@ -354,11 +349,12 @@ export default function ResearchWorkspace() {
         backendConnected={backendConnected}
       />
 
-      <div className="flex flex-col flex-1 min-w-0 relative">
+      <main className="flex flex-col flex-1 min-w-0 relative">
       {/* Sidebar toggle (visible when sidebar is closed) */}
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
+          aria-label="Verlauf öffnen"
           className="absolute top-3 left-3 z-10 p-2 rounded-lg transition"
           style={{ background: 'hsl(var(--card) / 0.8)', color: 'hsl(var(--foreground) / 0.7)' }}
           title="Verlauf öffnen"
@@ -377,7 +373,7 @@ export default function ResearchWorkspace() {
                   className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-0 overflow-visible"
                   style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)' }}
                 >
-                  <Image src="/abundance-mark.svg" alt="Abundance Logo" width={80} height={80} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
+                  <Image src="/abundance-mark.svg" alt="" width={144} height={144} loading="eager" style={{ width: '180%', height: '180%', maxWidth: 'none', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
                 </div>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold abundance-title">Abundance</h2>
                 <p className="text-base md:text-lg" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
@@ -405,15 +401,11 @@ export default function ResearchWorkspace() {
               {showResearchTrail && (
                 <ResearchTrail
                   phases={phases}
-                  sourceCount={sourceCount}
+                  sourceCount={sources.length}
                   sources={sources}
-                  citedSources={citedSources}
                   currentActivity={currentActivity}
                   isCompleted={isCompleted}
                 />
-              )}
-              {streamingReport && (
-                <ResearchMessage message={{ role: 'agent', content: streamingReport }} />
               )}
               {messages.map((msg, idx) => {
                 // Show agent messages after research status
@@ -430,7 +422,7 @@ export default function ResearchWorkspace() {
 
       {/* Input Area */}
       <InquiryComposer onSubmit={handleSendMessage} isStreaming={isStreaming} />
-      </div>
+      </main>
     </div>
   )
 }

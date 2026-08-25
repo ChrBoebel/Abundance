@@ -1,81 +1,65 @@
-"""Typed runtime settings for the Abundance research workflow."""
+"""Validated Abundance runtime settings without orchestration-framework types."""
 
 from __future__ import annotations
 
 import os
-from enum import Enum
+from collections.abc import Mapping
 from typing import Any
 
-from langchain_core.runnables import RunnableConfig
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class SearchProvider(str, Enum):
-    """Search capabilities supported by the workflow."""
-
-    ANTHROPIC = "anthropic"
-    OPENAI = "openai"
-    TAVILY = "tavily"
-    NONE = "none"
-
-
-class MCPServerSettings(BaseModel):
-    """Optional Model Context Protocol server configuration."""
-
-    url: str | None = None
-    tools: list[str] | None = None
-    auth_required: bool = False
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class AbundanceSettings(BaseModel):
-    """Validated settings shared by planning, investigation, and synthesis."""
+    """Non-secret application and provider limits."""
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:4290", "http://localhost:3000"]
+    )
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    planning_model_max_tokens: int = Field(default=3000, ge=256, le=16000)
+    synthesis_model_max_tokens: int = Field(default=12000, ge=512, le=64000)
+    provider_timeout_seconds: float = Field(default=90.0, ge=5.0, le=300.0)
+    provider_max_retries: int = Field(default=2, ge=0, le=6)
+    search_timeout_seconds: float = Field(default=45.0, ge=5.0, le=120.0)
+    max_evidence_excerpt_chars: int = Field(default=12000, ge=500, le=50000)
+    internal_api_token: SecretStr | None = None
 
-    max_structured_output_retries: int = Field(default=3, ge=1, le=10)
-    api_retry_attempts: int = Field(default=3, ge=1, le=10)
-    api_retry_initial_delay: float = Field(default=1.0, ge=0.1, le=10.0)
-    api_retry_max_delay: float = Field(default=60.0, ge=1.0, le=300.0)
-    api_retry_exponential_base: float = Field(default=2.0, ge=1.5, le=3.0)
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_origins(cls, values: list[str]) -> list[str]:
+        """Require explicit HTTP(S) origins and reject wildcard credentials policy."""
+        normalized = list(dict.fromkeys(value.strip().rstrip("/") for value in values if value.strip()))
+        if not normalized or "*" in normalized:
+            raise ValueError("cors_origins must contain explicit origins")
+        if any(not value.startswith(("http://", "https://")) for value in normalized):
+            raise ValueError("cors_origins must use http or https")
+        return normalized
 
-    allow_clarification: bool = True
-    max_concurrent_research_units: int = Field(default=3, ge=1, le=20)
-    max_coordination_iterations: int = Field(default=3, ge=1, le=10)
-    max_search_iterations: int = Field(default=4, ge=1, le=30)
-    max_search_results: int = Field(default=4, ge=1, le=20)
-    search_provider: SearchProvider = SearchProvider.TAVILY
-
-    summarization_model: str = "openrouter:inception/mercury-2"
-    summarization_model_max_tokens: int = Field(default=8192, ge=256)
-    research_model: str = "openrouter:inception/mercury-2"
-    research_model_max_tokens: int = Field(default=10000, ge=256)
-    evidence_review_model: str = "openrouter:inception/mercury-2"
-    evidence_review_model_max_tokens: int = Field(default=8192, ge=256)
-    final_report_model: str = "openrouter:inception/mercury-2"
-    final_report_model_max_tokens: int = Field(default=30000, ge=256)
-    max_content_length: int = Field(default=50000, ge=1000, le=200000)
-
-    enable_reasoning: bool = True
-    reasoning_effort: str = "high"
-    reasoning_max_tokens: int = Field(default=8000, ge=1024, le=32000)
-    exclude_reasoning_from_output: bool = False
-    enable_prompt_caching: bool = True
-
-    mcp_config: MCPServerSettings | None = None
-    mcp_prompt: str | None = None
+    @field_validator("internal_api_token")
+    @classmethod
+    def validate_internal_token(cls, value: SecretStr | None) -> SecretStr | None:
+        """Require enough entropy for the optional service-to-service bearer token."""
+        if value is not None and len(value.get_secret_value()) < 32:
+            raise ValueError("internal_api_token must contain at least 32 characters")
+        return value
 
     @classmethod
-    def from_runnable_config(
+    def from_environment(
         cls,
-        config: RunnableConfig | None = None,
+        environment: Mapping[str, str] | None = None,
     ) -> AbundanceSettings:
-        """Merge graph configuration with optional environment overrides."""
-        configurable = config.get("configurable", {}) if config else {}
+        """Load documented `ABUNDANCE_*` variables and no legacy aliases."""
+        source = environment if environment is not None else os.environ
         values: dict[str, Any] = {}
         for field_name in cls.model_fields:
-            abundance_env = os.environ.get(f"ABUNDANCE_{field_name.upper()}")
-            legacy_env = os.environ.get(field_name.upper())
-            value = abundance_env or legacy_env or configurable.get(field_name)
-            if value is not None:
-                values[field_name] = value
-        return cls(**values)
+            raw = source.get(f"ABUNDANCE_{field_name.upper()}")
+            if raw is None:
+                continue
+            if field_name == "internal_api_token" and not raw.strip():
+                continue
+            values[field_name] = (
+                [item.strip() for item in raw.split(",")]
+                if field_name == "cors_origins"
+                else raw
+            )
+        return cls.model_validate(values)

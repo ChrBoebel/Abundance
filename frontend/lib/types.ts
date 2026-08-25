@@ -5,12 +5,6 @@ export interface ResearchMessageRecord {
   content: string
 }
 
-export interface ResearchSession {
-  id: string
-  messages: ResearchMessageRecord[]
-  created_at: string
-}
-
 export type ResearchStage = 'inquiry' | 'planning' | 'evidence' | 'review' | 'synthesis'
 export type ResearchMode = 'quick' | 'balanced' | 'thorough'
 
@@ -27,31 +21,29 @@ export interface Source {
   url: string
 }
 
-export enum ResearchRunStatus {
-  PENDING = 'pending',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-}
-
-export interface ResearchRunJob {
+export interface DiscoveredEvidence {
   id: string
-  status: ResearchRunStatus
-  result: unknown
-  error: string | null
-  created_at: string
-  updated_at: string
-  controller?: AbortController
+  title: string
+  url: string
+  relation: 'supports' | 'challenges' | 'context'
+  source_kind: 'primary' | 'secondary' | 'academic' | 'news' | 'other'
+  is_primary: boolean
+  published_at?: string | null
 }
 
 export interface ResearchEventData {
   run_id?: string
-  tool?: string
-  query?: unknown
-  result?: unknown
-  chunk?: string
+  query?: string
+  evidence?: DiscoveredEvidence
   content?: string
-  error?: string
+  code?: string
+  correlation_id?: string
+  evidence_count?: number
+  claim_count?: number
+  unit_count?: number
+  plan?: unknown
+  report?: unknown
+  evaluation?: unknown
 }
 
 export interface ResearchEvent {
@@ -64,9 +56,9 @@ export interface ResearchEvent {
     | 'evidence.collection.started'
     | 'evidence.search.started'
     | 'evidence.discovered'
+    | 'evidence.search.failed'
     | 'evidence.review.started'
     | 'synthesis.started'
-    | 'report.delta'
     | 'report.completed'
   stage?: ResearchStage
   message?: string

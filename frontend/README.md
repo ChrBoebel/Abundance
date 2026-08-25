@@ -1,48 +1,50 @@
-# Frontend
+# Abundance research workspace
 
-Next.js research workspace for Abundance. It authenticates the user, manages
-local research history, and renders the framework-independent Abundance event
-stream.
-
-## Setup
-
-```bash
-cp .env.example .env
-npm install
-npm run dev
-```
-
-## Environment Variables
-
-Required:
-
-- `RESEARCH_BACKEND_URL=http://localhost:8000`
-- `SESSION_SECRET=<random secret>`
-- `APP_PASSWORD=<password for demo access>`
-
-Optional:
-
-- `PORT=4290`
+Next.js 16 and React 19 browser workspace for Abundance research runs.
 
 ## Responsibilities
 
-- protect the UI behind a password gate
-- start research runs in quick, balanced, or thorough mode
-- proxy backend SSE events without exposing graph internals
-- render the research trail, sources, and final synthesis
+- protect the workspace with an encrypted, HTTP-only session;
+- enforce same-origin requests and distributed abuse limits;
+- proxy the backend SSE body without process-local job state;
+- propagate browser cancellation to the research API;
+- render model-controlled Markdown without trusting raw HTML;
+- keep research history locally in the browser.
 
-## Main Routes
+## Environment
 
-- `/` research workspace
-- `/login` password login page
-- `/api/research-runs/stream` browser streaming endpoint
-- `/api/research-runs/[id]` research-session reset endpoint
-- `/api/health` frontend and backend health check
+Local development requires:
 
-## Development
+- `RESEARCH_BACKEND_URL=http://localhost:8000`
+- `SESSION_SECRET` with at least 32 characters
+- `APP_PASSWORD` with at least 12 characters
 
-Make sure the backend is already running on `http://localhost:8000`, then start the frontend:
+Production also requires:
+
+- `RESEARCH_BACKEND_TOKEN` matching the backend service token;
+- `UPSTASH_REDIS_REST_URL`;
+- `UPSTASH_REDIS_REST_TOKEN`.
+
+Without a shared rate-limit store production requests fail closed. Development
+uses a bounded in-process limiter.
+
+## Run and verify
 
 ```bash
+cp .env.example .env
+npm ci
 npm run dev
+
+npm test
+npm run lint
+npm run typecheck
+npm run build
+npm audit --audit-level=high
 ```
+
+Main routes:
+
+- `/` — research workspace;
+- `/login` — password login;
+- `/api/research-runs/stream` — authenticated POST/SSE proxy;
+- `/api/health` — frontend/backend health projection.

@@ -1,25 +1,39 @@
 # Changelog
 
-All notable changes to Abundance are documented here.
+All notable changes to Abundance are documented here. The project follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) conventions.
 
 ## Unreleased
 
 ### Added
 
-- Abundance research-domain models for inquiries, evidence, claims, and reports.
-- Stable domain event streaming at `/api/v1/research-runs/stream`.
-- Quick, balanced, and thorough research modes.
-- Evidence quality evaluation and backend tests.
-- Live backend health reporting in the research workspace.
+- Abundance domain models, application ports, and evidence-capability policy.
+- Typed LangGraph workflow with bounded parallel evidence units and optional
+  checkpointing.
+- LangChain `ChatOpenRouter` adapter with strict Pydantic structured output.
+- Stable SSE domain events, heartbeat support, monotonic IDs, and cancellation.
+- Deterministic report rendering and claim/evidence quality evaluation.
+- Frontend SSE regression tests and backend graph/checkpoint/security tests.
+- Distributed production rate limiting and internal service authentication.
+- Non-root backend and frontend container builds.
 
 ### Changed
 
-- Renamed the Python package to `abundance_research`.
-- Reworked prompts around evidence, counterevidence, and calibrated uncertainty.
-- Replaced raw LangGraph events in the frontend with Abundance domain events.
-- Reframed the interface from a chat view to a research workspace.
+- Upgraded the workspace to Next.js 16 and React 19.
+- Replaced process-local polling with a direct authenticated POST stream.
+- Replaced trusted HTML rendering with constrained React Markdown rendering.
+- Reduced provider access to reviewed model aliases and one read-only search
+  adapter per evidence unit.
+- Expanded CI with tests, full type checking, dependency audits, and Dependabot.
+
+### Removed
+
+- Legacy `/research/stream` transport and raw runtime-event mapping.
+- Dynamic MCP/tool assembly and unbounded agent repair loops.
+- Obsolete provider, document-processing, and frontend rendering dependencies.
 
 ### Security
 
-- Documented that exposed historical provider keys must be rotated before any
-  repository-history cleanup.
+- Added nonce-based CSP, strict sessions, origin checks, request-size limits,
+  public error redaction, evidence URL admission, shared production limits, and
+  service-to-service bearer authentication.

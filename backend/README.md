@@ -1,65 +1,54 @@
-# Backend
+# Abundance research API
 
-FastAPI backend for Abundance. It exposes a stable, framework-independent stream
-of research-domain events over Server-Sent Events.
+FastAPI service for the typed Abundance LangGraph workflow.
 
 ## Responsibilities
 
-- scope inquiries and coordinate evidence questions
-- call Tavily for search
-- search arXiv and PubMed for academic evidence
-- call OpenRouter for model inference
-- review counterevidence and source limitations
-- stream Abundance progress events and final reports
+- validate research commands and reviewed model aliases;
+- execute the bounded LangGraph plan/evidence/review/synthesis topology;
+- use LangChain's OpenRouter integration for structured model output;
+- normalize read-only Tavily results and enforce evidence admission;
+- stream stable Abundance events with cancellation and heartbeats;
+- expose liveness and configuration readiness separately.
 
-## Required Environment Variables
+## Environment
 
-Copy the example file first:
-
-```bash
-cp .env.example .env
-```
-
-Required for the default setup:
+Required:
 
 - `OPENROUTER_API_KEY`
 - `TAVILY_API_KEY`
 
-Optional:
+Recommended for every non-local deployment:
 
-- `GEMINI_API_KEY`
-- `GOOGLE_API_KEY`
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `LANGSMITH_API_KEY`
-- `LANGSMITH_TRACING`
-- `PORT`
+- `ABUNDANCE_INTERNAL_API_TOKEN` — at least 32 characters;
+- `ABUNDANCE_CORS_ORIGINS` — comma-separated explicit origins.
 
-## Run With Docker
+See `.env.example` for token, timeout, retry, and excerpt limits. Provider keys
+are the only unprefixed application secrets.
+
+## Run
 
 ```bash
-docker-compose up --build
+cp .env.example .env
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python backend_server.py
 ```
 
-Health check:
+Or build the non-root container:
 
 ```bash
-curl http://localhost:8000/health
+docker compose up --build
 ```
 
 ## API
 
-### `GET /health`
+`GET /health` checks process liveness. `GET /ready` constructs provider
+adapters and returns `503` with a safe configuration error when credentials are
+missing.
 
-Returns:
-
-```json
-{"status":"healthy","version":"1.0.0"}
-```
-
-### `POST /api/v1/research-runs/stream`
-
-Request body:
+`POST /api/v1/research-runs/stream` accepts:
 
 ```json
 {
@@ -69,26 +58,15 @@ Request body:
 }
 ```
 
-Response:
+The response is `text/event-stream`. Every JSON event has a monotonic SSE ID;
+heartbeat comments keep long model calls alive. A successful stream ends with
+`run.completed`; a controlled failure ends with `run.failed`.
 
-- content type: `text/event-stream`
-- streams Abundance events such as `plan.created`, `evidence.discovered`, and
-  `report.completed`
-- ends with `run.completed` on success
-
-`POST /research/stream` remains temporarily available as a compatibility route
-for older clients.
-
-## Local Python Run
-
-```bash
-pip install -e ".[dev]"
-python3 backend_server.py
-```
-
-## Tests
+## Verification
 
 ```bash
 python -m ruff check backend_server.py src tests
+python -m mypy src backend_server.py
 python -m pytest -q
+python -m pip_audit
 ```

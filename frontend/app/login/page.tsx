@@ -49,15 +49,15 @@ export default function LoginPage() {
             className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl mx-auto mb-4 sm:mb-6 flex items-center justify-center p-0 overflow-visible"
             style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)' }}
           >
-            <Image src="/abundance-mark.svg" alt="Abundance Logo" width={198} height={198} className="w-[247%] h-[247%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))', imageRendering: 'auto', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', transform: 'translateZ(0)' }} />
+            <Image src="/abundance-mark.svg" alt="" width={198} height={198} loading="eager" style={{ width: '247%', height: '247%', maxWidth: 'none', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))', imageRendering: 'auto', WebkitBackfaceVisibility: 'hidden', backfaceVisibility: 'hidden', transform: 'translateZ(0)' }} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold mb-2 abundance-title">Abundance</h1>
-          <p className="text-sm opacity-70">Passwort eingeben um fortzufahren</p>
+          <p className="text-sm opacity-70">Passwort eingeben, um fortzufahren</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {error && (
-            <div className="p-4 rounded-lg flex items-center gap-3" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <div role="alert" className="p-4 rounded-lg flex items-center gap-3" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
               <AlertCircle className="w-5 h-5 text-red-400" />
               <span className="text-red-400 text-sm font-medium">{error}</span>
             </div>
@@ -72,6 +72,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Passwort eingeben..."
+                autoComplete="current-password"
                 required
                 className="w-full px-4 py-3 pr-12 rounded-lg border focus:outline-none focus:ring-2 transition"
                 style={{ background: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}
@@ -79,6 +80,8 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Passwort verbergen' : 'Passwort anzeigen'}
+                aria-pressed={showPassword}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded hover:bg-gray-700 transition"
               >
                 {showPassword ? <EyeOff className="w-5 h-5 opacity-50" /> : <Eye className="w-5 h-5 opacity-50" />}

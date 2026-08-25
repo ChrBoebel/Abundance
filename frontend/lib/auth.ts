@@ -3,14 +3,14 @@
  */
 import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
-import { timingSafeEqual } from 'crypto'
+import { createHash, timingSafeEqual } from 'crypto'
 import type { SessionData } from './types'
 import { getSessionOptions } from './session'
 
 function requireAppPassword(): string {
   const value = process.env.APP_PASSWORD
-  if (!value) {
-    throw new Error('APP_PASSWORD environment variable is required')
+  if (!value || value.length < 12) {
+    throw new Error('APP_PASSWORD must contain at least 12 characters')
   }
   return value
 }
@@ -29,31 +29,13 @@ export async function isAuthenticated(): Promise<boolean> {
  * Timing-safe password comparison to prevent timing attacks
  */
 function comparePasswords(provided: string, correct: string): boolean {
-  // Convert strings to buffers with fixed encoding
-  const providedBuffer = Buffer.from(provided, 'utf8')
-  const correctBuffer = Buffer.from(correct, 'utf8')
-
-  // If lengths differ, still compare to prevent timing attacks
-  // Pad shorter buffer with zeros
-  const maxLength = Math.max(providedBuffer.length, correctBuffer.length)
-  const providedPadded = Buffer.alloc(maxLength)
-  const correctPadded = Buffer.alloc(maxLength)
-
-  providedBuffer.copy(providedPadded)
-  correctBuffer.copy(correctPadded)
-
-  try {
-    // Use crypto.timingSafeEqual for constant-time comparison
-    const matches = timingSafeEqual(providedPadded, correctPadded)
-    // Also check lengths match to prevent length-based attacks
-    return matches && providedBuffer.length === correctBuffer.length
-  } catch {
-    // timingSafeEqual throws if buffers have different lengths
-    return false
-  }
+  const providedDigest = createHash('sha256').update(provided, 'utf8').digest()
+  const correctDigest = createHash('sha256').update(correct, 'utf8').digest()
+  return timingSafeEqual(providedDigest, correctDigest)
 }
 
 export async function authenticate(password: string): Promise<boolean> {
+  if (Buffer.byteLength(password, 'utf8') > 4_096) return false
   const correctPassword = requireAppPassword()
 
   // Use timing-safe comparison
