@@ -9,7 +9,16 @@ import ResearchMessage from '@/components/ResearchMessage'
 import ResearchTrail from '@/components/ResearchTrail'
 import InquiryComposer from '@/components/InquiryComposer'
 import ResearchLibrary from '@/components/ResearchLibrary'
+import ReportComparison from '@/components/ReportComparison'
 import { getHistory, saveEntry, deleteEntry } from '@/lib/history'
+import {
+  archiveEntryFromStoredRun,
+  evaluationFromUnknown,
+  isStoredRunList,
+  mergeArchiveEntries,
+  metricsFromUnknown,
+  publicReportFromUnknown,
+} from '@/lib/research-records'
 import { consumeServerSentStream } from '@/lib/sse'
 import type {
   ResearchArchiveEntry,
@@ -18,6 +27,9 @@ import type {
   ResearchMode,
   ResearchPhase,
   ResearchStage,
+  PublicResearchReport,
+  ReportEvaluation,
+  RunMetrics,
   Source,
 } from '@/lib/types'
 
@@ -53,12 +65,17 @@ export default function ResearchWorkspace() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [historyEntries, setHistoryEntries] = useState<ResearchArchiveEntry[]>([])
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
+  const [comparisonOpen, setComparisonOpen] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const runSettledRef = useRef(false)
   const pendingInquiryRef = useRef('')
   const sourcesRef = useRef<Source[]>([])
+  const activeRunIdRef = useRef<string | null>(null)
+  const pendingReportRef = useRef<PublicResearchReport | null>(null)
+  const pendingEvaluationRef = useRef<ReportEvaluation | undefined>(undefined)
+  const pendingMetricsRef = useRef<RunMetrics | undefined>(undefined)
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -71,7 +88,20 @@ export default function ResearchWorkspace() {
       if (savedMode && ['quick', 'balanced', 'thorough'].includes(savedMode)) {
         setSelectedMode(savedMode)
       }
-      setHistoryEntries(getHistory())
+      const localEntries = getHistory()
+      setHistoryEntries(localEntries)
+      void fetch('/api/research-runs', { cache: 'no-store' })
+        .then(async response => {
+          if (!response.ok) return
+          const payload: unknown = await response.json()
+          if (!isStoredRunList(payload)) return
+          const remoteEntries = payload.items.flatMap(item => {
+            const parsed = archiveEntryFromStoredRun(item)
+            return parsed ? [parsed] : []
+          })
+          setHistoryEntries(mergeArchiveEntries(localEntries, remoteEntries))
+        })
+        .catch(() => undefined)
       setSidebarOpen(window.innerWidth >= 1024)
     })
     return () => window.cancelAnimationFrame(frame)
@@ -113,6 +143,10 @@ export default function ResearchWorkspace() {
     setCurrentActivity('')
     setIsCompleted(false)
     setShowResearchTrail(false)
+    activeRunIdRef.current = null
+    pendingReportRef.current = null
+    pendingEvaluationRef.current = undefined
+    pendingMetricsRef.current = undefined
   }
 
   const activateStage = (stage: ResearchStage) => {
@@ -132,12 +166,19 @@ export default function ResearchWorkspace() {
     setActiveEntryId(entry.id)
     setMessages([
       { role: 'user', content: entry.query },
-      { role: 'agent', content: entry.report },
+      {
+        role: 'agent',
+        content: entry.report,
+        runId: entry.runId,
+        report: entry.structuredReport,
+        evaluation: entry.evaluation,
+        metrics: entry.metrics,
+      },
     ])
     setSources(entry.sources)
     sourcesRef.current = entry.sources
     setIsCompleted(true)
-    setShowResearchTrail(false)
+    setShowResearchTrail(true)
     setPhases(INITIAL_PHASES.map(p => ({ ...p, status: 'completed' as const })))
     setCurrentActivity('')
     // Close sidebar on mobile
@@ -204,6 +245,7 @@ export default function ResearchWorkspace() {
   const handleResearchEvent = (data: ResearchEvent) => {
       if (data.type === 'run.accepted') {
         setShowResearchTrail(true)
+        if (typeof data.data?.run_id === 'string') activeRunIdRef.current = data.data.run_id
       } else if (data.stage) {
         setShowResearchTrail(true)
         activateStage(data.stage)
@@ -227,7 +269,15 @@ export default function ResearchWorkspace() {
             const title = evidence.title.length > 80
               ? `${evidence.title.substring(0, 80)}...`
               : evidence.title
-            const source = { title, url: url.toString() }
+            const source: Source = {
+              id: evidence.id,
+              title,
+              url: url.toString(),
+              relation: evidence.relation,
+              source_kind: evidence.source_kind,
+              is_primary: evidence.is_primary,
+              published_at: evidence.published_at,
+            }
             setSources(prev => {
               if (prev.some(item => item.url === source.url)) return prev
               const next = [...prev, source]
@@ -240,29 +290,52 @@ export default function ResearchWorkspace() {
         }
       } else if (data.type === 'report.completed' && data.data?.content) {
         const report = data.data.content
-        setMessages(prev => [...prev, { role: 'agent', content: report }])
+        const structuredReport = publicReportFromUnknown(data.data.report)
+        const evaluation = evaluationFromUnknown(data.data.evaluation)
+        pendingReportRef.current = structuredReport
+        pendingEvaluationRef.current = evaluation
+        setMessages(prev => [...prev, {
+          role: 'agent',
+          content: report,
+          runId: activeRunIdRef.current || undefined,
+          report: structuredReport || undefined,
+          evaluation,
+        }])
         setIsCompleted(true)
         setPhases(prev => prev.map(phase => ({ ...phase, status: 'completed' })))
-
-        const cited = extractCitedSources(report, sourcesRef.current)
-
-        if (pendingInquiryRef.current) {
-          const entry: ResearchArchiveEntry = {
-            id: `h-${crypto.randomUUID()}`,
-            query: pendingInquiryRef.current,
-            report,
-            sources: cited.length > 0 ? cited : sourcesRef.current,
-            model: selectedModel,
-            createdAt: new Date().toISOString(),
-          }
-          saveEntry(entry)
-          setActiveEntryId(entry.id)
-          setHistoryEntries(getHistory())
-        }
+      } else if (data.type === 'run.metrics') {
+        const metrics = metricsFromUnknown(data.data?.metrics)
+        pendingMetricsRef.current = metrics
+        setMessages(previous => previous.map(message => (
+          message.role === 'agent' && message.runId === activeRunIdRef.current
+            ? { ...message, metrics }
+            : message
+        )))
       } else if (data.type === 'run.completed') {
         runSettledRef.current = true
         setIsCompleted(true)
         setIsStreaming(false)
+        const runId = activeRunIdRef.current
+        const structuredReport = pendingReportRef.current
+        const agentMessage = structuredReport?.markdown || messages.findLast(message => message.role === 'agent')?.content
+        if (pendingInquiryRef.current && runId && agentMessage) {
+          const cited = structuredReport?.evidence || extractCitedSources(agentMessage, sourcesRef.current)
+          const entry: ResearchArchiveEntry = {
+            id: runId,
+            runId,
+            query: pendingInquiryRef.current,
+            report: agentMessage,
+            sources: cited.length > 0 ? cited : sourcesRef.current,
+            model: selectedModel,
+            createdAt: new Date().toISOString(),
+            structuredReport: structuredReport || undefined,
+            evaluation: pendingEvaluationRef.current,
+            metrics: pendingMetricsRef.current,
+          }
+          saveEntry(entry)
+          setActiveEntryId(entry.id)
+          setHistoryEntries(previous => mergeArchiveEntries(getHistory(), previous))
+        }
       } else if (data.type === 'run.failed') {
         runSettledRef.current = true
         const error = data.message || 'Die Recherche konnte nicht abgeschlossen werden.'
@@ -347,7 +420,11 @@ export default function ResearchWorkspace() {
           localStorage.setItem('selectedResearchMode', mode)
         }}
         backendConnected={backendConnected}
+        onCompare={() => setComparisonOpen(true)}
+        canCompare={historyEntries.length >= 2}
       />
+
+      <ReportComparison entries={historyEntries} open={comparisonOpen} onClose={() => setComparisonOpen(false)} />
 
       <main className="flex flex-col flex-1 min-w-0 relative">
       {/* Sidebar toggle (visible when sidebar is closed) */}
