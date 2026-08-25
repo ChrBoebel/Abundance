@@ -107,8 +107,10 @@ Key modules:
 | `frontend/lib/research-records.ts` | Runtime-safe persisted-report adapters |
 | `frontend/lib/sse.ts` | Chunk-safe browser SSE decoder |
 
-See [Architecture](docs/architecture.md) and the
-[architecture decisions](docs/adr/) for the detailed contracts.
+See [Architecture](docs/architecture.md), the
+[architecture decisions](docs/adr/), and the
+[AI engineering roadmap](docs/ai-engineering-roadmap.md) for the detailed
+contracts and planned quality work.
 
 ## Quick start
 

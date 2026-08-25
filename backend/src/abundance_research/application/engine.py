@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
@@ -19,12 +18,21 @@ from abundance_research.application.contracts import (
 )
 from abundance_research.application.errors import FailureCode, ResearchFailure
 from abundance_research.application.graph import (
+    RESEARCH_GRAPH_VERSION,
     AbundanceResearchGraph,
     ResearchGraphState,
 )
 from abundance_research.application.policy import ResearchCapabilityPolicy
 from abundance_research.events import ResearchEvent
-from abundance_research.observability import ModelUsage, RunMetrics
+from abundance_research.observability import (
+    ArtifactKind,
+    ArtifactRevision,
+    ModelUsage,
+    RunMetrics,
+    RunOutcome,
+    RunTelemetry,
+    parse_operation_signal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +62,13 @@ class AbundanceResearchEngine:
             ):
                 usage_reporters.append(reporter)
         self._usage_reporters = tuple(usage_reporters)
+        artifact_reporters: list[Any] = []
+        for reporter in (planner, synthesizer):
+            if callable(getattr(reporter, "observability_artifacts", None)) and not any(
+                existing is reporter for existing in artifact_reporters
+            ):
+                artifact_reporters.append(reporter)
+        self._artifact_reporters = tuple(artifact_reporters)
 
     async def stream(self, command: ResearchCommand) -> AsyncGenerator[ResearchEvent, None]:
         """Execute one graph run and translate only custom product events."""
@@ -68,37 +83,51 @@ class AbundanceResearchEngine:
             "tags": ["abundance", f"mode:{command.mode.value}"],
             "metadata": {"run_id": command.run_id},
         }
-        self.workflow.begin_run(command.run_id, policy.limits.max_concurrency)
-        started = time.perf_counter()
-        stage_started = started
-        current_stage: str | None = None
-        stage_durations: dict[str, int] = {}
-        event_count = 0
-        evidence_count = 0
-        claim_count = 0
-        metrics_emitted = False
-
-        def finish_metrics(now: float) -> RunMetrics:
-            nonlocal current_stage, stage_started, metrics_emitted
-            if current_stage is not None:
-                stage_durations[current_stage] = stage_durations.get(current_stage, 0) + int(
-                    (now - stage_started) * 1000
+        artifacts = [
+            ArtifactRevision(
+                kind=ArtifactKind.GRAPH,
+                name="abundance-research",
+                version=RESEARCH_GRAPH_VERSION,
+            )
+        ]
+        for reporter in self._artifact_reporters:
+            try:
+                artifacts.extend(reporter.observability_artifacts(command.model))
+            except Exception:
+                logger.warning(
+                    "Runtime artifact discovery failed",
+                    extra={"run_id": command.run_id},
                 )
-                current_stage = None
+        artifacts = list(
+            {
+                (artifact.kind, artifact.name, artifact.version): artifact
+                for artifact in artifacts
+            }.values()
+        )
+        telemetry = RunTelemetry(
+            run_id=command.run_id,
+            inquiry_id=command.inquiry.id,
+            requested_model=command.model,
+            mode=command.mode.value,
+            graph_version=RESEARCH_GRAPH_VERSION,
+            artifacts=artifacts,
+        )
+        self.workflow.begin_run(command.run_id, policy.limits.max_concurrency)
+
+        def finish_metrics(
+            outcome: RunOutcome,
+            *,
+            failure_code: str | None = None,
+        ) -> RunMetrics:
             usage = ModelUsage()
             for reporter in self._usage_reporters:
                 usage = usage.add(reporter.drain_usage(command.inquiry.id))
-            metrics_emitted = True
-            return RunMetrics(
-                duration_ms=int((now - started) * 1000),
-                stage_duration_ms=stage_durations,
-                event_count=event_count,
-                evidence_count=evidence_count,
-                claim_count=claim_count,
-                model=command.model,
-                mode=command.mode.value,
+            return telemetry.finish(
+                outcome,
                 usage=usage,
+                failure_code=failure_code,
             )
+
         try:
             async for chunk in self.workflow.compiled.astream(
                 initial_state,
@@ -108,21 +137,15 @@ class AbundanceResearchEngine:
             ):
                 if chunk.get("type") != "custom":
                     continue
-                event = ResearchEvent.model_validate(chunk["data"])
-                event_count += 1
-                next_stage = event.stage.value if event.stage is not None else current_stage
-                now = time.perf_counter()
-                if next_stage != current_stage:
-                    if current_stage is not None:
-                        stage_durations[current_stage] = stage_durations.get(current_stage, 0) + int(
-                            (now - stage_started) * 1000
-                        )
-                    current_stage = next_stage
-                    stage_started = now
+                payload = chunk["data"]
+                operation_span = parse_operation_signal(payload)
+                if operation_span is not None:
+                    telemetry.record_operation(operation_span)
+                    continue
+                event = ResearchEvent.model_validate(payload)
+                telemetry.record_event(event)
                 if event.type == "run.completed":
-                    evidence_count = int(event.data.get("evidence_count", 0))
-                    claim_count = int(event.data.get("claim_count", 0))
-                    metrics = finish_metrics(now)
+                    metrics = finish_metrics(RunOutcome.COMPLETED)
                     logger.info(
                         "Research run completed",
                         extra={"run_id": command.run_id, "duration_ms": metrics.duration_ms},
@@ -137,10 +160,25 @@ class AbundanceResearchEngine:
                     )
                 yield event
         except asyncio.CancelledError:
-            logger.info("Research run cancelled", extra={"run_id": command.run_id})
+            cancelled_metrics = (
+                finish_metrics(RunOutcome.CANCELLED)
+                if not telemetry.finished
+                else None
+            )
+            logger.info(
+                "Research run cancelled",
+                extra={
+                    "run_id": command.run_id,
+                    "duration_ms": (
+                        cancelled_metrics.duration_ms
+                        if cancelled_metrics is not None
+                        else None
+                    ),
+                },
+            )
             raise
         except ResearchFailure as exc:
-            metrics = finish_metrics(time.perf_counter())
+            metrics = finish_metrics(RunOutcome.FAILED, failure_code=exc.code.value)
             yield ResearchEvent(
                 type="run.metrics",
                 message="Laufmetriken erfasst",
@@ -157,7 +195,7 @@ class AbundanceResearchEngine:
                 data={"run_id": command.run_id, **exc.public_data(command.run_id)},
             )
         except Exception:
-            metrics = finish_metrics(time.perf_counter())
+            metrics = finish_metrics(RunOutcome.FAILED, failure_code=FailureCode.INTERNAL.value)
             yield ResearchEvent(
                 type="run.metrics",
                 message="Laufmetriken erfasst",
@@ -174,7 +212,7 @@ class AbundanceResearchEngine:
                 data={"run_id": command.run_id, **failure.public_data(command.run_id)},
             )
         finally:
-            if not metrics_emitted:
+            if not telemetry.finished:
                 for reporter in self._usage_reporters:
                     reporter.drain_usage(command.inquiry.id)
             self.workflow.finish_run(command.run_id)

@@ -70,3 +70,30 @@ python -m mypy src backend_server.py
 python -m pytest -q
 python -m pip_audit
 ```
+
+## Evaluation baseline gate
+
+Validate the source-controlled dataset without provider calls:
+
+```bash
+python -m abundance_research.eval_harness --validate-only
+```
+
+Create a live candidate artifact and compare it with an accepted, like-for-like
+baseline:
+
+```bash
+python -m abundance_research.eval_harness \
+  --models mercury \
+  --output evals/results/candidate.json \
+  --baseline evals/results/baseline.json \
+  --comparison-output evals/results/comparison.json \
+  --min-pass-rate 0.9 \
+  --max-pass-rate-drop 0 \
+  --max-duration-increase-ratio 0.25 \
+  --max-cost-increase-ratio 0.25
+```
+
+The command exits unsuccessfully when the absolute quality gate or the baseline
+regression budgets fail. Comparison requires identical dataset versions, model
+profiles, and evaluated case sets.
