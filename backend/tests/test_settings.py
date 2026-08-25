@@ -25,3 +25,9 @@ def test_settings_reject_wildcard_cors_origin() -> None:
 def test_settings_reject_short_internal_api_token() -> None:
     with pytest.raises(ValidationError):
         AbundanceSettings(internal_api_token="too-short")
+
+
+def test_settings_treat_empty_internal_api_token_as_omitted() -> None:
+    settings = AbundanceSettings.from_environment({"ABUNDANCE_INTERNAL_API_TOKEN": "  "})
+
+    assert settings.internal_api_token is None

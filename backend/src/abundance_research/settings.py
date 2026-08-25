@@ -55,6 +55,8 @@ class AbundanceSettings(BaseModel):
             raw = source.get(f"ABUNDANCE_{field_name.upper()}")
             if raw is None:
                 continue
+            if field_name == "internal_api_token" and not raw.strip():
+                continue
             values[field_name] = (
                 [item.strip() for item in raw.split(",")]
                 if field_name == "cors_origins"
