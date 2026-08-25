@@ -1,6 +1,6 @@
 """Research clarification and brief generation workflow.
 
-This module handles the initial phase of the deep research workflow, including
+This module handles the initial phase of an Abundance research run, including
 user clarification and research brief generation.
 """
 

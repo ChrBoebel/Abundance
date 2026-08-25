@@ -1,6 +1,8 @@
 # Frontend
 
-Next.js frontend for Abundance. It authenticates the user with a single password and renders the live research stream coming from the backend.
+Next.js research workspace for Abundance. It authenticates the user, manages
+local research history, and renders the framework-independent Abundance event
+stream.
 
 ## Setup
 
@@ -25,16 +27,17 @@ Optional:
 ## Responsibilities
 
 - protect the UI behind a password gate
-- start research jobs from the browser
-- proxy and normalize backend SSE events
-- render progress, sources, and final reports
+- start research runs in quick, balanced, or thorough mode
+- proxy backend SSE events without exposing graph internals
+- render the research trail, sources, and final synthesis
 
 ## Main Routes
 
-- `/` main research UI
+- `/` research workspace
 - `/login` password login page
-- `/api/chat/stream` frontend streaming endpoint
-- `/api/health` lightweight health check
+- `/api/research-runs/stream` browser streaming endpoint
+- `/api/research-runs/[id]` research-session reset endpoint
+- `/api/health` frontend and backend health check
 
 ## Development
 

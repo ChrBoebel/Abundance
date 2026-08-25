@@ -1,13 +1,16 @@
 # Backend
 
-FastAPI backend for Abundance. It exposes a single streaming endpoint that forwards LangGraph research events as Server-Sent Events.
+FastAPI backend for Abundance. It exposes a stable, framework-independent stream
+of research-domain events over Server-Sent Events.
 
 ## Responsibilities
 
-- build the LangGraph research workflow
+- scope inquiries and coordinate evidence questions
 - call Tavily for search
+- search arXiv and PubMed for academic evidence
 - call OpenRouter for model inference
-- stream research progress and final output to the frontend
+- review counterevidence and source limitations
+- stream Abundance progress events and final reports
 
 ## Required Environment Variables
 
@@ -54,25 +57,38 @@ Returns:
 {"status":"healthy","version":"1.0.0"}
 ```
 
-### `POST /research/stream`
+### `POST /api/v1/research-runs/stream`
 
 Request body:
 
 ```json
 {
-  "message": "Summarize the latest agent engineering patterns"
+  "inquiry": "Which evidence supports and challenges the proposed policy?",
+  "model": "mercury",
+  "mode": "balanced"
 }
 ```
 
 Response:
 
 - content type: `text/event-stream`
-- streams LangGraph events
-- ends with `{"event":"done"}` on success
+- streams Abundance events such as `plan.created`, `evidence.discovered`, and
+  `report.completed`
+- ends with `run.completed` on success
+
+`POST /research/stream` remains temporarily available as a compatibility route
+for older clients.
 
 ## Local Python Run
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[dev]"
 python3 backend_server.py
+```
+
+## Tests
+
+```bash
+python -m ruff check backend_server.py src tests
+python -m pytest -q
 ```
