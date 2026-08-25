@@ -49,6 +49,12 @@ export async function proxy(request: NextRequest) {
   const session = await getIronSession<SessionData>(request, response, getSessionOptions())
 
   if (!session.authenticated) {
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return secureResponse(
+        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+        policy,
+      )
+    }
     return secureResponse(NextResponse.redirect(new URL('/login', request.url)), policy)
   }
 

@@ -1,6 +1,8 @@
 /** Authenticated, cancellation-aware research stream proxy. */
 import { NextRequest } from 'next/server'
 import { isAuthenticated } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { clientRateLimitKey, isSameOriginRequest } from '@/lib/request-security'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -8,15 +10,6 @@ export const dynamic = 'force-dynamic'
 const BACKEND_URL = process.env.RESEARCH_BACKEND_URL || 'http://localhost:8000'
 const ALLOWED_MODELS = new Set(['mercury', 'gemini-flash', 'gemini', 'deepseek', 'glm'])
 const ALLOWED_MODES = new Set(['quick', 'balanced', 'thorough'])
-
-function isSameOriginRequest(request: NextRequest): boolean {
-  const fetchSite = request.headers.get('sec-fetch-site')
-  if (fetchSite === 'cross-site') return false
-
-  const origin = request.headers.get('origin')
-  if (!origin) return true
-  return origin === request.nextUrl.origin
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +34,17 @@ export async function POST(request: NextRequest) {
     }
     if (!ALLOWED_MODELS.has(model) || !ALLOWED_MODES.has(mode)) {
       return Response.json({ error: 'Unsupported research configuration' }, { status: 422 })
+    }
+    const limit = await checkRateLimit('research', clientRateLimitKey(request))
+    if (limit.reason === 'configuration') {
+      return Response.json({ error: 'Research service is not configured' }, { status: 503 })
+    }
+    if (!limit.success) {
+      const retryAfter = Math.max(1, Math.ceil((limit.reset - Date.now()) / 1_000))
+      return Response.json(
+        { error: 'Too many research requests' },
+        { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+      )
     }
 
     const upstream = await fetch(`${BACKEND_URL}/api/v1/research-runs/stream`, {

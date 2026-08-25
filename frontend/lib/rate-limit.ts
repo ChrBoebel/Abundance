@@ -1,169 +1,129 @@
-/**
- * Simple in-memory rate limiter for login attempts
- */
+/** Shared production rate limits with a bounded local development fallback. */
 
-interface RateLimitEntry {
-  attempts: number
-  firstAttempt: number
-  blockedUntil?: number
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
+
+export type RateLimitKind = 'login' | 'research'
+
+export interface RateLimitDecision {
+  success: boolean
+  limit: number
+  remaining: number
+  reset: number
+  reason?: 'configuration' | 'local'
 }
 
-class RateLimiter {
-  private attempts: Map<string, RateLimitEntry> = new Map()
-  private readonly maxAttempts: number
-  private readonly windowMs: number
-  private readonly blockDurationMs: number
+interface LocalEntry {
+  count: number
+  reset: number
+}
+
+export class LocalRateLimiter {
+  private readonly entries = new Map<string, LocalEntry>()
 
   constructor(
-    maxAttempts: number = 5,
-    windowMs: number = 15 * 60 * 1000, // 15 minutes
-    blockDurationMs: number = 15 * 60 * 1000 // 15 minutes
-  ) {
-    this.maxAttempts = maxAttempts
-    this.windowMs = windowMs
-    this.blockDurationMs = blockDurationMs
+    private readonly limit: number,
+    private readonly windowMs: number,
+    private readonly maxEntries = 5_000,
+  ) {}
 
-    // Cleanup old entries every 5 minutes
-    setInterval(() => this.cleanup(), 5 * 60 * 1000)
-  }
-
-  /**
-   * Check if an identifier is rate limited
-   */
-  isLimited(identifier: string): boolean {
-    const entry = this.attempts.get(identifier)
-
-    if (!entry) return false
-
-    const now = Date.now()
-
-    // Check if currently blocked
-    if (entry.blockedUntil && entry.blockedUntil > now) {
-      return true
+  consume(identifier: string, now = Date.now()): RateLimitDecision {
+    this.prune(now)
+    const current = this.entries.get(identifier)
+    const entry = !current || current.reset <= now
+      ? { count: 1, reset: now + this.windowMs }
+      : { count: current.count + 1, reset: current.reset }
+    this.entries.delete(identifier)
+    this.entries.set(identifier, entry)
+    while (this.entries.size > this.maxEntries) {
+      const oldest = this.entries.keys().next().value
+      if (oldest === undefined) break
+      this.entries.delete(oldest)
     }
-
-    // Check if window has expired
-    if (now - entry.firstAttempt > this.windowMs) {
-      this.attempts.delete(identifier)
-      return false
-    }
-
-    // Check if max attempts exceeded
-    return entry.attempts >= this.maxAttempts
-  }
-
-  /**
-   * Record a failed login attempt
-   */
-  recordAttempt(identifier: string): void {
-    const now = Date.now()
-    const entry = this.attempts.get(identifier)
-
-    if (!entry) {
-      // First attempt
-      this.attempts.set(identifier, {
-        attempts: 1,
-        firstAttempt: now,
-      })
-      return
-    }
-
-    // Check if window has expired
-    if (now - entry.firstAttempt > this.windowMs) {
-      // Reset counter
-      this.attempts.set(identifier, {
-        attempts: 1,
-        firstAttempt: now,
-      })
-      return
-    }
-
-    // Increment attempts
-    entry.attempts++
-
-    // Block if max attempts exceeded
-    if (entry.attempts >= this.maxAttempts) {
-      entry.blockedUntil = now + this.blockDurationMs
-    }
-
-    this.attempts.set(identifier, entry)
-  }
-
-  /**
-   * Reset attempts for an identifier (e.g., after successful login)
-   */
-  reset(identifier: string): void {
-    this.attempts.delete(identifier)
-  }
-
-  /**
-   * Get remaining attempts for an identifier
-   */
-  getRemainingAttempts(identifier: string): number {
-    const entry = this.attempts.get(identifier)
-
-    if (!entry) return this.maxAttempts
-
-    const now = Date.now()
-
-    // Check if window has expired
-    if (now - entry.firstAttempt > this.windowMs) {
-      return this.maxAttempts
-    }
-
-    return Math.max(0, this.maxAttempts - entry.attempts)
-  }
-
-  /**
-   * Get time until unblocked (in milliseconds)
-   */
-  getBlockedUntil(identifier: string): number | null {
-    const entry = this.attempts.get(identifier)
-
-    if (!entry || !entry.blockedUntil) return null
-
-    const now = Date.now()
-    const remaining = entry.blockedUntil - now
-
-    return remaining > 0 ? remaining : null
-  }
-
-  /**
-   * Cleanup old entries
-   */
-  private cleanup(): void {
-    const now = Date.now()
-    const toDelete: string[] = []
-
-    this.attempts.forEach((entry, identifier) => {
-      // Remove expired entries
-      if (now - entry.firstAttempt > this.windowMs + this.blockDurationMs) {
-        toDelete.push(identifier)
-      }
-    })
-
-    toDelete.forEach(id => this.attempts.delete(id))
-  }
-
-  /**
-   * Get stats for monitoring
-   */
-  getStats(): { totalEntries: number; blockedCount: number } {
-    const now = Date.now()
-    let blockedCount = 0
-
-    this.attempts.forEach(entry => {
-      if (entry.blockedUntil && entry.blockedUntil > now) {
-        blockedCount++
-      }
-    })
-
     return {
-      totalEntries: this.attempts.size,
-      blockedCount,
+      success: entry.count <= this.limit,
+      limit: this.limit,
+      remaining: Math.max(0, this.limit - entry.count),
+      reset: entry.reset,
+      reason: 'local',
+    }
+  }
+
+  reset(identifier: string): void {
+    this.entries.delete(identifier)
+  }
+
+  private prune(now: number): void {
+    for (const [identifier, entry] of this.entries) {
+      if (entry.reset <= now) this.entries.delete(identifier)
     }
   }
 }
 
-// Singleton instance
-export const loginRateLimiter = new RateLimiter()
+const localLimiters = {
+  login: new LocalRateLimiter(5, 15 * 60 * 1_000),
+  research: new LocalRateLimiter(10, 60 * 1_000),
+}
+
+let sharedLimiters: Record<RateLimitKind, Ratelimit> | null | undefined
+
+function getSharedLimiters(): Record<RateLimitKind, Ratelimit> | null {
+  if (sharedLimiters !== undefined) return sharedLimiters
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    sharedLimiters = null
+    return null
+  }
+  const redis = Redis.fromEnv()
+  sharedLimiters = {
+    login: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '15 m'),
+      prefix: 'abundance:login',
+      analytics: true,
+      timeout: 1_500,
+    }),
+    research: new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, '1 m'),
+      prefix: 'abundance:research',
+      analytics: true,
+      timeout: 1_500,
+    }),
+  }
+  return sharedLimiters
+}
+
+export async function checkRateLimit(
+  kind: RateLimitKind,
+  identifier: string,
+): Promise<RateLimitDecision> {
+  const shared = getSharedLimiters()
+  if (shared) {
+    const result = await shared[kind].limit(identifier)
+    return {
+      success: result.success,
+      limit: result.limit,
+      remaining: result.remaining,
+      reset: result.reset,
+    }
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      success: false,
+      limit: 0,
+      remaining: 0,
+      reset: Date.now() + 60_000,
+      reason: 'configuration',
+    }
+  }
+  return localLimiters[kind].consume(identifier)
+}
+
+export async function resetRateLimit(kind: RateLimitKind, identifier: string): Promise<void> {
+  const shared = getSharedLimiters()
+  if (shared) {
+    await shared[kind].resetUsedTokens(identifier)
+    return
+  }
+  localLimiters[kind].reset(identifier)
+}

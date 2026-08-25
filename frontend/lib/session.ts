@@ -2,8 +2,8 @@ import type { SessionOptions } from 'iron-session'
 
 function requireSessionSecret(): string {
   const value = process.env.SESSION_SECRET
-  if (!value) {
-    throw new Error('SESSION_SECRET environment variable is required')
+  if (!value || value.length < 32) {
+    throw new Error('SESSION_SECRET must contain at least 32 characters')
   }
   return value
 }
@@ -15,8 +15,8 @@ export function getSessionOptions(): SessionOptions {
     cookieOptions: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 12,
     },
   }
 }

@@ -1,83 +1,54 @@
-/**
- * Login API Route with Rate Limiting
- */
+/** Password login with origin, size, and distributed rate-limit checks. */
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticate } from '@/lib/auth'
-import { loginRateLimiter } from '@/lib/rate-limit'
-
-function getClientIdentifier(request: NextRequest): string {
-  // Try to get real IP from various headers (Railway/proxy headers)
-  const forwardedFor = request.headers.get('x-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  const railwayIp = request.headers.get('x-railway-client-ip')
-
-  // Use the first available IP
-  const ip = railwayIp || realIp || forwardedFor?.split(',')[0] || 'unknown'
-
-  return ip.trim()
-}
+import { checkRateLimit, resetRateLimit } from '@/lib/rate-limit'
+import { clientRateLimitKey, isSameOriginRequest } from '@/lib/request-security'
 
 export async function POST(request: NextRequest) {
   try {
-    const identifier = getClientIdentifier(request)
-
-    // Check rate limit
-    if (loginRateLimiter.isLimited(identifier)) {
-      const blockedUntil = loginRateLimiter.getBlockedUntil(identifier)
-      const remainingMs = blockedUntil || 0
-      const remainingMinutes = Math.ceil(remainingMs / 60000)
-
+    if (!isSameOriginRequest(request)) {
+      return NextResponse.json({ error: 'Cross-site request rejected' }, { status: 403 })
+    }
+    const contentLength = Number(request.headers.get('content-length') || '0')
+    if (contentLength > 4_096) {
+      return NextResponse.json({ error: 'Request body is too large' }, { status: 413 })
+    }
+    const identifier = clientRateLimitKey(request)
+    const limit = await checkRateLimit('login', identifier)
+    if (limit.reason === 'configuration') {
+      return NextResponse.json({ error: 'Authentication service unavailable' }, { status: 503 })
+    }
+    if (!limit.success) {
+      const retryAfterSeconds = Math.max(1, Math.ceil((limit.reset - Date.now()) / 1_000))
       return NextResponse.json(
-        {
-          error: `Zu viele Versuche. Bitte versuchen Sie es in ${remainingMinutes} Minute(n) erneut.`,
-          retryAfter: remainingMs
-        },
+        { error: 'Zu viele Versuche. Bitte später erneut versuchen.' },
         {
           status: 429,
-          headers: {
-            'Retry-After': String(Math.ceil(remainingMs / 1000))
-          }
-        }
+          headers: { 'Retry-After': String(retryAfterSeconds) },
+        },
       )
     }
 
-    const { password } = await request.json()
-
-    if (!password) {
+    const body = await request.json() as Record<string, unknown>
+    const password = body.password
+    if (typeof password !== 'string' || password.length < 1 || password.length > 1_024) {
       return NextResponse.json(
-        { error: 'Password required' },
-        { status: 400 }
+        { error: 'Invalid credentials' },
+        { status: 400 },
       )
     }
 
     const success = await authenticate(password)
-
     if (success) {
-      // Reset rate limit on successful login
-      loginRateLimiter.reset(identifier)
+      await resetRateLimit('login', identifier)
       return NextResponse.json({ success: true })
-    } else {
-      // Record failed attempt
-      loginRateLimiter.recordAttempt(identifier)
-
-      const remaining = loginRateLimiter.getRemainingAttempts(identifier)
-      const errorMsg = remaining > 0
-        ? `Falsches Passwort. Noch ${remaining} Versuch(e) übrig.`
-        : 'Zu viele fehlgeschlagene Versuche.'
-
-      return NextResponse.json(
-        {
-          error: errorMsg,
-          remainingAttempts: remaining
-        },
-        { status: 401 }
-      )
     }
-  } catch (error) {
-    console.error('Login error:', error)
+    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+  } catch {
+    console.error('Login request failed')
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
