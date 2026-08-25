@@ -47,9 +47,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const backendToken = process.env.RESEARCH_BACKEND_TOKEN
+    if (process.env.NODE_ENV === 'production' && !backendToken) {
+      return Response.json({ error: 'Research service is not configured' }, { status: 503 })
+    }
+
     const upstream = await fetch(`${BACKEND_URL}/api/v1/research-runs/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(backendToken ? { Authorization: `Bearer ${backendToken}` } : {}),
+      },
       body: JSON.stringify({ inquiry, model, mode }),
       cache: 'no-store',
       signal: request.signal,

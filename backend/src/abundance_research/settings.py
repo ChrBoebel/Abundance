@@ -6,7 +6,7 @@ import os
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class AbundanceSettings(BaseModel):
@@ -22,6 +22,7 @@ class AbundanceSettings(BaseModel):
     provider_max_retries: int = Field(default=2, ge=0, le=6)
     search_timeout_seconds: float = Field(default=45.0, ge=5.0, le=120.0)
     max_evidence_excerpt_chars: int = Field(default=12000, ge=500, le=50000)
+    internal_api_token: SecretStr | None = None
 
     @field_validator("cors_origins")
     @classmethod
@@ -33,6 +34,14 @@ class AbundanceSettings(BaseModel):
         if any(not value.startswith(("http://", "https://")) for value in normalized):
             raise ValueError("cors_origins must use http or https")
         return normalized
+
+    @field_validator("internal_api_token")
+    @classmethod
+    def validate_internal_token(cls, value: SecretStr | None) -> SecretStr | None:
+        """Require enough entropy for the optional service-to-service bearer token."""
+        if value is not None and len(value.get_secret_value()) < 32:
+            raise ValueError("internal_api_token must contain at least 32 characters")
+        return value
 
     @classmethod
     def from_environment(

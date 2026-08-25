@@ -1,9 +1,11 @@
 from collections.abc import AsyncIterator
 
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from abundance_research.application.contracts import ResearchCommand
 from abundance_research.events import ResearchEvent
+from abundance_research.settings import AbundanceSettings
 from backend_server import create_app
 
 
@@ -42,6 +44,23 @@ def test_stream_api_rejects_unknown_model_before_engine_execution() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_stream_api_enforces_configured_internal_token() -> None:
+    token = "service-token-with-at-least-32-characters"
+    settings = AbundanceSettings(internal_api_token=SecretStr(token))
+    client = TestClient(create_app(lambda: FakeEngine(), settings=settings))
+    payload = {"inquiry": "What does the evidence show?", "model": "mercury"}
+
+    unauthorized = client.post("/api/v1/research-runs/stream", json=payload)
+    authorized = client.post(
+        "/api/v1/research-runs/stream",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
 
 
 def test_readiness_returns_safe_configuration_failure() -> None:

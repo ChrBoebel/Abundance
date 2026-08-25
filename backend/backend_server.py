@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import os
 import re
 import sys
@@ -128,7 +130,7 @@ def create_app(
         allow_origins=runtime.cors_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Request-ID", "Last-Event-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Last-Event-ID"],
         expose_headers=["X-Request-ID", "X-Run-ID"],
     )
 
@@ -143,6 +145,19 @@ def create_app(
 
     @application.post("/api/v1/research-runs/stream")
     async def research_run_stream(payload: ResearchRunRequest, request: Request):
+        expected_token = runtime.internal_api_token
+        if expected_token is not None:
+            authorization = request.headers.get("authorization", "")
+            supplied = authorization.removeprefix("Bearer ")
+            expected_digest = hashlib.sha256(
+                expected_token.get_secret_value().encode()
+            ).digest()
+            supplied_digest = hashlib.sha256(supplied.encode()).digest()
+            if not authorization.startswith("Bearer ") or not hmac.compare_digest(
+                supplied_digest,
+                expected_digest,
+            ):
+                raise HTTPException(status_code=401, detail="Unauthorized")
         run_id = f"run-{uuid4().hex}"
         inquiry = Inquiry(question=payload.inquiry, mode=payload.mode)
         command = ResearchCommand(

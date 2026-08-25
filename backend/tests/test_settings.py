@@ -20,3 +20,8 @@ def test_settings_load_only_prefixed_environment_values() -> None:
 def test_settings_reject_wildcard_cors_origin() -> None:
     with pytest.raises(ValidationError):
         AbundanceSettings(cors_origins=["*"])
+
+
+def test_settings_reject_short_internal_api_token() -> None:
+    with pytest.raises(ValidationError):
+        AbundanceSettings(internal_api_token="too-short")
