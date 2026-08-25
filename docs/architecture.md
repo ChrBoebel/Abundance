@@ -14,6 +14,7 @@ sequenceDiagram
     participant G as LangGraph
     participant L as LangChain model adapter
     participant T as Tavily evidence adapter
+    participant P as PostgreSQL
 
     U->>N: POST inquiry
     N->>F: POST inquiry + internal bearer token
@@ -27,6 +28,7 @@ sequenceDiagram
     G->>L: schema-constrained synthesis
     L-->>G: structured ResearchReport draft
     G->>G: citation binding, rendering, deterministic evaluation
+    G->>P: checkpoint + public report + metrics
     G-->>U: report.completed / run.completed
 ```
 
@@ -88,7 +90,7 @@ upstream fetch and active graph work.
 
 Public event types are:
 
-- lifecycle: `run.accepted`, `run.completed`, `run.failed`;
+- lifecycle: `run.accepted`, `run.metrics`, `run.completed`, `run.failed`;
 - inquiry and planning: `inquiry.scoping`, `plan.created`;
 - evidence: `evidence.collection.started`, `evidence.search.started`,
   `evidence.search.failed`, `evidence.discovered`, `evidence.review.started`;
@@ -99,11 +101,24 @@ evidence excerpts, and exception strings are deliberately excluded.
 
 ## Persistence
 
-The engine accepts any LangGraph `BaseCheckpointSaver`; tests exercise the
-in-memory saver and verify JSON-serializable snapshots. The HTTP composition
-root currently runs without durable persistence. A production deployment that
-needs resume, replay, or multiple API replicas must supply an async Postgres or
-Redis checkpointer and define retention and deletion policies.
+When `ABUNDANCE_DATABASE_URL` is configured, one lifecycle-managed psycopg
+pool backs both the application repository and LangGraph's
+`AsyncPostgresSaver`. Forward-only migrations run before the API process and
+use a PostgreSQL advisory lock so concurrent deploys cannot apply the same
+migration twice. The API refuses readiness when the application schema is
+missing.
+
+The application repository persists run state, the public report projection,
+deterministic evaluation, latency/token/cost metrics, claim feedback, and
+hashed capability-share tokens. Raw provider responses are never stored in
+this repository. LangGraph checkpoints contain the full workflow state and
+therefore require an explicit deployment retention, encryption, backup, and
+deletion policy. Local development without a database deliberately falls back
+to an in-memory repository.
+
+Public shares return only the completed public report, its deterministic
+evaluation, and creation time. The original inquiry object, model choice,
+errors, run identifiers, and operational cost metrics remain private.
 
 ## Security invariants
 

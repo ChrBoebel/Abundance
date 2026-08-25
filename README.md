@@ -34,6 +34,19 @@ citations can reference only admitted evidence.
   schema-constrained planning and synthesis without tool binding.
 - **Cancellation end to end:** browser disconnects propagate through Next.js,
   FastAPI, LangGraph, and active provider calls.
+- **Durable operations:** PostgreSQL stores run status, public reports,
+  evaluation metrics, feedback, capability shares, and LangGraph checkpoints.
+
+## Product capabilities
+
+- persistent research history with offline local fallback;
+- structured source filters for supporting evidence, counterevidence, and
+  primary sources;
+- per-claim feedback with optimistic, accessible status updates;
+- Markdown export and print-optimized PDF saving;
+- privacy-minimized capability links for read-only report sharing;
+- side-by-side synthesis comparison with quality, latency, token, and cost
+  signals.
 
 ## Research flow
 
@@ -66,6 +79,7 @@ flowchart TB
     Policy["Capability and evidence policy"]
     Model["LangChain + OpenRouter"]
     Search["Read-only Tavily adapter"]
+    DB[("PostgreSQL runs + checkpoints")]
 
     Browser -->|"POST + SSE"| BFF
     BFF -->|"Internal bearer token"| API
@@ -73,6 +87,8 @@ flowchart TB
     Graph --> Policy
     Graph --> Model
     Graph --> Search
+    API --> DB
+    Graph --> DB
     Graph -->|"Abundance events"| API
 ```
 
@@ -85,7 +101,10 @@ Key modules:
 | `backend/src/abundance_research/application/policy.py` | Code-enforced budgets and source admission |
 | `backend/src/abundance_research/adapters/` | LangChain/OpenRouter and Tavily integrations |
 | `backend/src/abundance_research/events.py` | Stable streaming event contract |
+| `backend/src/abundance_research/persistence.py` | Run, feedback, and capability-share persistence |
+| `backend/src/abundance_research/eval_harness.py` | Reference-dataset and live quality evaluation |
 | `frontend/app/api/research-runs/stream/` | Authenticated, cancellation-aware BFF proxy |
+| `frontend/lib/research-records.ts` | Runtime-safe persisted-report adapters |
 | `frontend/lib/sse.ts` | Chunk-safe browser SSE decoder |
 
 See [Architecture](docs/architecture.md) and the
@@ -109,7 +128,10 @@ Set at least `OPENROUTER_API_KEY` and `TAVILY_API_KEY`. The API listens on
 
 - `GET /health` — process liveness;
 - `GET /ready` — provider configuration readiness;
-- `POST /api/v1/research-runs/stream` — the SSE research contract.
+- `POST /api/v1/research-runs/stream` — the SSE research contract;
+- `GET /api/v1/research-runs` — persisted research history;
+- `POST /api/v1/research-runs/{id}/feedback` — report or claim feedback;
+- `POST /api/v1/research-runs/{id}/shares` — unguessable read-only shares.
 
 ### 2. Frontend
 
@@ -142,8 +164,14 @@ Production intentionally fails closed unless these boundaries are configured:
 - Upstash Redis REST credentials for distributed login and research limits;
 - explicit `ABUNDANCE_CORS_ORIGINS`;
 - provider quotas and network isolation for the FastAPI service;
-- a durable LangGraph checkpointer before enabling resumable or multi-instance
-  research runs.
+- PostgreSQL migrations completed before the API starts;
+- `ABUNDANCE_DEPLOYMENT_ENVIRONMENT=production` so missing internal
+  authentication fails at startup;
+- an explicit retention, backup, and encryption policy for research data.
+
+The current password gate is a single-workspace authentication model: every
+authenticated user can see the same persisted research library. Add explicit
+user/tenant ownership before operating Abundance as a multi-tenant service.
 
 Both `backend/Dockerfile` and `frontend/Dockerfile` run as non-root users. The
 backend Compose file binds to loopback by default.
@@ -155,6 +183,7 @@ cd backend
 python -m ruff check backend_server.py src tests
 python -m mypy src backend_server.py
 python -m pytest -q
+python -m abundance_research.eval_harness --validate-only
 python -m pip_audit
 
 cd ../frontend
@@ -165,9 +194,10 @@ npm run build
 npm audit --audit-level=high
 ```
 
-The test suite covers graph topology, structured state checkpointing,
+The test suite covers graph topology, real PostgreSQL state checkpointing,
 concurrency budgets, cancellation, provider-error redaction, evidence admission,
-citation integrity, SSE chunk boundaries, origin checks, and rate limiting.
+citation integrity, SSE chunk boundaries, origin checks, rate limiting, public
+share minimization, persisted feedback, and research-record parsing.
 
 ## Security model
 

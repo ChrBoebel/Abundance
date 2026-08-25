@@ -47,11 +47,12 @@ services:
       ABUNDANCE_CORS_ORIGINS: ${STAGING_BASE_URL:?STAGING_BASE_URL is required}
       ABUNDANCE_SHARE_BASE_URL: ${STAGING_BASE_URL}/shared
       ABUNDANCE_LOG_LEVEL: INFO
+      ABUNDANCE_DEPLOYMENT_ENVIRONMENT: staging
     depends_on:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -97,4 +98,3 @@ services:
 
 volumes:
   postgres-data:
-
