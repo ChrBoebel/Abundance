@@ -1,7 +1,7 @@
 /** Main Abundance research workspace. */
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import { useTheme } from 'next-themes'
 import { Menu } from 'lucide-react'
 import Image from 'next/image'
@@ -37,6 +37,7 @@ const STAGE_TO_PHASE: Record<ResearchStage, number> = {
 }
 
 export default function ResearchWorkspace() {
+  const stableSessionId = useId()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [messages, setMessages] = useState<ResearchMessageRecord[]>([])
@@ -45,11 +46,9 @@ export default function ResearchWorkspace() {
   const [phases, setPhases] = useState<ResearchPhase[]>(INITIAL_PHASES)
   const [sourceCount, setSourceCount] = useState(0)
   const [sources, setSources] = useState<Source[]>([])
-  const [citedSources, setCitedSources] = useState<Source[]>([])
   const [currentActivity, setCurrentActivity] = useState('')
   const [isCompleted, setIsCompleted] = useState(false)
-  const [sessionId, setSessionId] = useState(`s-${Date.now().toString(36)}`)
-  const [eventSource, setEventSource] = useState<EventSource | null>(null)
+  const [sessionId, setSessionId] = useState(`s-${stableSessionId.replaceAll(':', '')}`)
   const [streamingReport, setStreamingReport] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('mercury')
   const [selectedMode, setSelectedMode] = useState<ResearchMode>('balanced')
@@ -59,23 +58,28 @@ export default function ResearchWorkspace() {
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const pendingInquiryRef = useRef('')
+  const sourcesRef = useRef<Source[]>([])
 
   useEffect(() => {
-    setMounted(true)
-    const savedModel = localStorage.getItem('selectedModel')
-    if (savedModel) {
-      setSelectedModel(savedModel)
-    }
-    const savedMode = localStorage.getItem('selectedResearchMode') as ResearchMode | null
-    if (savedMode && ['quick', 'balanced', 'thorough'].includes(savedMode)) {
-      setSelectedMode(savedMode)
-    }
-    setHistoryEntries(getHistory())
-    // Open sidebar by default on desktop
-    if (window.innerWidth >= 1024) {
-      setSidebarOpen(true)
-    }
+    const frame = window.requestAnimationFrame(() => {
+      setMounted(true)
+      const savedModel = localStorage.getItem('selectedModel')
+      if (savedModel) {
+        setSelectedModel(savedModel)
+      }
+      const savedMode = localStorage.getItem('selectedResearchMode') as ResearchMode | null
+      if (savedMode && ['quick', 'balanced', 'thorough'].includes(savedMode)) {
+        setSelectedMode(savedMode)
+      }
+      setHistoryEntries(getHistory())
+      setSidebarOpen(window.innerWidth >= 1024)
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [])
+
+  useEffect(() => () => eventSourceRef.current?.close(), [])
 
   useEffect(() => {
     let active = true
@@ -108,7 +112,7 @@ export default function ResearchWorkspace() {
     setPhases(INITIAL_PHASES)
     setSourceCount(0)
     setSources([])
-    setCitedSources([])
+    sourcesRef.current = []
     setCurrentActivity('')
     setIsCompleted(false)
     setShowResearchTrail(false)
@@ -127,27 +131,6 @@ export default function ResearchWorkspace() {
     })))
   }
 
-  // Auto-save completed research to history
-  useEffect(() => {
-    if (isCompleted && !isStreaming && !activeEntryId) {
-      const agentMsg = messages.find(m => m.role === 'agent')
-      const userMsg = messages.find(m => m.role === 'user')
-      if (agentMsg && userMsg) {
-        const entry: ResearchArchiveEntry = {
-          id: `h-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-          query: userMsg.content,
-          report: agentMsg.content,
-          sources: citedSources.length > 0 ? citedSources : sources,
-          model: selectedModel,
-          createdAt: new Date().toISOString(),
-        }
-        saveEntry(entry)
-        setActiveEntryId(entry.id)
-        setHistoryEntries(getHistory())
-      }
-    }
-  }, [isCompleted, isStreaming]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleSelectEntry = useCallback((entry: ResearchArchiveEntry) => {
     if (isStreaming) return
     setActiveEntryId(entry.id)
@@ -156,7 +139,7 @@ export default function ResearchWorkspace() {
       { role: 'agent', content: entry.report },
     ])
     setSources(entry.sources)
-    setCitedSources(entry.sources)
+    sourcesRef.current = entry.sources
     setSourceCount(entry.sources.length)
     setIsCompleted(true)
     setShowResearchTrail(false)
@@ -184,7 +167,7 @@ export default function ResearchWorkspace() {
     setActiveEntryId(null)
     setMessages([])
     resetResearchState()
-    setSessionId(`s-${Date.now().toString(36)}`)
+    setSessionId(`s-${crypto.randomUUID()}`)
     // Close sidebar on mobile
     if (window.innerWidth < 1024) {
       setSidebarOpen(false)
@@ -277,10 +260,18 @@ export default function ResearchWorkspace() {
                 const shortTitle = title.length > 80 ? title.substring(0, 80) + '...' : title
                 newSources.push({ title: shortTitle, url })
               }
-              setSources(prev => [...prev, ...newSources])
+              setSources(prev => {
+                const next = [...prev, ...newSources]
+                sourcesRef.current = next
+                return next
+              })
             } else {
               setSourceCount(prev => prev + 1)
-              setSources(prev => [...prev, { title: 'Unbekannte Quelle', url: '#' }])
+              setSources(prev => {
+                const next = [...prev, { title: 'Unbekannte Quelle', url: '#' }]
+                sourcesRef.current = next
+                return next
+              })
             }
         }
       } else if (data.type === 'report.delta' && data.data?.chunk) {
@@ -292,17 +283,30 @@ export default function ResearchWorkspace() {
         setIsCompleted(true)
         setPhases(prev => prev.map(phase => ({ ...phase, status: 'completed' })))
 
-        const cited = extractCitedSources(report, sources)
-        setCitedSources(cited)
+        const cited = extractCitedSources(report, sourcesRef.current)
+
+        if (pendingInquiryRef.current) {
+          const entry: ResearchArchiveEntry = {
+            id: `h-${crypto.randomUUID()}`,
+            query: pendingInquiryRef.current,
+            report,
+            sources: cited.length > 0 ? cited : sourcesRef.current,
+            model: selectedModel,
+            createdAt: new Date().toISOString(),
+          }
+          saveEntry(entry)
+          setActiveEntryId(entry.id)
+          setHistoryEntries(getHistory())
+        }
       } else if (data.type === 'run.completed') {
         setIsCompleted(true)
         setIsStreaming(false)
-        eventSource?.close()
+        eventSourceRef.current?.close()
       } else if (data.type === 'run.failed') {
         const error = data.data?.error || data.message || 'Unbekannter Fehler'
         setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${error}` }])
         setIsStreaming(false)
-        eventSource?.close()
+        eventSourceRef.current?.close()
       }
     } catch (err) {
       console.error('Parse error:', err)
@@ -310,6 +314,7 @@ export default function ResearchWorkspace() {
   }
 
   const handleSendMessage = async (message: string) => {
+    pendingInquiryRef.current = message
     setActiveEntryId(null)
     setMessages(prev => [...prev, { role: 'user', content: message }])
     resetResearchState()
@@ -325,7 +330,7 @@ export default function ResearchWorkspace() {
       es.close()
     }
 
-    setEventSource(es)
+    eventSourceRef.current = es
   }
 
   return (
@@ -407,7 +412,6 @@ export default function ResearchWorkspace() {
                   phases={phases}
                   sourceCount={sourceCount}
                   sources={sources}
-                  citedSources={citedSources}
                   currentActivity={currentActivity}
                   isCompleted={isCompleted}
                 />

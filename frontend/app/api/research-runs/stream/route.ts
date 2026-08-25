@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         heartbeatInterval = setInterval(() => {
           try {
             controller.enqueue(encoder.encode(': heartbeat\n\n'))
-          } catch (e) {
+          } catch {
             // Stream closed
             if (heartbeatInterval) clearInterval(heartbeatInterval)
           }
