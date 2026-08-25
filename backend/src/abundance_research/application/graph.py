@@ -29,6 +29,8 @@ from abundance_research.domain import EvidenceRecord, ResearchPlan, ResearchUnit
 from abundance_research.evaluation import evaluate_report
 from abundance_research.events import ResearchEvent, ResearchStage
 
+RESEARCH_GRAPH_VERSION = "research-graph-v1"
+
 
 class ResearchGraphState(TypedDict, total=False):
     """JSON-serializable state persisted between workflow supersteps."""

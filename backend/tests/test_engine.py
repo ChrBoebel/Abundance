@@ -122,6 +122,11 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
     assert completed.data["evaluation"]["broken_evidence_links"] == 0
     assert events[-2].data["metrics"]["duration_ms"] >= 0
     assert events[-2].data["metrics"]["evidence_count"] == 4
+    manifest = events[-2].data["metrics"]["manifest"]
+    assert manifest["schema_version"] == "1.0"
+    assert manifest["graph_version"] == "research-graph-v1"
+    assert manifest["outcome"] == "completed"
+    assert manifest["requested_model"] == "mercury"
 
     graph_nodes = set(engine.workflow.compiled.get_graph().nodes)
     assert graph_nodes == {
@@ -157,6 +162,11 @@ async def test_engine_never_streams_private_provider_errors() -> None:
     assert events[-1].type == "run.failed"
     assert events[-2].type == "run.metrics"
     assert events[-2].data["metrics"]["duration_ms"] >= 0
+    assert events[-2].data["metrics"]["manifest"]["outcome"] == "failed"
+    assert (
+        events[-2].data["metrics"]["manifest"]["failure_code"]
+        == "provider_unavailable"
+    )
     payload = events[-1].model_dump_json()
     assert "private provider details" not in payload
     assert events[-1].data["code"] == "provider_unavailable"

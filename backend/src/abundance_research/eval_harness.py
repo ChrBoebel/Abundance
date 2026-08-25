@@ -14,7 +14,12 @@ from pydantic import BaseModel, Field, model_validator
 from abundance_research.application.contracts import ResearchCommand
 from abundance_research.bootstrap import build_research_engine
 from abundance_research.domain import Inquiry, ResearchMode
-from abundance_research.evaluation import ReportEvaluation
+from abundance_research.evaluation import (
+    EvaluationCheck,
+    MetricComparator,
+    ReportEvaluation,
+    evaluate_threshold,
+)
 
 
 class EvalExpectation(BaseModel):
@@ -22,9 +27,13 @@ class EvalExpectation(BaseModel):
 
     min_sources: int = Field(default=3, ge=1, le=50)
     min_claim_evidence_coverage: float = Field(default=0.8, ge=0, le=1)
+    min_citation_integrity: float = Field(default=1.0, ge=0, le=1)
+    min_evidence_utilization: float = Field(default=0.25, ge=0, le=1)
     min_challenged_claim_ratio: float = Field(default=0.2, ge=0, le=1)
     min_primary_source_ratio: float = Field(default=0.0, ge=0, le=1)
+    min_source_domain_diversity: float = Field(default=0.2, ge=0, le=1)
     min_focus_term_coverage: float = Field(default=0.5, ge=0, le=1)
+    max_unsupported_high_confidence_claims: int = Field(default=0, ge=0)
     max_duration_ms: int | None = Field(default=None, ge=1)
     max_cost_usd: float | None = Field(default=None, ge=0)
 
@@ -73,6 +82,7 @@ class EvalResult(BaseModel):
     failures: list[str] = Field(default_factory=list)
     focus_term_coverage: float = Field(ge=0, le=1)
     evaluation: ReportEvaluation
+    checks: list[EvaluationCheck] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -101,41 +111,109 @@ def score_observation(case: EvalCase, observation: EvalObservation) -> EvalResul
     normalized_content = observation.content.casefold()
     matched_terms = sum(term.casefold() in normalized_content for term in case.focus_terms)
     focus_coverage = matched_terms / len(case.focus_terms)
-    failures: list[str] = []
-    checks = (
-        (evaluation.total_sources >= expectation.min_sources, "insufficient_sources"),
-        (
-            evaluation.claim_evidence_coverage >= expectation.min_claim_evidence_coverage,
+    checks = [
+        evaluate_threshold(
+            "total_sources",
+            evaluation.total_sources,
+            MetricComparator.AT_LEAST,
+            expectation.min_sources,
+            "insufficient_sources",
+        ),
+        evaluate_threshold(
+            "claim_evidence_coverage",
+            evaluation.claim_evidence_coverage,
+            MetricComparator.AT_LEAST,
+            expectation.min_claim_evidence_coverage,
             "insufficient_claim_evidence_coverage",
         ),
-        (
-            evaluation.challenged_claim_ratio >= expectation.min_challenged_claim_ratio,
+        evaluate_threshold(
+            "citation_integrity",
+            evaluation.citation_integrity,
+            MetricComparator.AT_LEAST,
+            expectation.min_citation_integrity,
+            "insufficient_citation_integrity",
+        ),
+        evaluate_threshold(
+            "evidence_utilization",
+            evaluation.evidence_utilization,
+            MetricComparator.AT_LEAST,
+            expectation.min_evidence_utilization,
+            "insufficient_evidence_utilization",
+        ),
+        evaluate_threshold(
+            "challenged_claim_ratio",
+            evaluation.challenged_claim_ratio,
+            MetricComparator.AT_LEAST,
+            expectation.min_challenged_claim_ratio,
             "insufficient_counterevidence",
         ),
-        (
-            evaluation.primary_source_ratio >= expectation.min_primary_source_ratio,
+        evaluate_threshold(
+            "primary_source_ratio",
+            evaluation.primary_source_ratio,
+            MetricComparator.AT_LEAST,
+            expectation.min_primary_source_ratio,
             "insufficient_primary_sources",
         ),
-        (evaluation.broken_evidence_links == 0, "broken_evidence_links"),
-        (focus_coverage >= expectation.min_focus_term_coverage, "insufficient_topic_focus"),
-    )
-    failures.extend(reason for passed, reason in checks if not passed)
+        evaluate_threshold(
+            "source_domain_diversity",
+            evaluation.source_domain_diversity,
+            MetricComparator.AT_LEAST,
+            expectation.min_source_domain_diversity,
+            "insufficient_source_diversity",
+        ),
+        evaluate_threshold(
+            "broken_evidence_links",
+            evaluation.broken_evidence_links,
+            MetricComparator.EXACTLY,
+            0,
+            "broken_evidence_links",
+        ),
+        evaluate_threshold(
+            "unsupported_high_confidence_claims",
+            evaluation.unsupported_high_confidence_claims,
+            MetricComparator.AT_MOST,
+            expectation.max_unsupported_high_confidence_claims,
+            "unsupported_high_confidence_claims",
+        ),
+        evaluate_threshold(
+            "focus_term_coverage",
+            focus_coverage,
+            MetricComparator.AT_LEAST,
+            expectation.min_focus_term_coverage,
+            "insufficient_topic_focus",
+        ),
+    ]
     duration = observation.metrics.get("duration_ms")
-    if expectation.max_duration_ms is not None and (
-        not isinstance(duration, int) or duration > expectation.max_duration_ms
-    ):
-        failures.append("duration_budget_exceeded")
-    cost = observation.metrics.get("usage", {}).get("cost_usd")
-    if expectation.max_cost_usd is not None and (
-        not isinstance(cost, int | float) or cost > expectation.max_cost_usd
-    ):
-        failures.append("cost_budget_exceeded")
+    if expectation.max_duration_ms is not None:
+        checks.append(
+            evaluate_threshold(
+                "duration_ms",
+                duration if isinstance(duration, int | float) else None,
+                MetricComparator.AT_MOST,
+                expectation.max_duration_ms,
+                "duration_budget_exceeded",
+            )
+        )
+    usage = observation.metrics.get("usage")
+    cost = usage.get("cost_usd") if isinstance(usage, dict) else None
+    if expectation.max_cost_usd is not None:
+        checks.append(
+            evaluate_threshold(
+                "cost_usd",
+                cost if isinstance(cost, int | float) else None,
+                MetricComparator.AT_MOST,
+                expectation.max_cost_usd,
+                "cost_budget_exceeded",
+            )
+        )
+    failures = [check.failure_code for check in checks if not check.passed]
     return EvalResult(
         case_id=case.id,
         passed=not failures,
         failures=failures,
         focus_term_coverage=focus_coverage,
         evaluation=evaluation,
+        checks=checks,
         metrics=observation.metrics,
     )
 

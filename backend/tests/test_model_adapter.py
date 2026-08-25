@@ -60,6 +60,18 @@ def test_model_catalog_rejects_arbitrary_provider_identifiers() -> None:
     assert caught.value.code.value == "invalid_input"
 
 
+def test_model_adapter_describes_versioned_observability_artifacts() -> None:
+    model = OpenRouterResearchModel("test-key")
+
+    artifacts = model.observability_artifacts("mercury")
+
+    assert {(artifact.kind.value, artifact.name, artifact.version) for artifact in artifacts} == {
+        ("model", "mercury", "inception/mercury-2"),
+        ("prompt", "planning", "planning-v1"),
+        ("prompt", "synthesis", "synthesis-v1"),
+    }
+
+
 @pytest.mark.asyncio
 async def test_model_adapter_aggregates_usage_without_message_content() -> None:
     class FakeStructuredModel:

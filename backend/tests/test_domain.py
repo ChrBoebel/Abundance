@@ -9,7 +9,11 @@ from abundance_research.domain import (
     SourceAssessment,
     SourceKind,
 )
-from abundance_research.evaluation import evaluate_report
+from abundance_research.evaluation import (
+    MetricComparator,
+    evaluate_report,
+    evaluate_threshold,
+)
 
 
 def test_inquiry_defaults_to_balanced_research() -> None:
@@ -61,9 +65,13 @@ def test_report_evaluation_tracks_support_and_counterevidence() -> None:
     evaluation = evaluate_report(report)
 
     assert evaluation.claim_evidence_coverage == 1.0
+    assert evaluation.citation_integrity == 1.0
+    assert evaluation.evidence_utilization == 1.0
     assert evaluation.challenged_claim_ratio == 1.0
     assert evaluation.primary_source_ratio == 0.5
+    assert evaluation.source_domain_diversity == 0.5
     assert evaluation.broken_evidence_links == 0
+    assert evaluation.unsupported_high_confidence_claims == 0
 
 
 def test_report_evaluation_detects_broken_evidence_links() -> None:
@@ -77,4 +85,19 @@ def test_report_evaluation_detects_broken_evidence_links() -> None:
     evaluation = evaluate_report(report)
 
     assert evaluation.claim_evidence_coverage == 0.0
+    assert evaluation.citation_integrity == 0.0
     assert evaluation.broken_evidence_links == 1
+
+
+def test_evaluation_threshold_explains_missing_metrics() -> None:
+    check = evaluate_threshold(
+        "cost_usd",
+        None,
+        MetricComparator.AT_MOST,
+        0.25,
+        "cost_budget_exceeded",
+    )
+
+    assert not check.passed
+    assert check.actual is None
+    assert check.failure_code == "cost_budget_exceeded"
