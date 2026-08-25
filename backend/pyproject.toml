@@ -73,6 +73,7 @@ convention = "google"
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers"
 asyncio_mode = "auto"
+pythonpath = ["."]
 
 [tool.mypy]
 python_version = "3.11"
