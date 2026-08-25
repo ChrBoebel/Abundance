@@ -46,7 +46,6 @@ export interface ResearchRunJob {
 
 export interface ResearchEventData {
   run_id?: string
-  runtime_node?: string
   tool?: string
   query?: unknown
   result?: unknown

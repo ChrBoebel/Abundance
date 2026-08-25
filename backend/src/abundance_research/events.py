@@ -63,7 +63,6 @@ class ResearchEventMapper:
                     type=event_type,
                     stage=stage,
                     message=message,
-                    data={"runtime_node": node_name},
                 )
             )
 

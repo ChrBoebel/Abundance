@@ -1,7 +1,7 @@
 from abundance_research.events import ResearchEventMapper, ResearchStage
 
 
-def test_mapper_hides_runtime_node_behind_domain_event() -> None:
+def test_mapper_exposes_only_domain_event_contract() -> None:
     mapper = ResearchEventMapper()
 
     events = mapper.map(
@@ -15,6 +15,7 @@ def test_mapper_hides_runtime_node_behind_domain_event() -> None:
     assert len(events) == 1
     assert events[0].type == "evidence.review.started"
     assert events[0].stage is ResearchStage.REVIEW
+    assert events[0].data == {}
 
 
 def test_mapper_emits_report_only_once() -> None:
