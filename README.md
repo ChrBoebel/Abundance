@@ -12,6 +12,8 @@
   AI-powered deep research with a streaming LangGraph backend, a polished Next.js interface, and source-aware report generation.
 </p>
 
+*Built on top of [langchain-ai/open_deep_research](https://github.com/langchain-ai/open_deep_research) (MIT License) — extended with a streaming Next.js interface, multi-model routing via OpenRouter, and arXiv/PubMed research tools.*
+
 <p align="center">
   <a href="#architecture">Architecture</a> ·
   <a href="#interface-preview">Preview</a> ·
