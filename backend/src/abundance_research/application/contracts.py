@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, Sequence
 
 from abundance_research.domain import (
+    EvidenceAssessment,
     EvidenceRecord,
     Inquiry,
     ResearchMode,
@@ -66,6 +67,19 @@ class EvidenceSource(Protocol):
         max_results: int,
     ) -> Sequence[EvidenceRecord]:
         """Collect evidence for one policy-approved research unit."""
+
+
+class EvidenceAssessmentModel(Protocol):
+    """Assess admitted evidence without changing the admitted source set."""
+
+    async def assess_evidence(
+        self,
+        inquiry: Inquiry,
+        evidence: Sequence[EvidenceRecord],
+        *,
+        model: str,
+    ) -> Sequence[EvidenceAssessment]:
+        """Return bound semantic assessments for known evidence IDs only."""
 
 
 class SynthesisModel(Protocol):

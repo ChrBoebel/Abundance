@@ -17,7 +17,12 @@ class AbundanceSettings(BaseModel):
     )
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     planning_model_max_tokens: int = Field(default=3000, ge=256, le=16000)
+    assessment_model_max_tokens: int = Field(default=5000, ge=256, le=16000)
     synthesis_model_max_tokens: int = Field(default=12000, ge=512, le=64000)
+    assessment_batch_size: int = Field(default=8, ge=1, le=12)
+    assessment_max_evidence: int = Field(default=24, ge=1, le=60)
+    assessment_excerpt_chars: int = Field(default=2500, ge=500, le=12000)
+    evidence_assessment_mode: Literal["off", "shadow"] = "shadow"
     provider_timeout_seconds: float = Field(default=90.0, ge=5.0, le=300.0)
     provider_max_retries: int = Field(default=2, ge=0, le=6)
     search_timeout_seconds: float = Field(default=45.0, ge=5.0, le=120.0)

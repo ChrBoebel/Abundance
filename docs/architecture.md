@@ -24,7 +24,9 @@ sequenceDiagram
         G->>T: read-only search
         T-->>G: normalized EvidenceRecord[]
     end
-    G->>G: URL admission, deduplication, evidence review
+    G->>G: URL admission and deduplication
+    G->>L: bounded shadow evidence assessment
+    G->>G: quote binding and assessment summary
     G->>L: schema-constrained synthesis
     L-->>G: structured ResearchReport draft
     G->>G: citation binding, rendering, deterministic evaluation
@@ -47,6 +49,8 @@ The application layer owns four contracts:
 - `PlanningModel` creates a falsifiable plan;
 - `EvidenceSource` performs one bounded read-only search;
 - `SynthesisModel` produces structured claims referencing evidence IDs;
+- `EvidenceAssessmentModel` classifies admitted evidence without changing the
+  admitted set or its retrieval relation;
 - `ResearchCommand` is the serializable input to a run.
 
 `application/graph.py` compiles these ports into the following graph:
@@ -57,7 +61,8 @@ flowchart LR
     Scope --> Plan[create_plan]
     Plan -->|Send per unit| Collect[collect_evidence]
     Collect --> Review[review_evidence]
-    Review --> Synthesize[synthesize_report]
+    Review --> Assess[assess_evidence]
+    Assess --> Synthesize[synthesize_report]
     Synthesize --> END
 ```
 
@@ -93,7 +98,8 @@ Public event types are:
 - lifecycle: `run.accepted`, `run.metrics`, `run.completed`, `run.failed`;
 - inquiry and planning: `inquiry.scoping`, `plan.created`;
 - evidence: `evidence.collection.started`, `evidence.search.started`,
-  `evidence.search.failed`, `evidence.discovered`, `evidence.review.started`;
+  `evidence.search.failed`, `evidence.discovered`, `evidence.review.started`,
+  `evidence.assessment.started`, `evidence.assessment.completed`;
 - synthesis: `synthesis.started`, `report.completed`.
 
 Internal node names, LangGraph update streams, provider response objects, raw

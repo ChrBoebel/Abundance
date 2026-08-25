@@ -16,6 +16,10 @@ All notable changes to Abundance are documented here. The project follows
 - Frontend SSE regression tests and backend graph/checkpoint/security tests.
 - Distributed production rate limiting and internal service authentication.
 - Non-root backend and frontend container builds.
+- Versioned evidence-assessment golden fixtures and a reproducible legacy
+  failure baseline.
+- Cost-bounded semantic evidence assessment with exact quote/ID binding,
+  shadow-mode metrics, and component-level live evaluation.
 
 ### Changed
 
@@ -25,6 +29,8 @@ All notable changes to Abundance are documented here. The project follows
 - Reduced provider access to reviewed model aliases and one read-only search
   adapter per evidence unit.
 - Expanded CI with tests, full type checking, dependency audits, and Dependabot.
+- Added a non-blocking LangGraph evidence-assessment stage before synthesis;
+  shadow results are persisted without rewriting admitted evidence.
 
 ### Removed
 

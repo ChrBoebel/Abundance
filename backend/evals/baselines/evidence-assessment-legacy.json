@@ -1,0 +1,16 @@
+{
+  "dataset_version": "2026-08-25.1",
+  "system": "legacy-retrieval-metadata",
+  "results": [
+    {"case_id": "policy-measured-support", "passed": false, "failures": ["wrong_relation", "wrong_relevance", "missing_expected_quote"]},
+    {"case_id": "health-confounded-challenge", "passed": false, "failures": ["wrong_relevance", "wrong_source_kind", "wrong_primary_status", "missing_expected_quote", "missing_expected_limitation"]},
+    {"case_id": "technology-commercial-irrelevant", "passed": false, "failures": ["wrong_relation", "wrong_relevance", "missing_expected_limitation"]},
+    {"case_id": "government-press-release-secondary", "passed": false, "failures": ["wrong_source_kind", "wrong_primary_status", "missing_expected_quote", "missing_expected_limitation"]},
+    {"case_id": "science-primary-experiment", "passed": false, "failures": ["wrong_relation", "wrong_relevance", "missing_expected_quote"]},
+    {"case_id": "technology-official-documentation", "passed": false, "failures": ["missing_expected_quote"]},
+    {"case_id": "economics-reported-counterevidence", "passed": false, "failures": ["wrong_relation", "wrong_relevance", "missing_expected_quote"]},
+    {"case_id": "injection-content-irrelevant", "passed": false, "failures": ["wrong_relation", "wrong_relevance", "missing_expected_limitation"]},
+    {"case_id": "methods-systematic-review-context", "passed": false, "failures": ["wrong_relevance", "missing_expected_quote", "missing_expected_limitation"]},
+    {"case_id": "outdated-official-context", "passed": false, "failures": ["wrong_relation", "missing_expected_quote", "missing_expected_limitation"]}
+  ]
+}

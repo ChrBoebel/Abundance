@@ -44,6 +44,24 @@ class EvidenceRelation(str, Enum):
     CONTEXT = "context"
 
 
+class AssessedEvidenceRelation(str, Enum):
+    """Semantically assessed relationship independent of retrieval intent."""
+
+    SUPPORTS = "supports"
+    CHALLENGES = "challenges"
+    CONTEXT = "context"
+    IRRELEVANT = "irrelevant"
+
+
+class AssessmentStatus(str, Enum):
+    """Completeness state for one shadow evidence-assessment pass."""
+
+    DISABLED = "disabled"
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    UNAVAILABLE = "unavailable"
+
+
 class Inquiry(BaseModel):
     """A research question together with explicit scope constraints."""
 
@@ -99,6 +117,36 @@ class EvidenceRecord(BaseModel):
     published_at: datetime | None = None
     assessment: SourceAssessment = Field(default_factory=SourceAssessment)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvidenceAssessment(BaseModel):
+    """Bound semantic assessment of one admitted evidence record."""
+
+    evidence_id: str
+    relation: AssessedEvidenceRelation
+    relevance: Confidence
+    source_kind: SourceKind
+    is_primary: bool
+    quote: str | None = Field(default=None, max_length=2000)
+    limitations: list[str] = Field(default_factory=list, max_length=10)
+    confidence: Confidence = Confidence.MEDIUM
+    content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    assessor_version: str = Field(min_length=1, max_length=120)
+
+
+class EvidenceAssessmentSummary(BaseModel):
+    """Privacy-safe aggregate emitted by the shadow assessment stage."""
+
+    status: AssessmentStatus
+    evidence_count: int = Field(default=0, ge=0)
+    assessed_count: int = Field(default=0, ge=0)
+    coverage_ratio: float = Field(default=0.0, ge=0, le=1)
+    relation_disagreement_count: int = Field(default=0, ge=0)
+    irrelevant_count: int = Field(default=0, ge=0)
+    duplicate_content_count: int = Field(default=0, ge=0)
+    primary_status_disagreement_count: int = Field(default=0, ge=0)
+    exact_quote_ratio: float = Field(default=0.0, ge=0, le=1)
+    failure_code: str | None = Field(default=None, max_length=120)
 
 
 class CounterEvidence(BaseModel):

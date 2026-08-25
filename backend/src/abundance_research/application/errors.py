@@ -13,6 +13,7 @@ class FailureCode(str, Enum):
     CONFIGURATION = "configuration_error"
     PROVIDER_UNAVAILABLE = "provider_unavailable"
     RATE_LIMITED = "rate_limited"
+    MODEL_OUTPUT_INVALID = "model_output_invalid"
     CANCELLED = "cancelled"
     INTERNAL = "internal_error"
 

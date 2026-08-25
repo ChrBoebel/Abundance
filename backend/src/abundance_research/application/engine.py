@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from abundance_research.application.contracts import (
+    EvidenceAssessmentModel,
     EvidenceSource,
     PlanningModel,
     ResearchCommand,
@@ -46,6 +47,7 @@ class AbundanceResearchEngine:
         evidence_sources: Sequence[EvidenceSource],
         synthesizer: SynthesisModel,
         *,
+        assessor: EvidenceAssessmentModel | None = None,
         checkpointer: BaseCheckpointSaver[Any] | None = None,
     ) -> None:
         """Compile the graph with explicit model and read-only search ports."""
@@ -53,17 +55,22 @@ class AbundanceResearchEngine:
             planner,
             evidence_sources,
             synthesizer,
+            assessor=assessor,
             checkpointer=checkpointer,
         )
         usage_reporters: list[Any] = []
-        for reporter in (planner, synthesizer):
+        for reporter in (planner, assessor, synthesizer):
+            if reporter is None:
+                continue
             if callable(getattr(reporter, "drain_usage", None)) and not any(
                 existing is reporter for existing in usage_reporters
             ):
                 usage_reporters.append(reporter)
         self._usage_reporters = tuple(usage_reporters)
         artifact_reporters: list[Any] = []
-        for reporter in (planner, synthesizer):
+        for reporter in (planner, assessor, synthesizer):
+            if reporter is None:
+                continue
             if callable(getattr(reporter, "observability_artifacts", None)) and not any(
                 existing is reporter for existing in artifact_reporters
             ):
