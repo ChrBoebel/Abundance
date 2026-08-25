@@ -8,7 +8,7 @@ from hashlib import sha256
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-from tavily import AsyncTavilyClient
+from tavily import AsyncTavilyClient  # type: ignore[import-untyped]
 
 from abundance_research.application.errors import FailureCode, ResearchFailure
 from abundance_research.domain import (

@@ -1,33 +1,25 @@
-from abundance_research.events import ResearchEventMapper, ResearchStage
+from datetime import timezone
+
+from abundance_research.events import ResearchEvent, ResearchStage
 
 
-def test_mapper_exposes_only_domain_event_contract() -> None:
-    mapper = ResearchEventMapper()
-
-    events = mapper.map(
-        {
-            "event": "on_chain_start",
-            "metadata": {"langgraph_node": "review_evidence"},
-            "data": {},
-        }
+def test_event_serializes_only_public_domain_fields() -> None:
+    event = ResearchEvent(
+        type="evidence.review.started",
+        stage=ResearchStage.REVIEW,
+        message="Prüfe Evidenz",
+        data={"run_id": "run-1", "evidence_count": 3},
     )
 
-    assert len(events) == 1
-    assert events[0].type == "evidence.review.started"
-    assert events[0].stage is ResearchStage.REVIEW
-    assert events[0].data == {}
+    payload = event.model_dump(mode="json")
+
+    assert payload["type"] == "evidence.review.started"
+    assert payload["stage"] == "review"
+    assert payload["data"] == {"run_id": "run-1", "evidence_count": 3}
+    assert set(payload) == {"type", "stage", "message", "data", "timestamp"}
 
 
-def test_mapper_emits_report_only_once() -> None:
-    mapper = ResearchEventMapper()
-    raw_event = {
-        "event": "on_chain_end",
-        "data": {"output": {"final_report": "# Result"}},
-    }
+def test_event_timestamp_is_timezone_aware() -> None:
+    event = ResearchEvent(type="run.accepted")
 
-    first = mapper.map(raw_event)
-    second = mapper.map(raw_event)
-
-    assert first[0].type == "report.completed"
-    assert first[0].data["content"] == "# Result"
-    assert second == []
+    assert event.timestamp.tzinfo is timezone.utc
