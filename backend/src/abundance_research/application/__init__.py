@@ -6,6 +6,7 @@ from abundance_research.application.contracts import (
     ResearchCommand,
     SynthesisModel,
 )
+from abundance_research.application.engine import AbundanceResearchEngine
 from abundance_research.application.errors import FailureCode, ResearchFailure
 from abundance_research.application.policy import (
     ResearchCapabilityPolicy,
@@ -14,6 +15,7 @@ from abundance_research.application.policy import (
 
 __all__ = [
     "EvidenceSource",
+    "AbundanceResearchEngine",
     "FailureCode",
     "PlanningModel",
     "ResearchCapabilityPolicy",
