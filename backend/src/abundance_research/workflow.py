@@ -1,7 +1,7 @@
 """Main LangGraph implementation for the Abundance research workflow.
 
-This module orchestrates the complete deep research workflow, integrating
-clarification, research supervision, and final report generation phases.
+It connects inquiry scoping, evidence planning, investigation, critical review,
+and final synthesis while keeping LangGraph behind the package boundary.
 """
 
 import asyncio
@@ -13,11 +13,11 @@ from langchain_core.messages import AIMessage, HumanMessage, get_buffer_string
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
-from abundance_research.clarification import clarify_with_user, write_research_brief
-from abundance_research.configuration import Configuration
-from abundance_research.prompts import final_report_generation_prompt
-from abundance_research.state import AgentInputState, AgentState
-from abundance_research.supervisor import supervisor_subgraph
+from abundance_research.planning import scope_inquiry, design_research_plan
+from abundance_research.settings import AbundanceSettings
+from abundance_research.prompts import synthesis_prompt
+from abundance_research.state import InquiryInputState, ResearchRunState
+from abundance_research.coordination import coordination_subgraph
 from abundance_research.utils import (
     build_reasoning_config,
     calculate_backoff_delay,
@@ -37,7 +37,7 @@ configurable_model = init_chat_model_wrapper(
 )
 
 
-async def final_report_generation(state: AgentState, config: RunnableConfig):
+async def synthesize_report(state: ResearchRunState, config: RunnableConfig):
     """Generate the final comprehensive research report with retry logic for token limits.
 
     This function takes all collected research findings and synthesizes them into a
@@ -56,7 +56,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     findings = "\n".join(notes)
 
     # Step 2: Configure the final report generation model
-    configurable = Configuration.from_runnable_config(config)
+    configurable = AbundanceSettings.from_runnable_config(config)
 
     # Build reasoning configuration for final report (synthesis & critical analysis)
     reasoning_config = build_reasoning_config(
@@ -85,7 +85,7 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
             while current_retry <= max_retries:
                 try:
                     # Create comprehensive prompt with all research context
-                    final_report_prompt = final_report_generation_prompt.format(
+                    final_report_prompt = synthesis_prompt.format(
                         research_brief=state.get("research_brief", ""),
                         messages=get_buffer_string(state.get("messages", [])),
                         findings=findings,
@@ -199,24 +199,23 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
     }
 
 
-# Main Deep Researcher Graph Construction
-# Creates the complete deep research workflow from user input to final report
+# Abundance workflow construction
 abundance_workflow_builder = StateGraph(
-    AgentState,
-    input=AgentInputState,
-    config_schema=Configuration
+    ResearchRunState,
+    input=InquiryInputState,
+    config_schema=AbundanceSettings
 )
 
 # Add main workflow nodes for the complete research process
-abundance_workflow_builder.add_node("clarify_with_user", clarify_with_user)           # User clarification phase
-abundance_workflow_builder.add_node("write_research_brief", write_research_brief)     # Research planning phase
-abundance_workflow_builder.add_node("research_supervisor", supervisor_subgraph)       # Research execution phase
-abundance_workflow_builder.add_node("final_report_generation", final_report_generation)  # Report generation phase
+abundance_workflow_builder.add_node("scope_inquiry", scope_inquiry)           # User clarification phase
+abundance_workflow_builder.add_node("design_research_plan", design_research_plan)     # Research planning phase
+abundance_workflow_builder.add_node("coordinate_research", coordination_subgraph)       # Research execution phase
+abundance_workflow_builder.add_node("synthesize_report", synthesize_report)  # Report generation phase
 
 # Define main workflow edges for sequential execution
-abundance_workflow_builder.add_edge(START, "clarify_with_user")                       # Entry point
-abundance_workflow_builder.add_edge("research_supervisor", "final_report_generation") # Research to report
-abundance_workflow_builder.add_edge("final_report_generation", END)                   # Final exit point
+abundance_workflow_builder.add_edge(START, "scope_inquiry")                       # Entry point
+abundance_workflow_builder.add_edge("coordinate_research", "synthesize_report") # Research to report
+abundance_workflow_builder.add_edge("synthesize_report", END)                   # Final exit point
 
-# Compile the complete deep researcher workflow
+# Compile the application workflow used by the API.
 abundance_workflow = abundance_workflow_builder.compile()

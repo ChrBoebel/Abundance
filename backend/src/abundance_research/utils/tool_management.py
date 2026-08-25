@@ -4,8 +4,8 @@ from langchain_core.messages import MessageLikeRepresentation, filter_messages
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
-from abundance_research.configuration import Configuration, SearchAPI
-from abundance_research.state import ResearchComplete
+from abundance_research.settings import AbundanceSettings, SearchProvider
+from abundance_research.state import EvidenceReviewComplete
 from abundance_research.utils.mcp_tools import load_mcp_tools
 from abundance_research.utils.model_utils import get_config_value
 from abundance_research.utils.search_tools import tavily_search, arxiv_search, pubmed_search
@@ -44,19 +44,19 @@ def think_tool(reflection: str) -> str:
 
 
 ##########################
-# Search Tool Configuration
+# Search Tool AbundanceSettings
 ##########################
 
-async def get_search_tool(search_api: SearchAPI):
+async def get_search_tool(search_provider: SearchProvider):
     """Configure and return search tools based on the specified API provider.
 
     Args:
-        search_api: The search API provider to use (Anthropic, OpenAI, Tavily, or None)
+        search_provider: The search API provider to use (Anthropic, OpenAI, Tavily, or None)
 
     Returns:
         List of configured search tool objects for the specified provider
     """
-    if search_api == SearchAPI.ANTHROPIC:
+    if search_provider == SearchProvider.ANTHROPIC:
         # Anthropic's native web search with usage limits
         return [{
             "type": "web_search_20250305",
@@ -64,18 +64,18 @@ async def get_search_tool(search_api: SearchAPI):
             "max_uses": 5
         }]
 
-    elif search_api == SearchAPI.OPENAI:
+    elif search_provider == SearchProvider.OPENAI:
         # OpenAI's web search preview functionality
         return [{"type": "web_search_preview"}]
 
-    elif search_api == SearchAPI.TAVILY:
+    elif search_provider == SearchProvider.TAVILY:
         # Configure all custom search tools with metadata
         tavily_search.metadata = {**(tavily_search.metadata or {}), "type": "search", "name": "web_search"}
         arxiv_search.metadata = {**(arxiv_search.metadata or {}), "type": "search", "name": "arxiv_search"}
         pubmed_search.metadata = {**(pubmed_search.metadata or {}), "type": "search", "name": "pubmed_search"}
         return [tavily_search, arxiv_search, pubmed_search]
 
-    elif search_api == SearchAPI.NONE:
+    elif search_provider == SearchProvider.NONE:
         # No search functionality configured
         return []
 
@@ -93,12 +93,12 @@ async def get_all_tools(config: RunnableConfig):
         List of all configured and available tools for research operations
     """
     # Start with core research tools
-    tools = [tool(ResearchComplete), think_tool]
+    tools = [tool(EvidenceReviewComplete), think_tool]
 
     # Add configured search tools
-    configurable = Configuration.from_runnable_config(config)
-    search_api = SearchAPI(get_config_value(configurable.search_api))
-    search_tools = await get_search_tool(search_api)
+    configurable = AbundanceSettings.from_runnable_config(config)
+    search_provider = SearchProvider(get_config_value(configurable.search_provider))
+    search_tools = await get_search_tool(search_provider)
     tools.extend(search_tools)
 
     # Track existing tool names to prevent conflicts

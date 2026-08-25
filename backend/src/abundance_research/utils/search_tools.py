@@ -10,9 +10,9 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import InjectedToolArg, tool
 from tavily import AsyncTavilyClient
 
-from abundance_research.configuration import Configuration
-from abundance_research.prompts import summarize_webpage_prompt
-from abundance_research.state import Summary
+from abundance_research.settings import AbundanceSettings
+from abundance_research.prompts import source_summary_prompt
+from abundance_research.state import PageSummary
 from abundance_research.utils.model_utils import (
     init_chat_model_wrapper,
     get_api_key_for_model,
@@ -68,7 +68,7 @@ async def tavily_search(
                 unique_results[url] = {**result, "query": response['query']}
 
     # Step 3: Set up the summarization model with configuration
-    configurable = Configuration.from_runnable_config(config)
+    configurable = AbundanceSettings.from_runnable_config(config)
 
     # Character limit to stay within model token limits (configurable)
     max_char_to_include = configurable.max_content_length
@@ -80,7 +80,7 @@ async def tavily_search(
         max_tokens=configurable.summarization_model_max_tokens,
         api_key=model_api_key,
         tags=["langsmith:nostream"]
-    ).with_structured_output(Summary).with_retry(
+    ).with_structured_output(PageSummary).with_retry(
         stop_after_attempt=configurable.max_structured_output_retries
     )
 
@@ -169,7 +169,7 @@ async def arxiv_search(queries: List[str], config: RunnableConfig = None) -> str
         title = doc.metadata.get('Title', 'Unknown Title')
         url = doc.metadata.get('entry_id', '#')
         authors = doc.metadata.get('Authors', 'Unknown Authors')
-        summary = doc.page_content[:800] if doc.page_content else doc.metadata.get('Summary', '')[:800]
+        summary = doc.page_content[:800] if doc.page_content else doc.metadata.get('PageSummary', '')[:800]
 
         formatted_output += f"\n\n--- SOURCE {i+1}: {title} ---\n"
         formatted_output += f"URL: {url}\n"
@@ -285,7 +285,7 @@ async def summarize_webpage(model: BaseChatModel, webpage_content: str, enable_c
     """
     try:
         # Create prompt with current date context
-        prompt_content = summarize_webpage_prompt.format(
+        prompt_content = source_summary_prompt.format(
             webpage_content=webpage_content,
             date=get_today_str()
         )

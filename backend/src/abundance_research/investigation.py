@@ -1,6 +1,6 @@
-"""Individual researcher workflow for conducting focused research.
+"""Individual investigator workflow for conducting focused research.
 
-This module implements the researcher subgraph that conducts focused research
+This module implements the investigator subgraph that conducts focused research
 on specific topics using available search tools and MCP integrations.
 """
 
@@ -19,15 +19,15 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from abundance_research.configuration import Configuration
+from abundance_research.settings import AbundanceSettings
 from abundance_research.prompts import (
-    compress_research_simple_human_message,
-    compress_research_system_prompt,
-    research_system_prompt,
+    evidence_review_request,
+    evidence_review_prompt,
+    investigation_prompt,
 )
 from abundance_research.state import (
-    ResearcherOutputState,
-    ResearcherState,
+    InvestigationOutput,
+    InvestigationState,
 )
 from abundance_research.utils import (
     anthropic_websearch_called,
@@ -43,7 +43,7 @@ from abundance_research.utils import (
 
 logger = logging.getLogger(__name__)
 
-# Initialize a configurable model for researcher workflow
+# Initialize a configurable model for investigator workflow
 configurable_model = init_chat_model_wrapper(
     configurable_fields=("model", "max_tokens", "api_key"),
 )
@@ -68,23 +68,23 @@ async def execute_tool_safely(tool, args, config):
         return f"Error executing tool: {str(e)}"
 
 
-async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[Literal["researcher_tools"]]:
-    """Individual researcher that conducts focused research on specific topics.
+async def investigator(state: InvestigationState, config: RunnableConfig) -> Command[Literal["run_evidence_tools"]]:
+    """Individual investigator that conducts focused research on specific topics.
 
-    This researcher is given a specific research topic by the supervisor and uses
+    This investigator is given a specific research topic by the coordinator and uses
     available tools (search, think_tool, MCP tools) to gather comprehensive information.
     It can use think_tool for strategic planning between searches.
 
     Args:
-        state: Current researcher state with messages and topic context
+        state: Current investigator state with messages and topic context
         config: Runtime configuration with model settings and tool availability
 
     Returns:
-        Command to proceed to researcher_tools for tool execution
+        Command to proceed to run_evidence_tools for tool execution
     """
     # Step 1: Load configuration and validate tool availability
-    configurable = Configuration.from_runnable_config(config)
-    researcher_messages = state.get("researcher_messages", [])
+    configurable = AbundanceSettings.from_runnable_config(config)
+    investigation_messages = state.get("investigation_messages", [])
 
     # Get all available research tools (search, MCP, think_tool)
     tools = await get_all_tools(config)
@@ -94,8 +94,8 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
             "search API or add MCP tools to your configuration."
         )
 
-    # Step 2: Configure the researcher model with tools
-    # Build reasoning configuration for researcher (analytical thinking)
+    # Step 2: Configure the investigator model with tools
+    # Build reasoning configuration for investigator (analytical thinking)
     reasoning_config = build_reasoning_config(
         model_name=configurable.research_model,
         enable_reasoning=configurable.enable_reasoning,
@@ -112,7 +112,7 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
     }
 
     # Prepare system prompt with MCP context if available
-    researcher_prompt = research_system_prompt.format(
+    investigator_prompt = investigation_prompt.format(
         mcp_prompt=configurable.mcp_prompt or "",
         date=get_today_str()
     )
@@ -125,46 +125,46 @@ async def researcher(state: ResearcherState, config: RunnableConfig) -> Command[
         .with_config(prepare_model_config(research_model_config, reasoning_config))
     )
 
-    # Step 3: Generate researcher response with system context
+    # Step 3: Generate investigator response with system context
     # Use cached system message for cost savings (system prompt is consistent)
     cached_system_message = create_cached_message(
         SystemMessage,
-        researcher_prompt,
+        investigator_prompt,
         enable_caching=configurable.enable_prompt_caching
     )
-    messages = [cached_system_message] + researcher_messages
+    messages = [cached_system_message] + investigation_messages
     response = await research_model.ainvoke(messages)
 
     # Step 4: Update state and proceed to tool execution
     return Command(
-        goto="researcher_tools",
+        goto="run_evidence_tools",
         update={
-            "researcher_messages": [response],
+            "investigation_messages": [response],
             "tool_call_iterations": state.get("tool_call_iterations", 0) + 1
         }
     )
 
 
-async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Command[Literal["researcher", "compress_research"]]:
-    """Execute tools called by the researcher, including search tools and strategic thinking.
+async def run_evidence_tools(state: InvestigationState, config: RunnableConfig) -> Command[Literal["investigator", "review_evidence"]]:
+    """Execute tools called by the investigator, including search tools and strategic thinking.
 
-    This function handles various types of researcher tool calls:
+    This function handles various types of investigator tool calls:
     1. think_tool - Strategic reflection that continues the research conversation
     2. Search tools (tavily_search, web_search) - Information gathering
     3. MCP tools - External tool integrations
-    4. ResearchComplete - Signals completion of individual research task
+    4. EvidenceReviewComplete - Signals completion of individual research task
 
     Args:
-        state: Current researcher state with messages and iteration count
+        state: Current investigator state with messages and iteration count
         config: Runtime configuration with research limits and tool settings
 
     Returns:
         Command to either continue research loop or proceed to compression
     """
     # Step 1: Extract current state and check early exit conditions
-    configurable = Configuration.from_runnable_config(config)
-    researcher_messages = state.get("researcher_messages", [])
-    most_recent_message = researcher_messages[-1]
+    configurable = AbundanceSettings.from_runnable_config(config)
+    investigation_messages = state.get("investigation_messages", [])
+    most_recent_message = investigation_messages[-1]
 
     # Early exit if no tool calls were made (including native web search)
     has_tool_calls = bool(most_recent_message.tool_calls)
@@ -174,7 +174,7 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
     )
 
     if not has_tool_calls and not has_native_search:
-        return Command(goto="compress_research")
+        return Command(goto="review_evidence")
 
     # Step 2: Handle other tool calls (search, MCP tools, etc.)
     tools = await get_all_tools(config)
@@ -202,46 +202,46 @@ async def researcher_tools(state: ResearcherState, config: RunnableConfig) -> Co
     ]
 
     # Step 3: Check late exit conditions (after processing tools)
-    exceeded_iterations = state.get("tool_call_iterations", 0) >= configurable.max_react_tool_calls
-    research_complete_called = any(
-        tool_call["name"] == "ResearchComplete"
+    exceeded_iterations = state.get("tool_call_iterations", 0) >= configurable.max_search_iterations
+    evidence_review_complete = any(
+        tool_call["name"] == "EvidenceReviewComplete"
         for tool_call in most_recent_message.tool_calls
     )
 
-    if exceeded_iterations or research_complete_called:
+    if exceeded_iterations or evidence_review_complete:
         # End research and proceed to compression
         return Command(
-            goto="compress_research",
-            update={"researcher_messages": tool_outputs}
+            goto="review_evidence",
+            update={"investigation_messages": tool_outputs}
         )
 
     # Continue research loop with tool results
     return Command(
-        goto="researcher",
-        update={"researcher_messages": tool_outputs}
+        goto="investigator",
+        update={"investigation_messages": tool_outputs}
     )
 
 
-async def compress_research(state: ResearcherState, config: RunnableConfig):
+async def review_evidence(state: InvestigationState, config: RunnableConfig):
     """Compress and synthesize research findings into a concise, structured summary.
 
     This function takes all the research findings, tool outputs, and AI messages from
-    a researcher's work and distills them into a clean, comprehensive summary while
+    a investigator's work and distills them into a clean, comprehensive summary while
     preserving all important information and findings.
 
     Args:
-        state: Current researcher state with accumulated research messages
+        state: Current investigator state with accumulated research messages
         config: Runtime configuration with compression model settings
 
     Returns:
         Dictionary containing compressed research summary and raw notes
     """
     # Step 1: Configure the compression model
-    configurable = Configuration.from_runnable_config(config)
+    configurable = AbundanceSettings.from_runnable_config(config)
 
     # Build reasoning configuration for compression (synthesis thinking)
     reasoning_config = build_reasoning_config(
-        model_name=configurable.compression_model,
+        model_name=configurable.evidence_review_model,
         enable_reasoning=configurable.enable_reasoning,
         reasoning_effort=configurable.reasoning_effort,
         reasoning_max_tokens=configurable.reasoning_max_tokens,
@@ -249,17 +249,17 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     )
 
     synthesizer_model = configurable_model.with_config(prepare_model_config({
-        "model": configurable.compression_model,
-        "max_tokens": configurable.compression_model_max_tokens,
-        "api_key": get_api_key_for_model(configurable.compression_model, config),
+        "model": configurable.evidence_review_model,
+        "max_tokens": configurable.evidence_review_model_max_tokens,
+        "api_key": get_api_key_for_model(configurable.evidence_review_model, config),
         "tags": ["langsmith:nostream"]
     }, reasoning_config))
 
     # Step 2: Prepare messages for compression
-    researcher_messages = state.get("researcher_messages", [])
+    investigation_messages = state.get("investigation_messages", [])
 
     # Add instruction to switch from research mode to compression mode
-    researcher_messages.append(HumanMessage(content=compress_research_simple_human_message))
+    investigation_messages.append(HumanMessage(content=evidence_review_request))
 
     # Step 3: Attempt compression with retry logic for token limit issues
     synthesis_attempts = 0
@@ -268,28 +268,28 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     while synthesis_attempts < max_attempts:
         try:
             # Create system prompt focused on compression task
-            compression_prompt = compress_research_system_prompt.format(date=get_today_str())
+            compression_prompt = evidence_review_prompt.format(date=get_today_str())
             # Use cached system message for compression (consistent across all compressions)
             cached_compression_message = create_cached_message(
                 SystemMessage,
                 compression_prompt,
                 enable_caching=configurable.enable_prompt_caching
             )
-            messages = [cached_compression_message] + researcher_messages
+            messages = [cached_compression_message] + investigation_messages
 
             # Execute compression
             response = await synthesizer_model.ainvoke(messages)
 
             # Extract raw notes from all tool and AI messages
-            raw_notes_content = "\n".join([
+            raw_evidence_content = "\n".join([
                 str(message.content)
-                for message in filter_messages(researcher_messages, include_types=["tool", "ai"])
+                for message in filter_messages(investigation_messages, include_types=["tool", "ai"])
             ])
 
             # Return successful compression result
             return {
-                "compressed_research": str(response.content),
-                "raw_notes": [raw_notes_content]
+                "evidence_dossier": str(response.content),
+                "raw_evidence": [raw_evidence_content]
             }
 
         except Exception as e:
@@ -301,7 +301,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
             # Handle token limit exceeded by removing older messages
             if is_token_limit_exceeded(e, configurable.research_model):
                 logger.info("Token limit exceeded during compression, removing older messages")
-                researcher_messages = remove_up_to_last_ai_message(researcher_messages)
+                investigation_messages = remove_up_to_last_ai_message(investigation_messages)
                 continue
 
             # For other errors, continue retrying
@@ -309,33 +309,33 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
 
     # Step 4: Return error result if all attempts failed
     logger.error(f"Research compression failed after {max_attempts} attempts, returning raw notes")
-    raw_notes_content = "\n".join([
+    raw_evidence_content = "\n".join([
         str(message.content)
-        for message in filter_messages(researcher_messages, include_types=["tool", "ai"])
+        for message in filter_messages(investigation_messages, include_types=["tool", "ai"])
     ])
 
     return {
-        "compressed_research": "Error synthesizing research report: Maximum retries exceeded",
-        "raw_notes": [raw_notes_content]
+        "evidence_dossier": "Error synthesizing research report: Maximum retries exceeded",
+        "raw_evidence": [raw_evidence_content]
     }
 
 
 # Researcher Subgraph Construction
-# Creates individual researcher workflow for conducting focused research on specific topics
-researcher_builder = StateGraph(
-    ResearcherState,
-    output=ResearcherOutputState,
-    config_schema=Configuration
+# Creates individual investigator workflow for conducting focused research on specific topics
+investigation_builder = StateGraph(
+    InvestigationState,
+    output=InvestigationOutput,
+    config_schema=AbundanceSettings
 )
 
-# Add researcher nodes for research execution and compression
-researcher_builder.add_node("researcher", researcher)                 # Main researcher logic
-researcher_builder.add_node("researcher_tools", researcher_tools)     # Tool execution handler
-researcher_builder.add_node("compress_research", compress_research)   # Research compression
+# Add investigator nodes for research execution and compression
+investigation_builder.add_node("investigator", investigator)                 # Main investigator logic
+investigation_builder.add_node("run_evidence_tools", run_evidence_tools)     # Tool execution handler
+investigation_builder.add_node("review_evidence", review_evidence)   # Research compression
 
-# Define researcher workflow edges
-researcher_builder.add_edge(START, "researcher")           # Entry point to researcher
-researcher_builder.add_edge("compress_research", END)      # Exit point after compression
+# Define investigator workflow edges
+investigation_builder.add_edge(START, "investigator")           # Entry point to investigator
+investigation_builder.add_edge("review_evidence", END)      # Exit point after compression
 
-# Compile researcher subgraph for parallel execution by supervisor
-researcher_subgraph = researcher_builder.compile()
+# Compile investigator subgraph for parallel execution by coordinator
+investigation_subgraph = investigation_builder.compile()

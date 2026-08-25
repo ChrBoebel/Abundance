@@ -1,4 +1,4 @@
-"""Utility functions and helpers for the Deep Research agent.
+"""Utilities shared by the Abundance research workflow.
 
 This module re-exports all utilities from the submodules for backward compatibility.
 """

@@ -30,14 +30,14 @@ class ResearchEvent(BaseModel):
 
 
 _NODE_STAGES: dict[str, tuple[ResearchStage, str, str]] = {
-    "clarify_with_user": (ResearchStage.INQUIRY, "inquiry.scoping", "Prüfe den Rechercheauftrag"),
-    "write_research_brief": (ResearchStage.PLANNING, "plan.created", "Entwickle den Rechercheplan"),
-    "research_supervisor": (ResearchStage.EVIDENCE, "evidence.collection.started", "Plane die Evidenzsuche"),
-    "supervisor": (ResearchStage.EVIDENCE, "evidence.collection.started", "Koordiniere Recherchepfade"),
-    "researcher": (ResearchStage.EVIDENCE, "evidence.collection.started", "Sammle relevante Evidenz"),
-    "researcher_tools": (ResearchStage.EVIDENCE, "evidence.collection.started", "Prüfe Suchergebnisse"),
-    "compress_research": (ResearchStage.REVIEW, "evidence.review.started", "Ordne Evidenz und Gegenbelege"),
-    "final_report_generation": (ResearchStage.SYNTHESIS, "synthesis.started", "Erstelle die Synthese"),
+    "scope_inquiry": (ResearchStage.INQUIRY, "inquiry.scoping", "Prüfe den Rechercheauftrag"),
+    "design_research_plan": (ResearchStage.PLANNING, "plan.created", "Entwickle den Rechercheplan"),
+    "coordinate_research": (ResearchStage.EVIDENCE, "evidence.collection.started", "Plane die Evidenzsuche"),
+    "coordinator": (ResearchStage.EVIDENCE, "evidence.collection.started", "Koordiniere Recherchepfade"),
+    "investigator": (ResearchStage.EVIDENCE, "evidence.collection.started", "Sammle relevante Evidenz"),
+    "run_evidence_tools": (ResearchStage.EVIDENCE, "evidence.collection.started", "Prüfe Suchergebnisse"),
+    "review_evidence": (ResearchStage.REVIEW, "evidence.review.started", "Ordne Evidenz und Gegenbelege"),
+    "synthesize_report": (ResearchStage.SYNTHESIS, "synthesis.started", "Erstelle die Synthese"),
 }
 
 
@@ -91,7 +91,7 @@ class ResearchEventMapper:
                 )
             )
 
-        elif event_name == "on_chat_model_stream" and node_name == "final_report_generation":
+        elif event_name == "on_chat_model_stream" and node_name == "synthesize_report":
             chunk = data.get("chunk")
             if chunk:
                 mapped.append(

@@ -17,16 +17,16 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END
 from langgraph.types import Command
 
-from abundance_research.configuration import Configuration
+from abundance_research.settings import AbundanceSettings
 from abundance_research.prompts import (
-    clarify_with_user_instructions,
-    lead_researcher_prompt,
-    transform_messages_into_research_topic_prompt,
+    inquiry_scoping_prompt,
+    coordination_prompt,
+    research_brief_prompt,
 )
 from abundance_research.state import (
-    AgentState,
-    ClarifyWithUser,
-    ResearchQuestion,
+    ResearchRunState,
+    ClarificationDecision,
+    ResearchBrief,
 )
 from abundance_research.utils import (
     create_cached_message,
@@ -40,7 +40,7 @@ configurable_model = init_chat_model_wrapper(
 )
 
 
-async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Command[Literal["write_research_brief", "__end__"]]:
+async def scope_inquiry(state: ResearchRunState, config: RunnableConfig) -> Command[Literal["design_research_plan", "__end__"]]:
     """Analyze user messages and ask clarifying questions if the research scope is unclear.
 
     This function determines whether the user's request needs clarification before proceeding
@@ -54,10 +54,10 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
         Command to either end with a clarifying question or proceed to research brief
     """
     # Step 1: Check if clarification is enabled in configuration
-    configurable = Configuration.from_runnable_config(config)
+    configurable = AbundanceSettings.from_runnable_config(config)
     if not configurable.allow_clarification:
         # Skip clarification step and proceed directly to research
-        return Command(goto="write_research_brief")
+        return Command(goto="design_research_plan")
 
     # Step 2: Prepare the model for structured clarification analysis
     messages = state["messages"]
@@ -71,13 +71,13 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     # Configure model with structured output and retry logic
     clarification_model = (
         configurable_model
-        .with_structured_output(ClarifyWithUser)
+        .with_structured_output(ClarificationDecision)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
         .with_config(prepare_model_config(model_config))
     )
 
     # Step 3: Analyze whether clarification is needed
-    prompt_content = clarify_with_user_instructions.format(
+    prompt_content = inquiry_scoping_prompt.format(
         messages=get_buffer_string(messages),
         date=get_today_str()
     )
@@ -93,16 +93,16 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     else:
         # Proceed to research with verification message
         return Command(
-            goto="write_research_brief",
+            goto="design_research_plan",
             update={"messages": [AIMessage(content=response.verification)]}
         )
 
 
-async def write_research_brief(state: AgentState, config: RunnableConfig) -> Command[Literal["research_supervisor"]]:
-    """Transform user messages into a structured research brief and initialize supervisor.
+async def design_research_plan(state: ResearchRunState, config: RunnableConfig) -> Command[Literal["coordinate_research"]]:
+    """Transform user messages into a structured research brief and initialize coordinator.
 
     This function analyzes the user's messages and generates a focused research brief
-    that will guide the research supervisor. It also sets up the initial supervisor
+    that will guide the research coordinator. It also sets up the initial coordinator
     context with appropriate prompts and instructions.
 
     Args:
@@ -110,10 +110,10 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
         config: Runtime configuration with model settings
 
     Returns:
-        Command to proceed to research supervisor with initialized context
+        Command to proceed to research coordinator with initialized context
     """
     # Step 1: Set up the research model for structured output
-    configurable = Configuration.from_runnable_config(config)
+    configurable = AbundanceSettings.from_runnable_config(config)
     research_model_config = {
         "model": configurable.research_model,
         "max_tokens": configurable.research_model_max_tokens,
@@ -124,26 +124,26 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     # Configure model for structured research question generation
     research_model = (
         configurable_model
-        .with_structured_output(ResearchQuestion)
+        .with_structured_output(ResearchBrief)
         .with_retry(stop_after_attempt=configurable.max_structured_output_retries)
         .with_config(prepare_model_config(research_model_config))
     )
 
     # Step 2: Generate structured research brief from user messages
-    prompt_content = transform_messages_into_research_topic_prompt.format(
+    prompt_content = research_brief_prompt.format(
         messages=get_buffer_string(state.get("messages", [])),
         date=get_today_str()
     )
     response = await research_model.ainvoke([HumanMessage(content=prompt_content)])
 
-    # Step 3: Initialize supervisor with research brief and instructions
-    supervisor_system_prompt = lead_researcher_prompt.format(
+    # Step 3: Initialize coordinator with research brief and instructions
+    supervisor_system_prompt = coordination_prompt.format(
         date=get_today_str(),
         max_concurrent_research_units=configurable.max_concurrent_research_units,
-        max_researcher_iterations=configurable.max_researcher_iterations
+        max_coordination_iterations=configurable.max_coordination_iterations
     )
 
-    # Use cached messages for cost savings (supervisor prompt is consistent)
+    # Use cached messages for cost savings (coordinator prompt is consistent)
     # The research brief is especially valuable to cache as it's sent to all parallel researchers
     cached_supervisor_system = create_cached_message(
         SystemMessage,
@@ -157,10 +157,10 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     )
 
     return Command(
-        goto="research_supervisor",
+        goto="coordinate_research",
         update={
             "research_brief": response.research_brief,
-            "supervisor_messages": {
+            "coordination_messages": {
                 "type": "override",
                 "value": [
                     cached_supervisor_system,

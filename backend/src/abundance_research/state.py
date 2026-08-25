@@ -12,22 +12,23 @@ from typing_extensions import TypedDict
 ###################
 # Structured Outputs
 ###################
-class ConductResearch(BaseModel):
-    """Call this tool to conduct research on a specific topic."""
-    research_topic: str = Field(
-        description="The topic to research. Should be a single topic, and should be described in high detail (at least a paragraph).",
+class InvestigateQuestion(BaseModel):
+    """Delegate one bounded evidence or falsification question."""
+
+    evidence_question: str = Field(
+        description="A standalone evidence question with scope, source priorities, and the claim it should support or challenge.",
     )
 
-class ResearchComplete(BaseModel):
-    """Call this tool to indicate that the research is complete."""
+class EvidenceReviewComplete(BaseModel):
+    """Signal that material evidence gaps have been investigated."""
 
-class Summary(BaseModel):
-    """Research summary with key findings."""
+class PageSummary(BaseModel):
+    """Evidence summary and checkable excerpts from one source."""
     
     summary: str
     key_excerpts: str
 
-class ClarifyWithUser(BaseModel):
+class ClarificationDecision(BaseModel):
     """Model for user clarification requests."""
     
     need_clarification: bool = Field(
@@ -40,7 +41,7 @@ class ClarifyWithUser(BaseModel):
         description="Verify message that we will start research after the user has provided the necessary information.",
     )
 
-class ResearchQuestion(BaseModel):
+class ResearchBrief(BaseModel):
     """Research question and brief for guiding research."""
     
     research_brief: str = Field(
@@ -52,45 +53,45 @@ class ResearchQuestion(BaseModel):
 # State Definitions
 ###################
 
-def override_reducer(current_value, new_value):
+def replace_or_append(current_value, new_value):
     """Reducer function that allows overriding values in state."""
     if isinstance(new_value, dict) and new_value.get("type") == "override":
         return new_value.get("value", new_value)
     else:
         return operator.add(current_value, new_value)
     
-class AgentInputState(MessagesState):
-    """InputState is only 'messages'."""
+class InquiryInputState(MessagesState):
+    """External workflow input containing the inquiry conversation."""
 
-class AgentState(MessagesState):
+class ResearchRunState(MessagesState):
     """Main agent state containing messages and research data."""
     
-    supervisor_messages: Annotated[list[MessageLikeRepresentation], override_reducer]
+    coordination_messages: Annotated[list[MessageLikeRepresentation], replace_or_append]
     research_brief: Optional[str]
-    raw_notes: Annotated[list[str], override_reducer] = []
-    notes: Annotated[list[str], override_reducer] = []
+    raw_evidence: Annotated[list[str], replace_or_append] = []
+    notes: Annotated[list[str], replace_or_append] = []
     final_report: str
 
-class SupervisorState(TypedDict):
-    """State for the supervisor that manages research tasks."""
+class CoordinationState(TypedDict):
+    """State for planning and coordinating evidence questions."""
     
-    supervisor_messages: Annotated[list[MessageLikeRepresentation], override_reducer]
+    coordination_messages: Annotated[list[MessageLikeRepresentation], replace_or_append]
     research_brief: str
-    notes: Annotated[list[str], override_reducer] = []
-    research_iterations: int = 0
-    raw_notes: Annotated[list[str], override_reducer] = []
+    notes: Annotated[list[str], replace_or_append] = []
+    coordination_iterations: int = 0
+    raw_evidence: Annotated[list[str], replace_or_append] = []
 
-class ResearcherState(TypedDict):
-    """State for individual researchers conducting research."""
+class InvestigationState(TypedDict):
+    """State for one bounded evidence investigation."""
     
-    researcher_messages: Annotated[list[MessageLikeRepresentation], operator.add]
+    investigation_messages: Annotated[list[MessageLikeRepresentation], operator.add]
     tool_call_iterations: int = 0
-    research_topic: str
-    compressed_research: str
-    raw_notes: Annotated[list[str], override_reducer] = []
+    evidence_question: str
+    evidence_dossier: str
+    raw_evidence: Annotated[list[str], replace_or_append] = []
 
-class ResearcherOutputState(BaseModel):
-    """Output state from individual researchers."""
+class InvestigationOutput(BaseModel):
+    """Evidence dossier returned by one investigation."""
     
-    compressed_research: str
-    raw_notes: Annotated[list[str], override_reducer] = []
+    evidence_dossier: str
+    raw_evidence: Annotated[list[str], replace_or_append] = []

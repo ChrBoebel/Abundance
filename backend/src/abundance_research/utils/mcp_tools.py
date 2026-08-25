@@ -12,7 +12,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.config import get_store
 from mcp import McpError
 
-from abundance_research.configuration import Configuration
+from abundance_research.settings import AbundanceSettings
 
 
 ##########################
@@ -240,7 +240,7 @@ async def load_mcp_tools(
     Returns:
         List of configured MCP tools ready for use
     """
-    configurable = Configuration.from_runnable_config(config)
+    configurable = AbundanceSettings.from_runnable_config(config)
 
     # Step 1: Handle authentication if required
     if configurable.mcp_config and configurable.mcp_config.auth_required:

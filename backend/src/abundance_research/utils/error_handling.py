@@ -193,7 +193,7 @@ def calculate_backoff_delay(attempt: int, config) -> float:
 
     Args:
         attempt: The current attempt number (0-indexed)
-        config: Configuration object with retry settings
+        config: AbundanceSettings object with retry settings
 
     Returns:
         Delay in seconds, capped at max_delay

@@ -86,18 +86,18 @@ def serialize_event(event):
 RESEARCH_PROFILES = {
     ResearchMode.QUICK: {
         "max_concurrent_research_units": 1,
-        "max_researcher_iterations": 2,
-        "max_react_tool_calls": 3,
+        "max_coordination_iterations": 2,
+        "max_search_iterations": 3,
     },
     ResearchMode.BALANCED: {
         "max_concurrent_research_units": 3,
-        "max_researcher_iterations": 3,
-        "max_react_tool_calls": 4,
+        "max_coordination_iterations": 3,
+        "max_search_iterations": 4,
     },
     ResearchMode.THOROUGH: {
         "max_concurrent_research_units": 5,
-        "max_researcher_iterations": 5,
-        "max_react_tool_calls": 8,
+        "max_coordination_iterations": 5,
+        "max_search_iterations": 8,
     },
 }
 
@@ -110,9 +110,9 @@ def build_workflow_config(model: str, mode: ResearchMode = ResearchMode.BALANCED
         "configurable": {
             "research_model": model_id,
             "summarization_model": model_id,
-            "compression_model": model_id,
+            "evidence_review_model": model_id,
             "final_report_model": model_id,
-            "search_api": "tavily",
+            "search_provider": "tavily",
             "allow_clarification": False,
             **RESEARCH_PROFILES[mode],
         }
