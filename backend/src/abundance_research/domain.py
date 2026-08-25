@@ -62,6 +62,24 @@ class AssessmentStatus(str, Enum):
     UNAVAILABLE = "unavailable"
 
 
+class ClaimVerificationVerdict(str, Enum):
+    """Whether one admitted evidence record establishes a report claim."""
+
+    SUPPORTS = "supports"
+    CONTRADICTS = "contradicts"
+    INSUFFICIENT = "insufficient"
+    UNVERIFIABLE = "unverifiable"
+
+
+class VerificationStatus(str, Enum):
+    """Completeness state for one shadow claim-verification pass."""
+
+    DISABLED = "disabled"
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    UNAVAILABLE = "unavailable"
+
+
 class Inquiry(BaseModel):
     """A research question together with explicit scope constraints."""
 
@@ -166,6 +184,39 @@ class Claim(BaseModel):
     counter_evidence: list[CounterEvidence] = Field(default_factory=list)
     confidence: Confidence = Confidence.MEDIUM
     uncertainty_notes: list[str] = Field(default_factory=list)
+
+
+class ClaimEvidenceVerification(BaseModel):
+    """A verdict bound to one existing claim and one of its cited records."""
+
+    claim_id: str
+    evidence_id: str
+    verdict: ClaimVerificationVerdict
+    quote: str | None = Field(default=None, max_length=2000)
+    limitations: list[str] = Field(default_factory=list, max_length=10)
+    confidence: Confidence = Confidence.MEDIUM
+    claim_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    evidence_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    verifier_version: str = Field(min_length=1, max_length=120)
+
+
+class ClaimVerificationSummary(BaseModel):
+    """Privacy-safe aggregate emitted by shadow claim verification."""
+
+    status: VerificationStatus
+    claim_count: int = Field(default=0, ge=0)
+    cited_claim_count: int = Field(default=0, ge=0)
+    verified_claim_count: int = Field(default=0, ge=0)
+    pair_count: int = Field(default=0, ge=0)
+    verified_pair_count: int = Field(default=0, ge=0)
+    coverage_ratio: float = Field(default=0.0, ge=0, le=1)
+    supported_claim_count: int = Field(default=0, ge=0)
+    contradicted_claim_count: int = Field(default=0, ge=0)
+    insufficient_claim_count: int = Field(default=0, ge=0)
+    unverifiable_claim_count: int = Field(default=0, ge=0)
+    high_confidence_unsubstantiated_count: int = Field(default=0, ge=0)
+    exact_quote_ratio: float = Field(default=0.0, ge=0, le=1)
+    failure_code: str | None = Field(default=None, max_length=120)
 
 
 class OpenQuestion(BaseModel):

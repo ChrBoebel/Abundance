@@ -29,6 +29,8 @@ sequenceDiagram
     G->>G: quote binding and assessment summary
     G->>L: schema-constrained synthesis
     L-->>G: structured ResearchReport draft
+    G->>L: bounded shadow claim verification
+    G->>G: exact claim, evidence ID, and quote binding
     G->>G: citation binding, rendering, deterministic evaluation
     G->>P: checkpoint + public report + metrics
     G-->>U: report.completed / run.completed
@@ -51,6 +53,8 @@ The application layer owns four contracts:
 - `SynthesisModel` produces structured claims referencing evidence IDs;
 - `EvidenceAssessmentModel` classifies admitted evidence without changing the
   admitted set or its retrieval relation;
+- `ClaimVerificationModel` classifies whether bound evidence supports,
+  contradicts, or fails to establish synthesized claims;
 - `ResearchCommand` is the serializable input to a run.
 
 `application/graph.py` compiles these ports into the following graph:
@@ -63,8 +67,16 @@ flowchart LR
     Collect --> Review[review_evidence]
     Review --> Assess[assess_evidence]
     Assess --> Synthesize[synthesize_report]
-    Synthesize --> END
+    Synthesize --> Verify[verify_claims]
+    Verify --> Publish[publish_report]
+    Publish --> END
 ```
+
+`verify_claims` is a non-blocking shadow stage. It cannot add evidence, alter
+citations, or rewrite the report. The node binds model output back to exact
+claim IDs, admitted evidence IDs, and verbatim excerpts before it emits a
+summary. `publish_report` remains the only stage that renders and evaluates the
+public report.
 
 The graph state uses dictionaries, lists, strings, numbers, and JSON-rendered
 Pydantic data so a checkpointer can serialize every superstep. Runtime-only
@@ -76,6 +88,13 @@ or cancellation.
 The LangChain adapter uses the official `ChatOpenRouter` integration and
 Pydantic structured output. It never binds tools. Model aliases are reviewed in
 `ModelCatalog`; arbitrary provider IDs are rejected at the HTTP boundary.
+
+Claim verification uses a dedicated reviewed alias pinned to
+`deepseek/deepseek-v4-flash-0731`, independent of the synthesis model selected
+for a run. Provider routing requires structured-output support and prefers
+throughput. Low reasoning effort is requested only for this narrow classifier;
+reasoning tokens are excluded from its response. Timeouts, output tokens, and
+schema retries are bounded independently from synthesis.
 
 The Tavily adapter performs one search per authorized research unit. It returns
 normalized evidence records and has no write capability.
@@ -100,7 +119,9 @@ Public event types are:
 - evidence: `evidence.collection.started`, `evidence.search.started`,
   `evidence.search.failed`, `evidence.discovered`, `evidence.review.started`,
   `evidence.assessment.started`, `evidence.assessment.completed`;
-- synthesis: `synthesis.started`, `report.completed`.
+- synthesis and verification: `synthesis.started`,
+  `claim.verification.started`, `claim.verification.completed`,
+  `report.completed`.
 
 Internal node names, LangGraph update streams, provider response objects, raw
 evidence excerpts, and exception strings are deliberately excluded.
@@ -142,5 +163,7 @@ errors, run identifiers, and operational cost metrics remain private.
 
 `abundance_research.evaluation` calculates deterministic claim-evidence
 coverage, challenged-claim ratio, primary-source ratio, broken evidence links,
-and open-question count. These metrics are explainable and do not trigger a
-hidden second model pass.
+and open-question count. A separate semantic verification summary reports
+support, contradiction, insufficiency, unverifiability, and binding failures.
+Because the semantic stage is explicit in the graph and observable in the run
+manifest, it is not a hidden model pass.

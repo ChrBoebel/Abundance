@@ -33,6 +33,30 @@ def test_settings_bound_shadow_assessment_cost_and_context() -> None:
     assert settings.assessment_excerpt_chars == 1800
 
 
+def test_settings_bound_shadow_claim_verification_cost_and_context() -> None:
+    settings = AbundanceSettings.from_environment(
+        {
+            "ABUNDANCE_CLAIM_VERIFICATION_MODE": "off",
+            "ABUNDANCE_VERIFICATION_MODEL_ALIAS": "deepseek-v4-flash",
+            "ABUNDANCE_VERIFICATION_MODEL_MAX_TOKENS": "4500",
+            "ABUNDANCE_VERIFICATION_BATCH_SIZE": "6",
+            "ABUNDANCE_VERIFICATION_MAX_PAIRS": "30",
+            "ABUNDANCE_VERIFICATION_EXCERPT_CHARS": "1900",
+            "ABUNDANCE_VERIFICATION_TIMEOUT_SECONDS": "35",
+            "ABUNDANCE_VERIFICATION_SCHEMA_RETRIES": "2",
+        }
+    )
+
+    assert settings.claim_verification_mode == "off"
+    assert settings.verification_model_alias == "deepseek-v4-flash"
+    assert settings.verification_model_max_tokens == 4500
+    assert settings.verification_batch_size == 6
+    assert settings.verification_max_pairs == 30
+    assert settings.verification_excerpt_chars == 1900
+    assert settings.verification_timeout_seconds == 35
+    assert settings.verification_schema_retries == 2
+
+
 def test_settings_reject_wildcard_cors_origin() -> None:
     with pytest.raises(ValidationError):
         AbundanceSettings(cors_origins=["*"])

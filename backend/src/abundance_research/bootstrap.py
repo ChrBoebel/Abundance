@@ -28,9 +28,15 @@ def build_research_model(
         planning_tokens=runtime.planning_model_max_tokens,
         assessment_tokens=runtime.assessment_model_max_tokens,
         synthesis_tokens=runtime.synthesis_model_max_tokens,
+        verification_tokens=runtime.verification_model_max_tokens,
         assessment_batch_size=runtime.assessment_batch_size,
         assessment_max_evidence=runtime.assessment_max_evidence,
         assessment_excerpt_chars=runtime.assessment_excerpt_chars,
+        verification_batch_size=runtime.verification_batch_size,
+        verification_max_pairs=runtime.verification_max_pairs,
+        verification_excerpt_chars=runtime.verification_excerpt_chars,
+        verification_timeout_seconds=runtime.verification_timeout_seconds,
+        verification_schema_retries=runtime.verification_schema_retries,
         timeout_seconds=runtime.provider_timeout_seconds,
         max_retries=runtime.provider_max_retries,
     )
@@ -59,6 +65,8 @@ def build_research_engine(
         [evidence],
         model,
         assessor=model if runtime.evidence_assessment_mode == "shadow" else None,
+        verifier=model if runtime.claim_verification_mode == "shadow" else None,
+        verification_model_alias=runtime.verification_model_alias,
         checkpointer=checkpointer,
     )
 

@@ -11,6 +11,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from abundance_research.application.contracts import (
+    ClaimVerificationModel,
     EvidenceAssessmentModel,
     EvidenceSource,
     PlanningModel,
@@ -48,6 +49,8 @@ class AbundanceResearchEngine:
         synthesizer: SynthesisModel,
         *,
         assessor: EvidenceAssessmentModel | None = None,
+        verifier: ClaimVerificationModel | None = None,
+        verification_model_alias: str | None = None,
         checkpointer: BaseCheckpointSaver[Any] | None = None,
     ) -> None:
         """Compile the graph with explicit model and read-only search ports."""
@@ -56,10 +59,12 @@ class AbundanceResearchEngine:
             evidence_sources,
             synthesizer,
             assessor=assessor,
+            verifier=verifier,
+            verification_model_alias=verification_model_alias,
             checkpointer=checkpointer,
         )
         usage_reporters: list[Any] = []
-        for reporter in (planner, assessor, synthesizer):
+        for reporter in (planner, assessor, synthesizer, verifier):
             if reporter is None:
                 continue
             if callable(getattr(reporter, "drain_usage", None)) and not any(
@@ -68,7 +73,7 @@ class AbundanceResearchEngine:
                 usage_reporters.append(reporter)
         self._usage_reporters = tuple(usage_reporters)
         artifact_reporters: list[Any] = []
-        for reporter in (planner, assessor, synthesizer):
+        for reporter in (planner, assessor, synthesizer, verifier):
             if reporter is None:
                 continue
             if callable(getattr(reporter, "observability_artifacts", None)) and not any(
@@ -76,6 +81,7 @@ class AbundanceResearchEngine:
             ):
                 artifact_reporters.append(reporter)
         self._artifact_reporters = tuple(artifact_reporters)
+        self._verification_model_alias = verification_model_alias
 
     async def stream(self, command: ResearchCommand) -> AsyncGenerator[ResearchEvent, None]:
         """Execute one graph run and translate only custom product events."""
@@ -97,14 +103,22 @@ class AbundanceResearchEngine:
                 version=RESEARCH_GRAPH_VERSION,
             )
         ]
+        artifact_model_aliases = list(
+            dict.fromkeys(
+                alias
+                for alias in (command.model, self._verification_model_alias)
+                if alias is not None
+            )
+        )
         for reporter in self._artifact_reporters:
-            try:
-                artifacts.extend(reporter.observability_artifacts(command.model))
-            except Exception:
-                logger.warning(
-                    "Runtime artifact discovery failed",
-                    extra={"run_id": command.run_id},
-                )
+            for model_alias in artifact_model_aliases:
+                try:
+                    artifacts.extend(reporter.observability_artifacts(model_alias))
+                except Exception:
+                    logger.warning(
+                        "Runtime artifact discovery failed",
+                        extra={"run_id": command.run_id},
+                    )
         artifacts = list(
             {
                 (artifact.kind, artifact.name, artifact.version): artifact

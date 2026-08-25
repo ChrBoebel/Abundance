@@ -20,6 +20,11 @@ All notable changes to Abundance are documented here. The project follows
   failure baseline.
 - Cost-bounded semantic evidence assessment with exact quote/ID binding,
   shadow-mode metrics, and component-level live evaluation.
+- A non-blocking claim-verification node with deterministic claim, citation,
+  and verbatim quote binding plus stable observability events.
+- A versioned multi-domain verification dataset, reproducible legacy baseline,
+  and three-trial promotion gate accepted for the pinned DeepSeek V4 Flash
+  profile.
 
 ### Changed
 
@@ -31,6 +36,8 @@ All notable changes to Abundance are documented here. The project follows
 - Expanded CI with tests, full type checking, dependency audits, and Dependabot.
 - Added a non-blocking LangGraph evidence-assessment stage before synthesis;
   shadow results are persisted without rewriting admitted evidence.
+- Split synthesis from publication so semantic claim verification is measured
+  before deterministic rendering while remaining unable to rewrite reports.
 
 ### Removed
 

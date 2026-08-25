@@ -174,6 +174,7 @@ export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   mercury: 'Mercury 2',
   gemini: 'Gemini 2.5 Flash Lite',
   deepseek: 'DeepSeek V3.2',
+  'deepseek-v4-flash': 'DeepSeek V4 Flash 0731',
   glm: 'GLM-4.5-Air',
   'gemini-flash': 'Gemini 2.5 Flash',
 }

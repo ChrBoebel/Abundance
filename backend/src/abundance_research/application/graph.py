@@ -14,7 +14,12 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Send, StreamWriter
 
+from abundance_research.application.claim_verification import (
+    summarize_claim_verifications,
+    unavailable_verification_summary,
+)
 from abundance_research.application.contracts import (
+    ClaimVerificationModel,
     EvidenceAssessmentModel,
     EvidenceSource,
     PlanningModel,
@@ -34,11 +39,15 @@ from abundance_research.application.rendering import (
 )
 from abundance_research.domain import (
     AssessmentStatus,
+    ClaimEvidenceVerification,
+    ClaimVerificationSummary,
     EvidenceAssessment,
     EvidenceAssessmentSummary,
     EvidenceRecord,
     ResearchPlan,
+    ResearchReport,
     ResearchUnit,
+    VerificationStatus,
 )
 from abundance_research.evaluation import evaluate_report
 from abundance_research.events import ResearchEvent, ResearchStage
@@ -49,7 +58,7 @@ from abundance_research.observability import (
     operation_signal_payload,
 )
 
-RESEARCH_GRAPH_VERSION = "research-graph-v3"
+RESEARCH_GRAPH_VERSION = "research-graph-v4"
 OperationResult = TypeVar("OperationResult")
 
 
@@ -65,6 +74,8 @@ class ResearchGraphState(TypedDict, total=False):
     evidence: list[dict[str, Any]]
     evidence_assessments: list[dict[str, Any]]
     evidence_assessment_summary: dict[str, Any]
+    claim_verifications: list[dict[str, Any]]
+    claim_verification_summary: dict[str, Any]
     report: dict[str, Any]
     evaluation: dict[str, Any]
 
@@ -90,6 +101,8 @@ class AbundanceResearchGraph:
         synthesizer: SynthesisModel,
         *,
         assessor: EvidenceAssessmentModel | None = None,
+        verifier: ClaimVerificationModel | None = None,
+        verification_model_alias: str | None = None,
         checkpointer: BaseCheckpointSaver[Any] | None = None,
     ) -> None:
         """Bind model and read-only evidence adapters to graph nodes."""
@@ -99,6 +112,8 @@ class AbundanceResearchGraph:
         self._evidence_sources = tuple(evidence_sources)
         self._synthesizer = synthesizer
         self._assessor = assessor
+        self._verifier = verifier
+        self._verification_model_alias = verification_model_alias
         self._run_semaphores: dict[str, asyncio.Semaphore] = {}
         self.compiled = self._compile(checkpointer)
 
@@ -194,6 +209,8 @@ class AbundanceResearchGraph:
         builder.add_node("review_evidence", self._review_evidence)
         builder.add_node("assess_evidence", self._assess_evidence)
         builder.add_node("synthesize_report", self._synthesize_report)
+        builder.add_node("verify_claims", self._verify_claims)
+        builder.add_node("publish_report", self._publish_report)
         builder.add_edge(START, "scope_inquiry")
         builder.add_edge("scope_inquiry", "create_plan")
         builder.add_conditional_edges(
@@ -204,7 +221,9 @@ class AbundanceResearchGraph:
         builder.add_edge("collect_evidence", "review_evidence")
         builder.add_edge("review_evidence", "assess_evidence")
         builder.add_edge("assess_evidence", "synthesize_report")
-        builder.add_edge("synthesize_report", END)
+        builder.add_edge("synthesize_report", "verify_claims")
+        builder.add_edge("verify_claims", "publish_report")
+        builder.add_edge("publish_report", END)
         return builder.compile(checkpointer=checkpointer, name="abundance-research")
 
     async def _scope_inquiry(
@@ -501,9 +520,6 @@ class AbundanceResearchGraph:
         command = ResearchCommand.from_payload(state["command"])
         plan = ResearchPlan.model_validate(state["plan"])
         evidence = [EvidenceRecord.model_validate(item) for item in state["evidence"]]
-        assessment_summary = EvidenceAssessmentSummary.model_validate(
-            state["evidence_assessment_summary"]
-        )
         _emit(
             writer,
             ResearchEvent(
@@ -535,8 +551,112 @@ class AbundanceResearchGraph:
                 evidence=evidence,
             )
         )
+        return {"report": report.model_dump(mode="json")}
+
+    async def _verify_claims(
+        self,
+        state: ResearchGraphState,
+        writer: StreamWriter,
+    ) -> dict[str, Any]:
+        """Measure semantic claim support without rewriting the report."""
+        command = ResearchCommand.from_payload(state["command"])
+        report = ResearchReport.model_validate(state["report"])
+        verifier = self._verifier
+        if verifier is None:
+            summary = unavailable_verification_summary(
+                report,
+                status=VerificationStatus.DISABLED,
+            )
+            return {"claim_verification_summary": summary.model_dump(mode="json")}
+        verification_model = self._verification_model_alias or command.model
+
+        _emit(
+            writer,
+            ResearchEvent(
+                type="claim.verification.started",
+                stage=ResearchStage.SYNTHESIS,
+                message="Prüfe die Evidenzbindung der Claims im Shadow-Modus",
+                data={
+                    "run_id": command.run_id,
+                    "claim_count": len(report.claims),
+                },
+            ),
+        )
+        try:
+
+            async def verify_report() -> Sequence[ClaimEvidenceVerification]:
+                return await verifier.verify_claims(
+                    command.inquiry,
+                    report,
+                    model=verification_model,
+                )
+
+            verification_result = await self._observe_operation(
+                writer,
+                kind=OperationKind.MODEL,
+                operation="claim.verify",
+                stage=ResearchStage.SYNTHESIS,
+                component=_component_name(verifier, "claim-verification-model"),
+                model=verification_model,
+                invoke=verify_report,
+                count_results=lambda result: len(result),
+            )
+            verifications = list(verification_result)
+        except ResearchFailure as exc:
+            summary = unavailable_verification_summary(
+                report,
+                status=VerificationStatus.UNAVAILABLE,
+                failure_code=exc.code.value,
+            )
+            verifications = []
+        except Exception:
+            summary = unavailable_verification_summary(
+                report,
+                status=VerificationStatus.UNAVAILABLE,
+                failure_code=FailureCode.PROVIDER_UNAVAILABLE.value,
+            )
+            verifications = []
+        else:
+            summary = summarize_claim_verifications(report, verifications)
+
+        _emit(
+            writer,
+            ResearchEvent(
+                type="claim.verification.completed",
+                stage=ResearchStage.SYNTHESIS,
+                message="Shadow-Claim-Verifikation abgeschlossen",
+                data={
+                    "run_id": command.run_id,
+                    "summary": summary.model_dump(mode="json"),
+                },
+            ),
+        )
+        return {
+            "claim_verifications": [
+                verification.model_dump(mode="json") for verification in verifications
+            ],
+            "claim_verification_summary": summary.model_dump(mode="json"),
+        }
+
+    async def _publish_report(
+        self,
+        state: ResearchGraphState,
+        writer: StreamWriter,
+    ) -> dict[str, Any]:
+        """Publish the unchanged report together with privacy-safe quality metrics."""
+        command = ResearchCommand.from_payload(state["command"])
+        report = ResearchReport.model_validate(state["report"])
+        assessment_summary = EvidenceAssessmentSummary.model_validate(
+            state["evidence_assessment_summary"]
+        )
+        verification_summary = ClaimVerificationSummary.model_validate(
+            state["claim_verification_summary"]
+        )
         evaluation = evaluate_report(report).model_copy(
-            update={"evidence_assessment": assessment_summary}
+            update={
+                "evidence_assessment": assessment_summary,
+                "claim_verification": verification_summary,
+            }
         )
         _emit(
             writer,
@@ -559,12 +679,9 @@ class AbundanceResearchGraph:
                 message="Recherche abgeschlossen",
                 data={
                     "run_id": command.run_id,
-                    "evidence_count": len(evidence),
+                    "evidence_count": len(report.evidence),
                     "claim_count": len(report.claims),
                 },
             ),
         )
-        return {
-            "report": report.model_dump(mode="json"),
-            "evaluation": evaluation.model_dump(mode="json"),
-        }
+        return {"evaluation": evaluation.model_dump(mode="json")}

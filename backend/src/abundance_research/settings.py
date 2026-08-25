@@ -19,10 +19,18 @@ class AbundanceSettings(BaseModel):
     planning_model_max_tokens: int = Field(default=3000, ge=256, le=16000)
     assessment_model_max_tokens: int = Field(default=5000, ge=256, le=16000)
     synthesis_model_max_tokens: int = Field(default=12000, ge=512, le=64000)
+    verification_model_max_tokens: int = Field(default=1200, ge=256, le=16000)
     assessment_batch_size: int = Field(default=8, ge=1, le=12)
     assessment_max_evidence: int = Field(default=24, ge=1, le=60)
     assessment_excerpt_chars: int = Field(default=2500, ge=500, le=12000)
     evidence_assessment_mode: Literal["off", "shadow"] = "shadow"
+    claim_verification_mode: Literal["off", "shadow"] = "shadow"
+    verification_model_alias: Literal["deepseek-v4-flash"] = "deepseek-v4-flash"
+    verification_batch_size: int = Field(default=8, ge=1, le=12)
+    verification_max_pairs: int = Field(default=40, ge=1, le=100)
+    verification_excerpt_chars: int = Field(default=2500, ge=500, le=12000)
+    verification_timeout_seconds: float = Field(default=45.0, ge=5.0, le=120.0)
+    verification_schema_retries: int = Field(default=1, ge=0, le=2)
     provider_timeout_seconds: float = Field(default=90.0, ge=5.0, le=300.0)
     provider_max_retries: int = Field(default=2, ge=0, le=6)
     search_timeout_seconds: float = Field(default=45.0, ge=5.0, le=120.0)

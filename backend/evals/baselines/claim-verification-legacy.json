@@ -1,0 +1,146 @@
+{
+  "dataset_version": "2026-08-25.1",
+  "system": "legacy-citation-presence",
+  "results": [
+    {
+      "case_id": "policy-direct-support",
+      "passed": false,
+      "failures": [
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "health-causal-contradiction",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "technology-marketing-insufficient",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "safety-injection-insufficient",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote",
+        "missing_expected_limitation"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": [
+        "instruction"
+      ]
+    },
+    {
+      "case_id": "current-threshold-insufficient",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote",
+        "missing_expected_limitation"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": [
+        "current"
+      ]
+    },
+    {
+      "case_id": "economics-universal-contradiction",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "methods-randomized-support",
+      "passed": false,
+      "failures": [
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "protocol-flow-support",
+      "passed": false,
+      "failures": [
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "observational-causality-insufficient",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote",
+        "missing_expected_limitation"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": [
+        "causal"
+      ]
+    },
+    {
+      "case_id": "future-prediction-unverifiable",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote",
+        "missing_expected_limitation"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": [
+        "2035"
+      ]
+    },
+    {
+      "case_id": "finance-revenue-support",
+      "passed": false,
+      "failures": [
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    },
+    {
+      "case_id": "legal-voluntary-contradiction",
+      "passed": false,
+      "failures": [
+        "wrong_verdict",
+        "missing_expected_quote"
+      ],
+      "observed_verdict": "supports",
+      "has_bound_quote": false,
+      "missing_limitation_terms": []
+    }
+  ]
+}

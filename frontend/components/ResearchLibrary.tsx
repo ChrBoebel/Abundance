@@ -14,6 +14,7 @@ const MODEL_OPTIONS: { key: string; name: string; desc: string; icon: string }[]
   { key: 'mercury', name: 'Mercury 2', desc: 'Ultraschnell & kosteneffizient', icon: '/model-icons/inception.svg' },
   { key: 'gemini', name: 'Gemini 2.5 Flash Lite', desc: 'Schnell & effizient', icon: '/model-icons/gemini.svg' },
   { key: 'deepseek', name: 'DeepSeek V3.2', desc: 'Leistungsstark & präzise', icon: '/model-icons/deepseek.svg' },
+  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash 0731', desc: 'Schnell & schemafähig', icon: '/model-icons/deepseek.svg' },
   { key: 'glm', name: 'GLM-4.5-Air', desc: 'Free & Reasoning-fähig', icon: '/model-icons/glm.svg' },
   { key: 'gemini-flash', name: 'Gemini 2.5 Flash', desc: 'Schnell & leistungsstark', icon: '/model-icons/gemini-flash.svg' },
 ]

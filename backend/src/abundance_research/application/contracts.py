@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, Sequence
 
 from abundance_research.domain import (
+    ClaimEvidenceVerification,
     EvidenceAssessment,
     EvidenceRecord,
     Inquiry,
@@ -94,3 +95,16 @@ class SynthesisModel(Protocol):
         model: str,
     ) -> ResearchReport:
         """Return a structured report; final Markdown is rendered in application code."""
+
+
+class ClaimVerificationModel(Protocol):
+    """Verify existing claim/citation pairs without introducing new evidence."""
+
+    async def verify_claims(
+        self,
+        inquiry: Inquiry,
+        report: ResearchReport,
+        *,
+        model: str,
+    ) -> Sequence[ClaimEvidenceVerification]:
+        """Return verdicts for known claims and their existing evidence links only."""

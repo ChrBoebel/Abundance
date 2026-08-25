@@ -121,9 +121,15 @@ Every dataset release must have a unique version. Live comparisons should pin
 the code revision, execute at least three trials for stochastic checks, and
 report pass rate, variance, latency, and cost.
 
+Claim verification applies that rule through a versioned 12-case component
+dataset spanning nine domains and all four verdict classes. Promotion requires
+three trials, at least 80% mean accuracy, at least 70% accuracy in every trial,
+and a strict improvement over the legacy baseline. The accepted DeepSeek V4
+Flash v3 result passed at 88.9% mean and 83.3% minimum accuracy.
+
 ## Phase 3: Evidence verification
 
-Status: evidence-assessment shadow foundation complete.
+Status: evidence-assessment and claim-verification shadow foundations complete.
 
 The typed `assess_evidence` node now runs after admission. It infers a source's
 actual relationship to the research question instead of inheriting the planned
@@ -138,11 +144,17 @@ and persisted, but admitted evidence and synthesis inputs are not rewritten.
 The source-controlled component dataset covers ten golden cases and preserves
 the legacy failure baseline for future comparison.
 
-After synthesis, add a `verify_claims` node. It checks whether cited excerpts
-support, contradict, or do not establish each claim. Deterministic citation
-binding remains mandatory; a semantic judge augments it but cannot introduce
-new evidence. Unsupported claims are downgraded, marked, or removed through an
-explicit policy.
+After synthesis, `verify_claims` now checks whether cited excerpts support,
+contradict, or do not establish each claim. Deterministic claim, citation, and
+verbatim quote binding remains mandatory; the semantic judge cannot introduce
+new evidence. The dedicated `deepseek-v4-flash` profile is pinned to
+`deepseek/deepseek-v4-flash-0731` and passed its three-trial promotion gate at
+88.9% mean and 83.3% minimum accuracy, compared with a 0% legacy baseline.
+
+Verification remains shadow-only. Before unsupported claims can be downgraded,
+marked, or removed, add a separate end-to-end report-quality experiment that
+demonstrates the policy improves final answers without suppressing legitimate
+uncertainty or counterevidence.
 
 ## Phase 4: Bounded adaptive research
 

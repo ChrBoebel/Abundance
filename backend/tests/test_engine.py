@@ -4,6 +4,7 @@ import json
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
+from abundance_research.application.claim_verification import claim_content_sha256
 from abundance_research.application.contracts import ResearchCommand
 from abundance_research.application.engine import AbundanceResearchEngine
 from abundance_research.application.errors import FailureCode, ResearchFailure
@@ -11,6 +12,8 @@ from abundance_research.application.evidence_assessment import evidence_content_
 from abundance_research.domain import (
     AssessedEvidenceRelation,
     Claim,
+    ClaimEvidenceVerification,
+    ClaimVerificationVerdict,
     Confidence,
     EvidenceAssessment,
     EvidenceRecord,
@@ -128,7 +131,7 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
     assert events[-2].data["metrics"]["evidence_count"] == 4
     manifest = events[-2].data["metrics"]["manifest"]
     assert manifest["schema_version"] == "1.0"
-    assert manifest["graph_version"] == "research-graph-v3"
+    assert manifest["graph_version"] == "research-graph-v4"
     assert manifest["outcome"] == "completed"
     assert manifest["requested_model"] == "mercury"
     assert events[-2].data["metrics"]["operation_count"] == 6
@@ -147,6 +150,8 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
         "review_evidence",
         "assess_evidence",
         "synthesize_report",
+        "verify_claims",
+        "publish_report",
         "__end__",
     }
     assert "langgraph" not in "".join(event.model_dump_json() for event in events).casefold()
@@ -246,6 +251,112 @@ async def test_shadow_assessment_failure_never_blocks_or_leaks_into_report() -> 
     assert metrics["failed_operation_count"] == 1
     assert metrics["manifest"]["outcome"] == "completed"
     assert "private assessment provider details" not in "".join(
+        event.model_dump_json() for event in events
+    )
+
+
+class ShadowVerifier:
+    name = "shadow-verifier"
+
+    def __init__(self) -> None:
+        self.models: list[str] = []
+
+    async def verify_claims(
+        self,
+        inquiry: Inquiry,
+        report: ResearchReport,
+        *,
+        model: str,
+    ) -> list[ClaimEvidenceVerification]:
+        self.models.append(model)
+        evidence = {record.id: record for record in report.evidence}
+        return [
+            ClaimEvidenceVerification(
+                claim_id=claim.id,
+                evidence_id=evidence_id,
+                verdict=ClaimVerificationVerdict.SUPPORTS,
+                quote=evidence[evidence_id].excerpt,
+                confidence=Confidence.HIGH,
+                claim_sha256=claim_content_sha256(claim),
+                evidence_sha256=evidence_content_sha256(evidence[evidence_id]),
+                verifier_version="test-verifier-v1",
+            )
+            for claim in report.claims
+            for evidence_id in claim.evidence_ids
+        ]
+
+
+@pytest.mark.asyncio
+async def test_shadow_claim_verification_is_measured_without_rewriting_report() -> None:
+    verifier = ShadowVerifier()
+    engine = AbundanceResearchEngine(
+        FakePlanner(),
+        [TrackingEvidenceSource()],
+        InventingSynthesizer(),
+        verifier=verifier,
+        verification_model_alias="deepseek-v4-flash",
+    )
+
+    events = [event async for event in engine.stream(command())]
+
+    completed = next(event for event in events if event.type == "report.completed")
+    summary = completed.data["evaluation"]["claim_verification"]
+    assert summary["status"] == "complete"
+    assert summary["claim_count"] == 1
+    assert summary["verified_claim_count"] == 1
+    assert summary["supported_claim_count"] == 1
+    assert summary["high_confidence_unsubstantiated_count"] == 0
+    assert verifier.models == ["deepseek-v4-flash"]
+    assert completed.data["report"]["claims"][0]["statement"] == (
+        "Only admitted references survive"
+    )
+    assert [event.type for event in events].count("claim.verification.completed") == 1
+    metrics = next(event.data["metrics"] for event in events if event.type == "run.metrics")
+    assert metrics["operation_count"] == 7
+    assert any(
+        operation["operation"] == "claim.verify"
+        for operation in metrics["operations"]
+    )
+
+
+class FailingShadowVerifier:
+    name = "failing-shadow-verifier"
+
+    async def verify_claims(
+        self,
+        inquiry: Inquiry,
+        report: ResearchReport,
+        *,
+        model: str,
+    ) -> list[ClaimEvidenceVerification]:
+        raise ResearchFailure(
+            FailureCode.PROVIDER_UNAVAILABLE,
+            "Die Shadow-Claim-Verifikation ist nicht verfügbar.",
+            retryable=True,
+            cause=RuntimeError("private verification provider details"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_shadow_claim_verification_failure_never_blocks_or_leaks() -> None:
+    engine = AbundanceResearchEngine(
+        FakePlanner(),
+        [TrackingEvidenceSource()],
+        InventingSynthesizer(),
+        verifier=FailingShadowVerifier(),
+    )
+
+    events = [event async for event in engine.stream(command())]
+
+    assert events[-1].type == "run.completed"
+    completed = next(event for event in events if event.type == "report.completed")
+    summary = completed.data["evaluation"]["claim_verification"]
+    assert summary["status"] == "unavailable"
+    assert summary["failure_code"] == "provider_unavailable"
+    metrics = next(event.data["metrics"] for event in events if event.type == "run.metrics")
+    assert metrics["failed_operation_count"] == 1
+    assert metrics["manifest"]["outcome"] == "completed"
+    assert "private verification provider details" not in "".join(
         event.model_dump_json() for event in events
     )
 
