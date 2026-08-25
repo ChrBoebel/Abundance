@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start -p ${PORT:-4290}",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "iron-session": "^8.0.0",
@@ -31,6 +32,7 @@
     "eslint-config-next": "^16.3.2",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.11"
   }
 }

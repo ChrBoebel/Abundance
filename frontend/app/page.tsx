@@ -1,7 +1,7 @@
 /** Main Abundance research workspace. */
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useId } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTheme } from 'next-themes'
 import { Menu } from 'lucide-react'
 import Image from 'next/image'
@@ -10,6 +10,7 @@ import ResearchTrail from '@/components/ResearchTrail'
 import InquiryComposer from '@/components/InquiryComposer'
 import ResearchLibrary from '@/components/ResearchLibrary'
 import { getHistory, saveEntry, deleteEntry } from '@/lib/history'
+import { consumeServerSentStream } from '@/lib/sse'
 import type {
   ResearchArchiveEntry,
   ResearchEvent,
@@ -37,19 +38,15 @@ const STAGE_TO_PHASE: Record<ResearchStage, number> = {
 }
 
 export default function ResearchWorkspace() {
-  const stableSessionId = useId()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [messages, setMessages] = useState<ResearchMessageRecord[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [showResearchTrail, setShowResearchTrail] = useState(false)
   const [phases, setPhases] = useState<ResearchPhase[]>(INITIAL_PHASES)
-  const [sourceCount, setSourceCount] = useState(0)
   const [sources, setSources] = useState<Source[]>([])
   const [currentActivity, setCurrentActivity] = useState('')
   const [isCompleted, setIsCompleted] = useState(false)
-  const [sessionId, setSessionId] = useState(`s-${stableSessionId.replaceAll(':', '')}`)
-  const [streamingReport, setStreamingReport] = useState('')
   const [selectedModel, setSelectedModel] = useState<string>('mercury')
   const [selectedMode, setSelectedMode] = useState<ResearchMode>('balanced')
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null)
@@ -58,7 +55,8 @@ export default function ResearchWorkspace() {
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const runSettledRef = useRef(false)
   const pendingInquiryRef = useRef('')
   const sourcesRef = useRef<Source[]>([])
 
@@ -79,7 +77,7 @@ export default function ResearchWorkspace() {
     return () => window.cancelAnimationFrame(frame)
   }, [])
 
-  useEffect(() => () => eventSourceRef.current?.close(), [])
+  useEffect(() => () => abortControllerRef.current?.abort(), [])
 
   useEffect(() => {
     let active = true
@@ -110,13 +108,11 @@ export default function ResearchWorkspace() {
 
   const resetResearchState = () => {
     setPhases(INITIAL_PHASES)
-    setSourceCount(0)
     setSources([])
     sourcesRef.current = []
     setCurrentActivity('')
     setIsCompleted(false)
     setShowResearchTrail(false)
-    setStreamingReport('')
   }
 
   const activateStage = (stage: ResearchStage) => {
@@ -140,10 +136,8 @@ export default function ResearchWorkspace() {
     ])
     setSources(entry.sources)
     sourcesRef.current = entry.sources
-    setSourceCount(entry.sources.length)
     setIsCompleted(true)
     setShowResearchTrail(false)
-    setStreamingReport('')
     setPhases(INITIAL_PHASES.map(p => ({ ...p, status: 'completed' as const })))
     setCurrentActivity('')
     // Close sidebar on mobile
@@ -167,7 +161,6 @@ export default function ResearchWorkspace() {
     setActiveEntryId(null)
     setMessages([])
     resetResearchState()
-    setSessionId(`s-${crypto.randomUUID()}`)
     // Close sidebar on mobile
     if (window.innerWidth < 1024) {
       setSidebarOpen(false)
@@ -177,7 +170,7 @@ export default function ResearchWorkspace() {
   const extractCitedSources = (reportContent: string, allSources: Source[]): Source[] => {
     try {
       // Extract the Sources section from the report
-      const sourcesMatch = reportContent.match(/###\s+(Sources|Quellen)\s*\n([\s\S]+?)(\n###|$)/i)
+      const sourcesMatch = reportContent.match(/#{2,3}\s+(Sources|Quellen)\s*\n([\s\S]+?)(\n#{2,3}|$)/i)
       if (!sourcesMatch) return []
 
       const sourcesSection = sourcesMatch[2]
@@ -208,10 +201,7 @@ export default function ResearchWorkspace() {
     }
   }
 
-  const handleSSEMessage = (event: MessageEvent) => {
-    try {
-      const data: ResearchEvent = JSON.parse(event.data)
-
+  const handleResearchEvent = (data: ResearchEvent) => {
       if (data.type === 'run.accepted') {
         setShowResearchTrail(true)
       } else if (data.stage) {
@@ -222,64 +212,35 @@ export default function ResearchWorkspace() {
 
       if (data.type === 'evidence.search.started') {
         const queryPayload = data.data?.query
-        if (queryPayload && typeof queryPayload === 'object') {
-          const queryObject = queryPayload as { queries?: unknown[]; query?: unknown }
-          const query = Array.isArray(queryObject.queries)
-            ? queryObject.queries[0]
-            : queryObject.query
-          if (typeof query === 'string') {
-            const shortQuery = query.length > 60 ? `${query.substring(0, 60)}...` : query
-            setCurrentActivity(`Suche nach „${shortQuery}“`)
-          }
+        if (typeof queryPayload === 'string') {
+          const shortQuery = queryPayload.length > 60
+            ? `${queryPayload.substring(0, 60)}...`
+            : queryPayload
+          setCurrentActivity(`Suche nach „${shortQuery}“`)
         }
       } else if (data.type === 'evidence.discovered') {
-        const result = data.data?.result
-        if (typeof result === 'string') {
-            const sourceMatches = result.match(/--- SOURCE \d+:/g)
-            if (sourceMatches && sourceMatches.length > 0) {
-              const newSourceCount = sourceMatches.length
-              setSourceCount(prev => prev + newSourceCount)
-
-              const titleRegex = /--- SOURCE \d+: (.+?) ---/g
-              const urlRegex = /URL: (.+?)$/gm
-              const titles: string[] = []
-              const urls: string[] = []
-
-              let match
-              while ((match = titleRegex.exec(result)) !== null) {
-                titles.push(match[1].trim())
-              }
-              while ((match = urlRegex.exec(result)) !== null) {
-                urls.push(match[1].trim())
-              }
-
-              const newSources: Source[] = []
-              for (let i = 0; i < Math.min(titles.length, urls.length); i++) {
-                const title = titles[i]
-                const url = urls[i]
-                const shortTitle = title.length > 80 ? title.substring(0, 80) + '...' : title
-                newSources.push({ title: shortTitle, url })
-              }
-              setSources(prev => {
-                const next = [...prev, ...newSources]
-                sourcesRef.current = next
-                return next
-              })
-            } else {
-              setSourceCount(prev => prev + 1)
-              setSources(prev => {
-                const next = [...prev, { title: 'Unbekannte Quelle', url: '#' }]
-                sourcesRef.current = next
-                return next
-              })
-            }
+        const evidence = data.data?.evidence
+        if (evidence) {
+          try {
+            const url = new URL(evidence.url)
+            if (!['http:', 'https:'].includes(url.protocol)) return
+            const title = evidence.title.length > 80
+              ? `${evidence.title.substring(0, 80)}...`
+              : evidence.title
+            const source = { title, url: url.toString() }
+            setSources(prev => {
+              if (prev.some(item => item.url === source.url)) return prev
+              const next = [...prev, source]
+              sourcesRef.current = next
+              return next
+            })
+          } catch {
+            // The backend applies the same URL policy; ignore malformed transport data.
+          }
         }
-      } else if (data.type === 'report.delta' && data.data?.chunk) {
-        setStreamingReport(prev => prev + data.data!.chunk)
       } else if (data.type === 'report.completed' && data.data?.content) {
         const report = data.data.content
         setMessages(prev => [...prev, { role: 'agent', content: report }])
-        setStreamingReport('')
         setIsCompleted(true)
         setPhases(prev => prev.map(phase => ({ ...phase, status: 'completed' })))
 
@@ -299,38 +260,67 @@ export default function ResearchWorkspace() {
           setHistoryEntries(getHistory())
         }
       } else if (data.type === 'run.completed') {
+        runSettledRef.current = true
         setIsCompleted(true)
         setIsStreaming(false)
-        eventSourceRef.current?.close()
       } else if (data.type === 'run.failed') {
-        const error = data.data?.error || data.message || 'Unbekannter Fehler'
+        runSettledRef.current = true
+        const error = data.message || 'Die Recherche konnte nicht abgeschlossen werden.'
         setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${error}` }])
         setIsStreaming(false)
-        eventSourceRef.current?.close()
       }
-    } catch (err) {
-      console.error('Parse error:', err)
-    }
   }
 
   const handleSendMessage = async (message: string) => {
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    runSettledRef.current = false
     pendingInquiryRef.current = message
     setActiveEntryId(null)
     setMessages(prev => [...prev, { role: 'user', content: message }])
     resetResearchState()
     setIsStreaming(true)
 
-    const url = `/api/research-runs/stream?session_id=${sessionId}&inquiry=${encodeURIComponent(message)}&model=${selectedModel}&mode=${selectedMode}`
-    const es = new EventSource(url)
+    try {
+      const response = await fetch('/api/research-runs/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inquiry: message, model: selectedModel, mode: selectedMode }),
+        signal: controller.signal,
+      })
+      if (!response.ok || !response.body) {
+        throw new Error(
+          response.status === 401
+            ? 'Die Sitzung ist abgelaufen. Bitte melde dich erneut an.'
+            : 'Der Recherchedienst ist momentan nicht erreichbar.',
+        )
+      }
 
-    es.onmessage = handleSSEMessage
-    es.onerror = () => {
-      console.error('EventSource error')
-      setIsStreaming(false)
-      es.close()
+      await consumeServerSentStream(response.body, (messageEvent) => {
+        try {
+          handleResearchEvent(JSON.parse(messageEvent.data) as ResearchEvent)
+        } catch {
+          console.error('Invalid research event received')
+        }
+      })
+      if (!runSettledRef.current) {
+        throw new Error('Der Recherchestream wurde unerwartet beendet.')
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return
+      if (!runSettledRef.current) {
+        const message = error instanceof Error
+          ? error.message
+          : 'Die Recherche konnte nicht gestartet werden.'
+        setMessages(prev => [...prev, { role: 'agent', content: `❌ Fehler: ${message}` }])
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null
+        setIsStreaming(false)
+      }
     }
-
-    eventSourceRef.current = es
   }
 
   return (
@@ -410,14 +400,11 @@ export default function ResearchWorkspace() {
               {showResearchTrail && (
                 <ResearchTrail
                   phases={phases}
-                  sourceCount={sourceCount}
+                  sourceCount={sources.length}
                   sources={sources}
                   currentActivity={currentActivity}
                   isCompleted={isCompleted}
                 />
-              )}
-              {streamingReport && (
-                <ResearchMessage message={{ role: 'agent', content: streamingReport }} />
               )}
               {messages.map((msg, idx) => {
                 // Show agent messages after research status
