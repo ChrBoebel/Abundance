@@ -32,6 +32,9 @@ citations can reference only admitted evidence.
   LangGraph node events or provider exceptions.
 - **Provider abstraction:** LangChain's `ChatOpenRouter` integration supplies
   schema-constrained planning and synthesis without tool binding.
+- **Measured semantic verification:** a pinned DeepSeek V4 Flash profile checks
+  claim/evidence meaning in shadow mode and must pass a reproducible component
+  gate before its output can influence reports.
 - **Cancellation end to end:** browser disconnects propagate through Next.js,
   FastAPI, LangGraph, and active provider calls.
 - **Durable operations:** PostgreSQL stores run status, public reports,
@@ -58,7 +61,8 @@ flowchart LR
     A --> Q["Shadow evidence assessment"]
     Q --> R["Counterevidence review"]
     R --> S["Structured synthesis"]
-    S --> E["Deterministic report and evaluation"]
+    S --> V["Shadow claim verification"]
+    V --> E["Deterministic report and evaluation"]
 ```
 
 The user-facing modes select hard budgets:
@@ -101,10 +105,12 @@ Key modules:
 | `backend/src/abundance_research/application/graph.py` | Typed LangGraph topology and nodes |
 | `backend/src/abundance_research/application/policy.py` | Code-enforced budgets and source admission |
 | `backend/src/abundance_research/application/evidence_assessment.py` | Quote binding, content fingerprints, and shadow quality summaries |
+| `backend/src/abundance_research/application/claim_verification.py` | Deterministic claim/quote binding and verification summaries |
 | `backend/src/abundance_research/adapters/` | LangChain/OpenRouter and Tavily integrations |
 | `backend/src/abundance_research/events.py` | Stable streaming event contract |
 | `backend/src/abundance_research/persistence.py` | Run, feedback, and capability-share persistence |
 | `backend/src/abundance_research/eval_harness.py` | Reference-dataset and live quality evaluation |
+| `backend/src/abundance_research/claim_verification_eval_harness.py` | Multi-trial semantic verification promotion gate |
 | `frontend/app/api/research-runs/stream/` | Authenticated, cancellation-aware BFF proxy |
 | `frontend/lib/research-records.ts` | Runtime-safe persisted-report adapters |
 | `frontend/lib/sse.ts` | Chunk-safe browser SSE decoder |

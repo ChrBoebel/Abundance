@@ -79,6 +79,7 @@ Validate the source-controlled dataset without provider calls:
 ```bash
 python -m abundance_research.eval_harness --validate-only
 python -m abundance_research.assessment_eval_harness --validate-only
+python -m abundance_research.claim_verification_eval_harness --validate-only
 ```
 
 The assessment fixture also has a source-controlled legacy baseline that
@@ -97,6 +98,25 @@ python -m abundance_research.assessment_eval_harness \
   --model mercury \
   --output evals/results/evidence-assessment-candidate.json
 ```
+
+Claim verification has a separate component gate. It pins the reviewed
+`deepseek/deepseek-v4-flash-0731` profile behind the
+`deepseek-v4-flash` alias and executes three independent trials with bounded
+parallelism:
+
+```bash
+python -m abundance_research.claim_verification_eval_harness \
+  --model deepseek-v4-flash \
+  --runs 3 \
+  --max-concurrency 3 \
+  --output evals/results/claim-verification-candidate.json
+```
+
+Promotion requires a mean pass rate of at least 80%, every trial at least 70%,
+and an improvement over the source-controlled legacy baseline. The accepted v3
+artifact records 88.9% mean and 83.3% minimum accuracy across three trials.
+Local candidate artifacts remain ignored; only reviewed baselines belong in
+version control.
 
 Create a live candidate artifact and compare it with an accepted, like-for-like
 baseline:
