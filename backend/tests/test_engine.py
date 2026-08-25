@@ -1,6 +1,8 @@
 import asyncio
+import json
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from abundance_research.application.contracts import ResearchCommand
 from abundance_research.application.engine import AbundanceResearchEngine
@@ -88,6 +90,15 @@ def command(mode: ResearchMode = ResearchMode.BALANCED) -> ResearchCommand:
     return ResearchCommand(run_id="run-test", inquiry=inquiry, model="mercury", mode=mode)
 
 
+def test_research_command_round_trips_through_json_graph_state() -> None:
+    original = command(ResearchMode.THOROUGH)
+
+    payload = json.loads(json.dumps(original.to_payload()))
+    restored = ResearchCommand.from_payload(payload)
+
+    assert restored == original
+
+
 @pytest.mark.asyncio
 async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> None:
     source = TrackingEvidenceSource()
@@ -109,6 +120,18 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
     assert report["claims"][0]["evidence_ids"] == [report["evidence"][0]["id"]]
     assert "<script>" not in completed.data["content"]
     assert completed.data["evaluation"]["broken_evidence_links"] == 0
+
+    graph_nodes = set(engine.workflow.compiled.get_graph().nodes)
+    assert graph_nodes == {
+        "__start__",
+        "scope_inquiry",
+        "create_plan",
+        "collect_evidence",
+        "review_evidence",
+        "synthesize_report",
+        "__end__",
+    }
+    assert "langgraph" not in "".join(event.model_dump_json() for event in events).casefold()
 
 
 class FailingEvidenceSource:
@@ -173,3 +196,59 @@ async def test_engine_streams_only_policy_admitted_evidence() -> None:
     assert all(event.data["evidence"]["url"].startswith("https://") for event in discovered)
     assert all("utm_campaign" not in event.data["evidence"]["url"] for event in discovered)
     assert "javascript:" not in "".join(event.model_dump_json() for event in events)
+
+
+@pytest.mark.asyncio
+async def test_graph_checkpoint_contains_serializable_abundance_state() -> None:
+    checkpointer = InMemorySaver()
+    engine = AbundanceResearchEngine(
+        FakePlanner(),
+        [TrackingEvidenceSource()],
+        InventingSynthesizer(),
+        checkpointer=checkpointer,
+    )
+
+    events = [event async for event in engine.stream(command(ResearchMode.QUICK))]
+    snapshot = await engine.workflow.compiled.aget_state(
+        {"configurable": {"thread_id": "run-test"}}
+    )
+
+    assert events[-1].type == "run.completed"
+    assert snapshot.values["report"]["title"] == "Bound report"
+    json.dumps(snapshot.values)
+
+
+class BlockingEvidenceSource:
+    name = "blocking-source"
+
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.cancelled = asyncio.Event()
+
+    async def search(self, unit: ResearchUnit, *, max_results: int) -> list[EvidenceRecord]:
+        self.started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+        return []
+
+
+@pytest.mark.asyncio
+async def test_stream_cancellation_reaches_running_graph_node() -> None:
+    source = BlockingEvidenceSource()
+    engine = AbundanceResearchEngine(FakePlanner(), [source], InventingSynthesizer())
+
+    async def consume() -> None:
+        async for _ in engine.stream(command(ResearchMode.QUICK)):
+            pass
+
+    task = asyncio.create_task(consume())
+    await asyncio.wait_for(source.started.wait(), timeout=1)
+    await asyncio.sleep(0)
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    await asyncio.wait_for(source.cancelled.wait(), timeout=1)

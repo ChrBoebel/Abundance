@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Sequence
+from typing import Any, Protocol, Sequence
 
 from abundance_research.domain import (
     EvidenceRecord,
@@ -23,6 +23,26 @@ class ResearchCommand:
     inquiry: Inquiry
     model: str
     mode: ResearchMode
+
+    def to_payload(self) -> dict[str, Any]:
+        """Serialize the command for LangGraph state and checkpointing."""
+        return {
+            "run_id": self.run_id,
+            "inquiry": self.inquiry.model_dump(mode="json"),
+            "model": self.model,
+            "mode": self.mode.value,
+        }
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> ResearchCommand:
+        """Reconstruct a command at an application-node boundary."""
+        inquiry = Inquiry.model_validate(payload["inquiry"])
+        return cls(
+            run_id=str(payload["run_id"]),
+            inquiry=inquiry,
+            model=str(payload["model"]),
+            mode=ResearchMode(payload["mode"]),
+        )
 
 
 class PlanningModel(Protocol):
