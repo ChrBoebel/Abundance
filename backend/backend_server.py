@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
-"""
-FastAPI Backend Server for Deep Research.
-Provides SSE streaming endpoint for research queries.
-"""
-import sys
+"""FastAPI and SSE entrypoint for Abundance research runs."""
+
 import json
-import asyncio
-from pathlib import Path
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import os
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(project_root / "src"))
+# Support direct local execution without requiring an editable install.
+backend_root = Path(__file__).parent
+sys.path.insert(0, str(backend_root / "src"))
 
 from abundance_research import __version__
+from abundance_research.domain import ResearchMode
+from abundance_research.events import ResearchEvent, ResearchEventMapper
 from abundance_research.workflow import abundance_workflow
 
 app = FastAPI(
@@ -42,9 +41,17 @@ app.add_middleware(
 
 
 class ResearchRequest(BaseModel):
-    """Research request payload."""
+    """Legacy research request payload."""
     message: str
     model: str = "mercury"
+
+
+class ResearchRunRequest(BaseModel):
+    """Public request contract for a new Abundance research run."""
+
+    inquiry: str
+    model: str = "mercury"
+    mode: ResearchMode = ResearchMode.BALANCED
 
 
 # Mapping from frontend model keys to OpenRouter model IDs
@@ -76,24 +83,50 @@ def serialize_event(event):
     return convert(event)
 
 
-async def stream_research_events(message: str, model: str = "mercury"):
-    """Stream research events as SSE."""
-    try:
-        # Resolve model key to OpenRouter model ID
-        model_id = MODEL_MAP.get(model, MODEL_MAP["mercury"])
+RESEARCH_PROFILES = {
+    ResearchMode.QUICK: {
+        "max_concurrent_research_units": 1,
+        "max_researcher_iterations": 2,
+        "max_react_tool_calls": 3,
+    },
+    ResearchMode.BALANCED: {
+        "max_concurrent_research_units": 3,
+        "max_researcher_iterations": 3,
+        "max_react_tool_calls": 4,
+    },
+    ResearchMode.THOROUGH: {
+        "max_concurrent_research_units": 5,
+        "max_researcher_iterations": 5,
+        "max_react_tool_calls": 8,
+    },
+}
 
-        # Build configuration with single model for all roles
-        config = {
-            "configurable": {
-                "research_model": model_id,
-                "summarization_model": model_id,
-                "compression_model": model_id,
-                "final_report_model": model_id,
-                "search_api": "tavily",
-                "allow_clarification": False,
-                "max_concurrent_research_units": 3,
-            }
+
+def build_workflow_config(model: str, mode: ResearchMode = ResearchMode.BALANCED):
+    """Build runtime configuration from a product-level research profile."""
+
+    model_id = MODEL_MAP.get(model, MODEL_MAP["mercury"])
+    return {
+        "configurable": {
+            "research_model": model_id,
+            "summarization_model": model_id,
+            "compression_model": model_id,
+            "final_report_model": model_id,
+            "search_api": "tavily",
+            "allow_clarification": False,
+            **RESEARCH_PROFILES[mode],
         }
+    }
+
+
+async def stream_graph_events(
+    message: str,
+    model: str = "mercury",
+    mode: ResearchMode = ResearchMode.BALANCED,
+):
+    """Stream legacy graph events for backwards compatibility."""
+    try:
+        config = build_workflow_config(model, mode)
 
         # Stream events from abundance_workflow
         async for event in abundance_workflow.astream_events(
@@ -117,6 +150,35 @@ async def stream_research_events(message: str, model: str = "mercury"):
         yield f"data: {json.dumps(error_event)}\n\n"
 
 
+async def stream_abundance_events(request: ResearchRunRequest):
+    """Stream framework-independent Abundance events as SSE."""
+
+    mapper = ResearchEventMapper()
+    try:
+        config = build_workflow_config(request.model, request.mode)
+        async for raw_event in abundance_workflow.astream_events(
+            {"messages": [{"role": "user", "content": request.inquiry}]},
+            config=config,
+            version="v2",
+        ):
+            serialized = serialize_event(raw_event)
+            for event in mapper.map(serialized):
+                yield f"data: {event.model_dump_json(exclude_none=True)}\n\n"
+
+        completed = ResearchEvent(
+            type="run.completed",
+            message="Recherche abgeschlossen",
+        )
+        yield f"data: {completed.model_dump_json(exclude_none=True)}\n\n"
+    except Exception as exc:
+        failed = ResearchEvent(
+            type="run.failed",
+            message="Recherche fehlgeschlagen",
+            data={"error": str(exc)},
+        )
+        yield f"data: {failed.model_dump_json(exclude_none=True)}\n\n"
+
+
 @app.post("/research/stream")
 async def research_stream(request: ResearchRequest):
     """
@@ -133,13 +195,31 @@ async def research_stream(request: ResearchRequest):
         raise HTTPException(status_code=400, detail="Message is required")
 
     return StreamingResponse(
-        stream_research_events(request.message, request.model),
+        stream_graph_events(request.message, request.model),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         }
+    )
+
+
+@app.post("/api/v1/research-runs/stream")
+async def research_run_stream(request: ResearchRunRequest):
+    """Create a research run and stream stable Abundance domain events."""
+
+    if not request.inquiry.strip():
+        raise HTTPException(status_code=400, detail="Inquiry is required")
+
+    return StreamingResponse(
+        stream_abundance_events(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
