@@ -101,6 +101,7 @@ jobs:
         run: |
           python -m abundance_research.eval_harness --dataset evals/reference-cases.json --validate-only
           python -m abundance_research.assessment_eval_harness --dataset evals/evidence-assessment-cases.json --validate-only
+          python -m abundance_research.claim_verification_eval_harness --dataset evals/claim-verification-cases.json --validate-only
 
       - name: Audit Python dependencies
         run: python -m pip_audit
