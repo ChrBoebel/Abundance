@@ -10,10 +10,10 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import InjectedToolArg, tool
 from tavily import AsyncTavilyClient
 
-from open_deep_research.configuration import Configuration
-from open_deep_research.prompts import summarize_webpage_prompt
-from open_deep_research.state import Summary
-from open_deep_research.utils.model_utils import (
+from abundance_research.configuration import Configuration
+from abundance_research.prompts import summarize_webpage_prompt
+from abundance_research.state import Summary
+from abundance_research.utils.model_utils import (
     init_chat_model_wrapper,
     get_api_key_for_model,
     get_tavily_api_key,

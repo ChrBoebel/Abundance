@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Literal
 
-from open_deep_research.utils import init_chat_model_wrapper, prepare_model_config
+from abundance_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
@@ -19,17 +19,17 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
-from open_deep_research.configuration import Configuration
-from open_deep_research.prompts import (
+from abundance_research.configuration import Configuration
+from abundance_research.prompts import (
     compress_research_simple_human_message,
     compress_research_system_prompt,
     research_system_prompt,
 )
-from open_deep_research.state import (
+from abundance_research.state import (
     ResearcherOutputState,
     ResearcherState,
 )
-from open_deep_research.utils import (
+from abundance_research.utils import (
     anthropic_websearch_called,
     build_reasoning_config,
     create_cached_message,

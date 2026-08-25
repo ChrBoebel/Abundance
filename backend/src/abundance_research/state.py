@@ -1,4 +1,4 @@
-"""Graph state definitions and data structures for the Deep Research agent."""
+"""Graph state and domain data structures for Abundance research runs."""
 
 import operator
 from typing import Annotated, Optional

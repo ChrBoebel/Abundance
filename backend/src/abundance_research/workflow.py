@@ -1,4 +1,4 @@
-"""Main LangGraph implementation for the Deep Research agent.
+"""Main LangGraph implementation for the Abundance research workflow.
 
 This module orchestrates the complete deep research workflow, integrating
 clarification, research supervision, and final report generation phases.
@@ -8,17 +8,17 @@ import asyncio
 import logging
 import re
 
-from open_deep_research.utils import init_chat_model_wrapper
+from abundance_research.utils import init_chat_model_wrapper
 from langchain_core.messages import AIMessage, HumanMessage, get_buffer_string
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
-from open_deep_research.clarification import clarify_with_user, write_research_brief
-from open_deep_research.configuration import Configuration
-from open_deep_research.prompts import final_report_generation_prompt
-from open_deep_research.state import AgentInputState, AgentState
-from open_deep_research.supervisor import supervisor_subgraph
-from open_deep_research.utils import (
+from abundance_research.clarification import clarify_with_user, write_research_brief
+from abundance_research.configuration import Configuration
+from abundance_research.prompts import final_report_generation_prompt
+from abundance_research.state import AgentInputState, AgentState
+from abundance_research.supervisor import supervisor_subgraph
+from abundance_research.utils import (
     build_reasoning_config,
     calculate_backoff_delay,
     get_api_key_for_model,
@@ -201,22 +201,22 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
 
 # Main Deep Researcher Graph Construction
 # Creates the complete deep research workflow from user input to final report
-deep_researcher_builder = StateGraph(
+abundance_workflow_builder = StateGraph(
     AgentState,
     input=AgentInputState,
     config_schema=Configuration
 )
 
 # Add main workflow nodes for the complete research process
-deep_researcher_builder.add_node("clarify_with_user", clarify_with_user)           # User clarification phase
-deep_researcher_builder.add_node("write_research_brief", write_research_brief)     # Research planning phase
-deep_researcher_builder.add_node("research_supervisor", supervisor_subgraph)       # Research execution phase
-deep_researcher_builder.add_node("final_report_generation", final_report_generation)  # Report generation phase
+abundance_workflow_builder.add_node("clarify_with_user", clarify_with_user)           # User clarification phase
+abundance_workflow_builder.add_node("write_research_brief", write_research_brief)     # Research planning phase
+abundance_workflow_builder.add_node("research_supervisor", supervisor_subgraph)       # Research execution phase
+abundance_workflow_builder.add_node("final_report_generation", final_report_generation)  # Report generation phase
 
 # Define main workflow edges for sequential execution
-deep_researcher_builder.add_edge(START, "clarify_with_user")                       # Entry point
-deep_researcher_builder.add_edge("research_supervisor", "final_report_generation") # Research to report
-deep_researcher_builder.add_edge("final_report_generation", END)                   # Final exit point
+abundance_workflow_builder.add_edge(START, "clarify_with_user")                       # Entry point
+abundance_workflow_builder.add_edge("research_supervisor", "final_report_generation") # Research to report
+abundance_workflow_builder.add_edge("final_report_generation", END)                   # Final exit point
 
 # Compile the complete deep researcher workflow
-deep_researcher = deep_researcher_builder.compile()
+abundance_workflow = abundance_workflow_builder.compile()

@@ -6,7 +6,7 @@ user clarification and research brief generation.
 
 from typing import Literal
 
-from open_deep_research.utils import init_chat_model_wrapper, prepare_model_config
+from abundance_research.utils import init_chat_model_wrapper, prepare_model_config
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -17,18 +17,18 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END
 from langgraph.types import Command
 
-from open_deep_research.configuration import Configuration
-from open_deep_research.prompts import (
+from abundance_research.configuration import Configuration
+from abundance_research.prompts import (
     clarify_with_user_instructions,
     lead_researcher_prompt,
     transform_messages_into_research_topic_prompt,
 )
-from open_deep_research.state import (
+from abundance_research.state import (
     AgentState,
     ClarifyWithUser,
     ResearchQuestion,
 )
-from open_deep_research.utils import (
+from abundance_research.utils import (
     create_cached_message,
     get_api_key_for_model,
     get_today_str,

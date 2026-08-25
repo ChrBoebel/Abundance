@@ -4,7 +4,7 @@ This module re-exports all utilities from the submodules for backward compatibil
 """
 
 # Model Utils
-from open_deep_research.utils.model_utils import (
+from abundance_research.utils.model_utils import (
     strip_openrouter_prefix,
     prepare_model_config,
     build_reasoning_config,
@@ -20,7 +20,7 @@ from open_deep_research.utils.model_utils import (
 )
 
 # Search Tools
-from open_deep_research.utils.search_tools import (
+from abundance_research.utils.search_tools import (
     TAVILY_SEARCH_DESCRIPTION,
     tavily_search,
     ARXIV_SEARCH_DESCRIPTION,
@@ -32,14 +32,14 @@ from open_deep_research.utils.search_tools import (
 )
 
 # Error Handling
-from open_deep_research.utils.error_handling import (
+from abundance_research.utils.error_handling import (
     is_token_limit_exceeded,
     is_retryable_api_error,
     calculate_backoff_delay,
 )
 
 # MCP Tools
-from open_deep_research.utils.mcp_tools import (
+from abundance_research.utils.mcp_tools import (
     get_mcp_access_token,
     get_tokens,
     set_tokens,
@@ -49,7 +49,7 @@ from open_deep_research.utils.mcp_tools import (
 )
 
 # Tool Management
-from open_deep_research.utils.tool_management import (
+from abundance_research.utils.tool_management import (
     think_tool,
     get_search_tool,
     get_all_tools,

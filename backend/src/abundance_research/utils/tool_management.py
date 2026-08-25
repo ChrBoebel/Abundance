@@ -4,11 +4,11 @@ from langchain_core.messages import MessageLikeRepresentation, filter_messages
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 
-from open_deep_research.configuration import Configuration, SearchAPI
-from open_deep_research.state import ResearchComplete
-from open_deep_research.utils.mcp_tools import load_mcp_tools
-from open_deep_research.utils.model_utils import get_config_value
-from open_deep_research.utils.search_tools import tavily_search, arxiv_search, pubmed_search
+from abundance_research.configuration import Configuration, SearchAPI
+from abundance_research.state import ResearchComplete
+from abundance_research.utils.mcp_tools import load_mcp_tools
+from abundance_research.utils.model_utils import get_config_value
+from abundance_research.utils.search_tools import tavily_search, arxiv_search, pubmed_search
 
 
 ##########################

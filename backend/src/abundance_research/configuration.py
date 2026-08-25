@@ -1,4 +1,4 @@
-"""Configuration management for the Open Deep Research system."""
+"""Configuration for the Abundance research workflow."""
 
 import os
 from enum import Enum

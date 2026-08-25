@@ -1,4 +1,4 @@
-"""System prompts and prompt templates for the Deep Research agent."""
+"""Prompt templates for Abundance research and evidence synthesis."""
 
 clarify_with_user_instructions="""
 These are the messages that have been exchanged so far from the user asking for the report:

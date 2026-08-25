@@ -22,9 +22,14 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "src"))
 
-from open_deep_research.deep_researcher import deep_researcher
+from abundance_research import __version__
+from abundance_research.workflow import abundance_workflow
 
-app = FastAPI(title="Deep Research Backend", version="1.0.0")
+app = FastAPI(
+    title="Abundance Research API",
+    description="Evidence-oriented research orchestration for Abundance.",
+    version=__version__,
+)
 
 # CORS middleware for Next.js frontend
 app.add_middleware(
@@ -90,8 +95,8 @@ async def stream_research_events(message: str, model: str = "mercury"):
             }
         }
 
-        # Stream events from deep_researcher
-        async for event in deep_researcher.astream_events(
+        # Stream events from abundance_workflow
+        async for event in abundance_workflow.astream_events(
             {"messages": [{"role": "user", "content": message}]},
             config=config,
             version="v2"
@@ -141,7 +146,7 @@ async def research_stream(request: ResearchRequest):
 @app.get("/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "healthy", "version": "1.0.0"}
+    return {"status": "healthy", "version": __version__}
 
 
 if __name__ == "__main__":

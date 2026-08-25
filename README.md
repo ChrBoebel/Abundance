@@ -122,7 +122,7 @@ The UI runs at `http://localhost:4290`.
 | Area | Purpose |
 | --- | --- |
 | `backend/backend_server.py` | FastAPI entrypoint and SSE bridge |
-| `backend/src/open_deep_research/` | LangGraph workflow, prompts, model utilities, research logic |
+| `backend/src/abundance_research/` | LangGraph workflow, prompts, model utilities, research logic |
 | `frontend/app/` | Next.js routes, pages, and server endpoints |
 | `frontend/components/` | UI building blocks for chat, streaming state, and report display |
 | `frontend/lib/` | Auth, session, research stream mapping, and shared types |
@@ -135,7 +135,7 @@ The UI runs at `http://localhost:4290`.
 │   ├── backend_server.py
 │   ├── docker-compose.yml
 │   ├── README.md
-│   └── src/open_deep_research/
+│   └── src/abundance_research/
 ├── frontend/
 │   ├── app/
 │   ├── components/

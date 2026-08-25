@@ -12,7 +12,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.config import get_store
 from mcp import McpError
 
-from open_deep_research.configuration import Configuration
+from abundance_research.configuration import Configuration
 
 
 ##########################
