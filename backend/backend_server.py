@@ -6,9 +6,11 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import logging
 import os
 import re
 import sys
+import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,7 +18,7 @@ from typing import Any
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
@@ -42,6 +44,7 @@ from abundance_research.runtime import open_runtime
 from abundance_research.settings import AbundanceSettings
 
 EngineFactory = Callable[[], Any]
+logger = logging.getLogger(__name__)
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,100}$")
 _SHARE_TOKEN = re.compile(r"^[A-Za-z0-9_-]{32,100}$")
 
@@ -201,11 +204,35 @@ def create_app(
 
     @application.middleware("http")
     async def correlation_header(request: Request, call_next):
+        started = time.perf_counter()
         supplied = request.headers.get("x-request-id", "")
         request_id = supplied if _REQUEST_ID.fullmatch(supplied) else f"req-{uuid4().hex}"
         request.state.request_id = request_id
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.exception(
+                "HTTP request failed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "duration_ms": int((time.perf_counter() - started) * 1000),
+                    "status_code": 500,
+                },
+            )
+            raise
         response.headers["X-Request-ID"] = request_id
+        logger.info(
+            "HTTP request completed",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "duration_ms": int((time.perf_counter() - started) * 1000),
+                "status_code": response.status_code,
+            },
+        )
         return response
 
     @application.post("/api/v1/research-runs/stream")
@@ -282,13 +309,21 @@ def create_app(
         return {"token": token, "url": f"{runtime.share_base_url}/{token}"}
 
     @application.get("/api/v1/shared/{token}")
-    async def get_shared_research(token: str, request: Request):
+    async def get_shared_research(token: str, request: Request, response: Response):
         if not _SHARE_TOKEN.fullmatch(token):
             raise HTTPException(status_code=404, detail="Shared research not found")
         item = await request.app.state.repository.get_shared(token)
         if item is None:
             raise HTTPException(status_code=404, detail="Shared research not found")
-        return item.model_dump(mode="json")
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        # A capability link exposes the completed public report, not the
+        # original inquiry, internal metrics/cost, provider errors, or IDs.
+        return {
+            "report": item.report,
+            "evaluation": item.evaluation,
+            "created_at": item.created_at.isoformat(),
+        }
 
     @application.get("/health")
     async def health():

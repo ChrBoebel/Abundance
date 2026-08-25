@@ -54,3 +54,8 @@ def test_settings_validate_database_pool_and_share_boundary() -> None:
 def test_settings_reject_database_pool_inversion() -> None:
     with pytest.raises(ValidationError):
         AbundanceSettings(database_pool_min_size=5, database_pool_max_size=2)
+
+
+def test_network_deployment_requires_internal_api_token() -> None:
+    with pytest.raises(ValidationError):
+        AbundanceSettings(deployment_environment="production")

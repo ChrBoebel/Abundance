@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 
 
 class AbundanceSettings(BaseModel):
@@ -28,6 +28,7 @@ class AbundanceSettings(BaseModel):
     database_pool_max_size: int = Field(default=10, ge=1, le=100)
     share_base_url: str = "http://localhost:4290/shared"
     log_level: str = "INFO"
+    deployment_environment: Literal["development", "test", "staging", "production"] = "development"
 
     @field_validator("cors_origins")
     @classmethod
@@ -74,6 +75,13 @@ class AbundanceSettings(BaseModel):
         if normalized not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
             raise ValueError("log_level is not supported")
         return normalized
+
+    @model_validator(mode="after")
+    def require_production_boundaries(self) -> AbundanceSettings:
+        """Fail closed when a network deployment omits internal authentication."""
+        if self.deployment_environment in {"staging", "production"} and self.internal_api_token is None:
+            raise ValueError("internal_api_token is required in staging and production")
+        return self
 
     @classmethod
     def from_environment(

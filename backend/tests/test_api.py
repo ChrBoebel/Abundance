@@ -17,7 +17,11 @@ class FakeEngine:
             data={
                 "run_id": command.run_id,
                 "content": "# Safe report",
-                "report": {"title": "Safe report", "markdown": "# Safe report", "claims": []},
+                "report": {
+                    "title": "Safe report",
+                    "markdown": "# Safe report",
+                    "claims": [{"id": "claim-1"}],
+                },
                 "evaluation": {"claim_evidence_coverage": 1.0},
             },
         )
@@ -53,7 +57,10 @@ def test_stream_api_uses_domain_contract_and_monotonic_event_ids() -> None:
     public = client.get(f"/api/v1/shared/{shared.json()['token']}")
     assert shared.status_code == 200
     assert public.status_code == 200
+    assert public.headers["cache-control"] == "private, no-store"
+    assert public.headers["x-robots-tag"] == "noindex, nofollow, noarchive"
     assert public.json()["report"]["title"] == "Safe report"
+    assert set(public.json()) == {"report", "evaluation", "created_at"}
 
     feedback = client.post(
         f"/api/v1/research-runs/{run_id}/feedback",

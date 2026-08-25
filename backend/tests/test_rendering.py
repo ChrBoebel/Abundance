@@ -82,8 +82,10 @@ def test_public_report_omits_raw_evidence_content_and_metadata() -> None:
         ],
     )
 
-    payload = public_report_payload(report)
+    finalized = finalize_report(report)
+    payload = public_report_payload(finalized)
 
     assert payload["evidence"][0]["title"] == "Visible title"
+    assert payload["markdown"] == finalized.markdown
     assert "excerpt" not in payload["evidence"][0]
     assert "metadata" not in payload["evidence"][0]

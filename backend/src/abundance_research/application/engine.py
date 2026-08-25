@@ -76,6 +76,29 @@ class AbundanceResearchEngine:
         event_count = 0
         evidence_count = 0
         claim_count = 0
+        metrics_emitted = False
+
+        def finish_metrics(now: float) -> RunMetrics:
+            nonlocal current_stage, stage_started, metrics_emitted
+            if current_stage is not None:
+                stage_durations[current_stage] = stage_durations.get(current_stage, 0) + int(
+                    (now - stage_started) * 1000
+                )
+                current_stage = None
+            usage = ModelUsage()
+            for reporter in self._usage_reporters:
+                usage = usage.add(reporter.drain_usage(command.inquiry.id))
+            metrics_emitted = True
+            return RunMetrics(
+                duration_ms=int((now - started) * 1000),
+                stage_duration_ms=stage_durations,
+                event_count=event_count,
+                evidence_count=evidence_count,
+                claim_count=claim_count,
+                model=command.model,
+                mode=command.mode.value,
+                usage=usage,
+            )
         try:
             async for chunk in self.workflow.compiled.astream(
                 initial_state,
@@ -97,26 +120,9 @@ class AbundanceResearchEngine:
                     current_stage = next_stage
                     stage_started = now
                 if event.type == "run.completed":
-                    if current_stage is not None:
-                        stage_durations[current_stage] = stage_durations.get(current_stage, 0) + int(
-                            (now - stage_started) * 1000
-                        )
-                        current_stage = None
                     evidence_count = int(event.data.get("evidence_count", 0))
                     claim_count = int(event.data.get("claim_count", 0))
-                    usage = ModelUsage()
-                    for reporter in self._usage_reporters:
-                        usage = usage.add(reporter.drain_usage(command.inquiry.id))
-                    metrics = RunMetrics(
-                        duration_ms=int((now - started) * 1000),
-                        stage_duration_ms=stage_durations,
-                        event_count=event_count,
-                        evidence_count=evidence_count,
-                        claim_count=claim_count,
-                        model=command.model,
-                        mode=command.mode.value,
-                        usage=usage,
-                    )
+                    metrics = finish_metrics(now)
                     logger.info(
                         "Research run completed",
                         extra={"run_id": command.run_id, "duration_ms": metrics.duration_ms},
@@ -134,6 +140,12 @@ class AbundanceResearchEngine:
             logger.info("Research run cancelled", extra={"run_id": command.run_id})
             raise
         except ResearchFailure as exc:
+            metrics = finish_metrics(time.perf_counter())
+            yield ResearchEvent(
+                type="run.metrics",
+                message="Laufmetriken erfasst",
+                data={"run_id": command.run_id, "metrics": metrics.model_dump(mode="json")},
+            )
             logger.warning(
                 "Research run failed: %s",
                 exc.code.value,
@@ -145,6 +157,12 @@ class AbundanceResearchEngine:
                 data={"run_id": command.run_id, **exc.public_data(command.run_id)},
             )
         except Exception:
+            metrics = finish_metrics(time.perf_counter())
+            yield ResearchEvent(
+                type="run.metrics",
+                message="Laufmetriken erfasst",
+                data={"run_id": command.run_id, "metrics": metrics.model_dump(mode="json")},
+            )
             logger.exception("Unexpected research failure", extra={"run_id": command.run_id})
             failure = ResearchFailure(
                 FailureCode.INTERNAL,
@@ -156,4 +174,7 @@ class AbundanceResearchEngine:
                 data={"run_id": command.run_id, **failure.public_data(command.run_id)},
             )
         finally:
+            if not metrics_emitted:
+                for reporter in self._usage_reporters:
+                    reporter.drain_usage(command.inquiry.id)
             self.workflow.finish_run(command.run_id)

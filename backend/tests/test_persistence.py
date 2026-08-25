@@ -20,7 +20,7 @@ async def test_memory_repository_preserves_run_feedback_and_capability_share() -
     await repository.create(research_command)
     await repository.complete(
         research_command.run_id,
-        {"title": "Durable result", "claims": []},
+        {"title": "Durable result", "claims": [{"id": "claim-1"}]},
         {"claim_evidence_coverage": 1.0},
     )
     await repository.record_metrics(research_command.run_id, {"duration_ms": 25})
@@ -35,6 +35,9 @@ async def test_memory_repository_preserves_run_feedback_and_capability_share() -
     assert stored.status == "completed"
     assert stored.metrics == {"duration_ms": 25}
     assert feedback_id.startswith("feedback-")
+    assert await repository.add_feedback(
+        RunFeedback(run_id=research_command.run_id, claim_id="claim-1", rating=-1)
+    ) == feedback_id
     assert shared == stored
     assert await repository.get_shared(f"{token}x") is None
 

@@ -36,7 +36,7 @@ class RunFeedback(BaseModel):
     """One explicit user judgment attached to a report or claim."""
 
     run_id: str
-    claim_id: str | None = None
+    claim_id: str | None = Field(default=None, max_length=100)
     rating: int = Field(ge=-1, le=1)
     note: str | None = Field(default=None, max_length=2000)
 
@@ -77,7 +77,7 @@ class InMemoryResearchRunRepository:
 
     def __init__(self) -> None:
         self._runs: dict[str, StoredResearchRun] = {}
-        self._feedback: dict[str, RunFeedback] = {}
+        self._feedback: dict[tuple[str, str], tuple[str, RunFeedback]] = {}
         self._shares: dict[str, str] = {}
         self._lock = asyncio.Lock()
 
@@ -142,11 +142,16 @@ class InMemoryResearchRunRepository:
             return values[:limit]
 
     async def add_feedback(self, feedback: RunFeedback) -> str:
-        feedback_id = f"feedback-{uuid4().hex}"
         async with self._lock:
-            if feedback.run_id not in self._runs:
+            run = self._runs.get(feedback.run_id)
+            if run is None or run.status != "completed" or run.report is None:
                 raise KeyError(feedback.run_id)
-            self._feedback[feedback_id] = feedback
+            if feedback.claim_id and not _report_has_claim(run.report, feedback.claim_id):
+                raise KeyError(feedback.claim_id)
+            key = (feedback.run_id, feedback.claim_id or "")
+            existing = self._feedback.get(key)
+            feedback_id = existing[0] if existing else f"feedback-{uuid4().hex}"
+            self._feedback[key] = (feedback_id, feedback)
         return feedback_id
 
     async def create_share(self, run_id: str) -> str:
@@ -169,6 +174,13 @@ class InMemoryResearchRunRepository:
 
 def _token_digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _report_has_claim(report: dict[str, Any], claim_id: str) -> bool:
+    claims = report.get("claims")
+    return isinstance(claims, list) and any(
+        isinstance(claim, dict) and claim.get("id") == claim_id for claim in claims
+    )
 
 
 class PostgresResearchRunRepository:
@@ -260,6 +272,15 @@ class PostgresResearchRunRepository:
     async def add_feedback(self, feedback: RunFeedback) -> str:
         feedback_id = f"feedback-{uuid4().hex}"
         async with self._pool.connection() as connection:
+            lookup = await connection.execute(
+                "SELECT status, report FROM abundance_research_runs WHERE id = %s",
+                (feedback.run_id,),
+            )
+            run = await lookup.fetchone()
+            if run is None or run["status"] != "completed" or run["report"] is None:
+                raise KeyError(feedback.run_id)
+            if feedback.claim_id and not _report_has_claim(run["report"], feedback.claim_id):
+                raise KeyError(feedback.claim_id)
             cursor = await connection.execute(
                 """
                 INSERT INTO abundance_research_feedback

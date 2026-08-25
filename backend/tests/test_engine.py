@@ -155,6 +155,8 @@ async def test_engine_never_streams_private_provider_errors() -> None:
     events = [event async for event in engine.stream(command(ResearchMode.QUICK))]
 
     assert events[-1].type == "run.failed"
+    assert events[-2].type == "run.metrics"
+    assert events[-2].data["metrics"]["duration_ms"] >= 0
     payload = events[-1].model_dump_json()
     assert "private provider details" not in payload
     assert events[-1].data["code"] == "provider_unavailable"

@@ -100,6 +100,10 @@ def public_report_payload(report: ResearchReport) -> dict[str, Any]:
             for record in report.evidence
         ],
         "open_questions": [item.model_dump(mode="json") for item in report.open_questions],
+        # This Markdown is rendered from the same public fields above. Keeping
+        # it with the run lets history and capability shares reproduce the
+        # exact report without retaining raw source excerpts.
+        "markdown": report.markdown,
         "completed_at": report.completed_at.isoformat(),
     }
 

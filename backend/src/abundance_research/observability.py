@@ -52,6 +52,8 @@ class JsonLogFormatter(logging.Formatter):
         "event_type",
         "duration_ms",
         "status_code",
+        "method",
+        "path",
     )
 
     def format(self, record: logging.LogRecord) -> str:
