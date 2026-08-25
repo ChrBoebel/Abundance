@@ -6,7 +6,8 @@
     "dev": "next dev -p ${PORT:-4290}",
     "build": "next build",
     "start": "next start -p ${PORT:-4290}",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",
