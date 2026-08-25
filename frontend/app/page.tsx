@@ -349,11 +349,12 @@ export default function ResearchWorkspace() {
         backendConnected={backendConnected}
       />
 
-      <div className="flex flex-col flex-1 min-w-0 relative">
+      <main className="flex flex-col flex-1 min-w-0 relative">
       {/* Sidebar toggle (visible when sidebar is closed) */}
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
+          aria-label="Verlauf öffnen"
           className="absolute top-3 left-3 z-10 p-2 rounded-lg transition"
           style={{ background: 'hsl(var(--card) / 0.8)', color: 'hsl(var(--foreground) / 0.7)' }}
           title="Verlauf öffnen"
@@ -372,7 +373,7 @@ export default function ResearchWorkspace() {
                   className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center p-0 overflow-visible"
                   style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.8) 100%)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)' }}
                 >
-                  <Image src="/abundance-mark.svg" alt="Abundance Logo" width={80} height={80} className="w-[180%] h-[180%]" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
+                  <Image src="/abundance-mark.svg" alt="" width={144} height={144} loading="eager" style={{ width: '180%', height: '180%', maxWidth: 'none', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }} />
                 </div>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold abundance-title">Abundance</h2>
                 <p className="text-base md:text-lg" style={{ color: 'hsl(var(--foreground) / 0.7)' }}>
@@ -421,7 +422,7 @@ export default function ResearchWorkspace() {
 
       {/* Input Area */}
       <InquiryComposer onSubmit={handleSendMessage} isStreaming={isStreaming} />
-      </div>
+      </main>
     </div>
   )
 }
