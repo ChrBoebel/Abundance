@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from abundance_research.domain import Claim, Confidence, EvidenceRecord, ResearchReport
 
@@ -74,6 +75,33 @@ def render_report(report: ResearchReport) -> str:
 def finalize_report(report: ResearchReport) -> ResearchReport:
     """Attach deterministic Markdown to an otherwise structured report."""
     return report.model_copy(update={"markdown": render_report(report)})
+
+
+def public_report_payload(report: ResearchReport) -> dict[str, Any]:
+    """Project a report for clients without raw excerpts or provider metadata."""
+    return {
+        "inquiry_id": report.inquiry_id,
+        "title": report.title,
+        "summary": report.summary,
+        "confidence": report.confidence.value,
+        "claims": [claim.model_dump(mode="json") for claim in report.claims],
+        "evidence": [
+            {
+                "id": record.id,
+                "title": record.title,
+                "url": record.url,
+                "relation": record.relation.value,
+                "source_kind": record.assessment.source_kind.value,
+                "is_primary": record.assessment.is_primary,
+                "published_at": (
+                    record.published_at.isoformat() if record.published_at else None
+                ),
+            }
+            for record in report.evidence
+        ],
+        "open_questions": [item.model_dump(mode="json") for item in report.open_questions],
+        "completed_at": report.completed_at.isoformat(),
+    }
 
 
 def enforce_report_contract(

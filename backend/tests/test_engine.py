@@ -105,6 +105,7 @@ async def test_engine_emits_domain_events_and_enforces_evidence_boundary() -> No
     report = completed.data["report"]
     assert report["inquiry_id"] != "wrong-inquiry"
     assert [item["id"] for item in report["evidence"]] != ["ev-invented"]
+    assert all("excerpt" not in item for item in report["evidence"])
     assert report["claims"][0]["evidence_ids"] == [report["evidence"][0]["id"]]
     assert "<script>" not in completed.data["content"]
     assert completed.data["evaluation"]["broken_evidence_links"] == 0
@@ -133,3 +134,42 @@ async def test_engine_never_streams_private_provider_errors() -> None:
     assert "private provider details" not in payload
     assert events[-1].data["code"] == "provider_unavailable"
     assert events[-1].data["correlation_id"] == "run-test"
+
+
+class MixedSafetyEvidenceSource:
+    name = "mixed-source"
+
+    async def search(self, unit: ResearchUnit, *, max_results: int) -> list[EvidenceRecord]:
+        return [
+            EvidenceRecord(
+                id=f"ev-safe-{unit.id}",
+                title="Safe source",
+                url=f"https://example.org/{unit.id}?utm_campaign=private",
+                excerpt="Safe evidence",
+                research_unit_id=unit.id,
+            ),
+            EvidenceRecord(
+                id=f"ev-unsafe-{unit.id}",
+                title="Unsafe source",
+                url="javascript:alert(document.domain)",
+                excerpt="Untrusted evidence",
+                research_unit_id=unit.id,
+            ),
+        ][:max_results]
+
+
+@pytest.mark.asyncio
+async def test_engine_streams_only_policy_admitted_evidence() -> None:
+    engine = AbundanceResearchEngine(
+        FakePlanner(),
+        [MixedSafetyEvidenceSource()],
+        InventingSynthesizer(),
+    )
+
+    events = [event async for event in engine.stream(command(ResearchMode.QUICK))]
+    discovered = [event for event in events if event.type == "evidence.discovered"]
+
+    assert discovered
+    assert all(event.data["evidence"]["url"].startswith("https://") for event in discovered)
+    assert all("utm_campaign" not in event.data["evidence"]["url"] for event in discovered)
+    assert "javascript:" not in "".join(event.model_dump_json() for event in events)

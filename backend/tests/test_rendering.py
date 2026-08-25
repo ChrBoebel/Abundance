@@ -1,4 +1,7 @@
-from abundance_research.application.rendering import finalize_report
+from abundance_research.application.rendering import (
+    finalize_report,
+    public_report_payload,
+)
 from abundance_research.domain import (
     Claim,
     Confidence,
@@ -61,3 +64,26 @@ def test_report_renderer_never_uses_model_supplied_markdown() -> None:
 
     assert "<script>" not in rendered.markdown
     assert rendered.markdown.startswith("# Safe report")
+
+
+def test_public_report_omits_raw_evidence_content_and_metadata() -> None:
+    report = ResearchReport(
+        inquiry_id="inq-1",
+        title="Public report",
+        summary="Summary",
+        evidence=[
+            EvidenceRecord(
+                id="ev-private",
+                title="Visible title",
+                url="https://example.org/source",
+                excerpt="Large untrusted provider excerpt",
+                metadata={"provider_response": "must stay internal"},
+            )
+        ],
+    )
+
+    payload = public_report_payload(report)
+
+    assert payload["evidence"][0]["title"] == "Visible title"
+    assert "excerpt" not in payload["evidence"][0]
+    assert "metadata" not in payload["evidence"][0]

@@ -18,6 +18,7 @@ from abundance_research.application.policy import ResearchCapabilityPolicy
 from abundance_research.application.rendering import (
     enforce_report_contract,
     finalize_report,
+    public_report_payload,
 )
 from abundance_research.domain import EvidenceRecord, ResearchUnit
 from abundance_research.evaluation import evaluate_report
@@ -118,25 +119,6 @@ class AbundanceResearchEngine:
                     )
                 for record in result.evidence:
                     collected.append(record)
-                    yield ResearchEvent(
-                        type="evidence.discovered",
-                        stage=ResearchStage.EVIDENCE,
-                        message="Evidenz aufgenommen",
-                        data={
-                            **run_data,
-                            "evidence": {
-                                "id": record.id,
-                                "title": record.title,
-                                "url": record.url,
-                                "relation": record.relation.value,
-                                "source_kind": record.assessment.source_kind.value,
-                                "is_primary": record.assessment.is_primary,
-                                "published_at": (
-                                    record.published_at.isoformat() if record.published_at else None
-                                ),
-                            },
-                        },
-                    )
 
             evidence = policy.admit_evidence(collected)
             if not evidence:
@@ -144,6 +126,27 @@ class AbundanceResearchEngine:
                     FailureCode.PROVIDER_UNAVAILABLE,
                     "Es konnte keine belastbare Evidenz aufgenommen werden.",
                     retryable=True,
+                )
+
+            for record in evidence:
+                yield ResearchEvent(
+                    type="evidence.discovered",
+                    stage=ResearchStage.EVIDENCE,
+                    message="Evidenz aufgenommen",
+                    data={
+                        **run_data,
+                        "evidence": {
+                            "id": record.id,
+                            "title": record.title,
+                            "url": record.url,
+                            "relation": record.relation.value,
+                            "source_kind": record.assessment.source_kind.value,
+                            "is_primary": record.assessment.is_primary,
+                            "published_at": (
+                                record.published_at.isoformat() if record.published_at else None
+                            ),
+                        },
+                    },
                 )
 
             yield ResearchEvent(
@@ -179,7 +182,7 @@ class AbundanceResearchEngine:
                 data={
                     **run_data,
                     "content": report.markdown,
-                    "report": report.model_dump(mode="json", exclude={"markdown"}),
+                    "report": public_report_payload(report),
                     "evaluation": evaluation.model_dump(mode="json"),
                 },
             )
