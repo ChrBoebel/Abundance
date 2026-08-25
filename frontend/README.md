@@ -6,6 +6,8 @@ stream.
 
 ## Setup
 
+Requires Node.js 20.9 or newer.
+
 ```bash
 cp .env.example .env
 npm install
