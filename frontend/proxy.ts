@@ -5,23 +5,54 @@ import { getIronSession } from 'iron-session'
 import type { SessionData } from './lib/types'
 import { getSessionOptions } from './lib/session'
 
-export async function proxy(request: NextRequest) {
-  const response = NextResponse.next()
+function buildContentSecurityPolicy(nonce: string): string {
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ''}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(isDevelopment ? [] : ['upgrade-insecure-requests']),
+  ].join('; ')
+}
 
-  const publicPaths = ['/login', '/api/auth/login', '/api/health']
-  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path))
+function secureResponse(response: NextResponse, policy: string): NextResponse {
+  response.headers.set('Content-Security-Policy', policy)
+  return response
+}
+
+export async function proxy(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const policy = buildContentSecurityPolicy(nonce)
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', policy)
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  })
+
+  const publicPaths = new Set(['/login', '/api/auth/login', '/api/health'])
+  const isPublicPath = publicPaths.has(request.nextUrl.pathname)
 
   if (isPublicPath) {
-    return response
+    return secureResponse(response, policy)
   }
 
   const session = await getIronSession<SessionData>(request, response, getSessionOptions())
 
   if (!session.authenticated) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return secureResponse(NextResponse.redirect(new URL('/login', request.url)), policy)
   }
 
-  return response
+  return secureResponse(response, policy)
 }
 
 export const config = {
