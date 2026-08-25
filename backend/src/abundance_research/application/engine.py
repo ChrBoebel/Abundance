@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -46,7 +46,7 @@ class AbundanceResearchEngine:
             checkpointer=checkpointer,
         )
 
-    async def stream(self, command: ResearchCommand) -> AsyncIterator[ResearchEvent]:
+    async def stream(self, command: ResearchCommand) -> AsyncGenerator[ResearchEvent, None]:
         """Execute one graph run and translate only custom product events."""
         policy = ResearchCapabilityPolicy(command.mode)
         initial_state: ResearchGraphState = {

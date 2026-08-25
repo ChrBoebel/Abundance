@@ -86,11 +86,11 @@ async def stream_research_run(
     await asyncio.sleep(0)
 
     event_stream = engine.stream(command)
-    pending_event: asyncio.Task[ResearchEvent] | None = None
+    pending_event: asyncio.Future[ResearchEvent] | None = None
     try:
         while True:
             if pending_event is None:
-                pending_event = asyncio.create_task(anext(event_stream))
+                pending_event = asyncio.ensure_future(anext(event_stream))
             done, _ = await asyncio.wait({pending_event}, timeout=15)
             if await request.is_disconnected():
                 return

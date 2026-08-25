@@ -1,10 +1,17 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
       - main
   pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   frontend:
@@ -27,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm test
+
       - name: Lint
         run: npm run lint
 
@@ -35,6 +45,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
   backend:
     name: Backend
@@ -52,7 +65,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install package and development dependencies
-        run: pip install -e ".[dev]"
+        run: python -m pip install -e ".[dev]"
 
       - name: Lint Python sources
         run: python -m ruff check backend_server.py src tests
@@ -60,5 +73,11 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall backend_server.py src
 
+      - name: Typecheck Python sources
+        run: python -m mypy src backend_server.py
+
       - name: Run backend tests
         run: python -m pytest -q
+
+      - name: Audit Python dependencies
+        run: python -m pip_audit
