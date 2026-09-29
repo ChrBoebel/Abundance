@@ -227,6 +227,13 @@ product event protocol, evidence policy, security boundary, and web workspace.
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the source baseline and
 copyright notice.
 
+## Feedback
+
+Tried a research run? Share the workflow, your version and what worked or got
+in the way using the [feedback form](https://github.com/ChrBoebel/Abundance/issues/new?template=feedback.yml).
+A short note is enough. Feedback is voluntary and public; omit private inquiries,
+provider credentials and confidential report contents.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
